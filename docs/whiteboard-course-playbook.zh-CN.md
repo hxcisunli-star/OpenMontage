@@ -380,7 +380,7 @@
 | assets | 配音样片 → 定妆图 → 批量配音/插图 | 是 | 样片文件、图片、费用估价、未验证项 |
 | edit | 锚定时间、逐帧看版面、30 秒样片 | 否 | 样片 |
 | compose | 整片渲染 + 独立核对 | 否 | 成片与核对结果 |
-| publish | 缩略图、字幕、章节、简介，本地打包 | 是 | 导出包、待确认项 |
+| publish | 缩略图、**封面（成片开头加约 2 秒封面）**、字幕、章节、简介，本地打包 | 是 | 导出包、待确认项 |
 
 **每个门的做法**
 
@@ -484,6 +484,18 @@ for t in 6 30 60 100; do ffmpeg -v error -y -ss $t -i final.mp4 -frames:v 1 revi
 - **特殊字形**：板上有 0、大写字母、`'\0'` 的课，抽帧确认显示的是等宽数字 0 / 等宽大写 / 等宽 `'\0'`，不是方块，也不是像字母 o 的 `〇`。
 - **抽帧用拼图**：第 4 课渲染前后各出 10 张关键帧，成片抽 15 帧拼成一张缩略拼图一眼看完 logo、字幕、字形；缩略图看不清的细节要在报告里写明“没有逐帧放大检查”。
 - **缩略图**：先看图再导出，取帧点要在动画画完之后。
+- **封面（第 7 课起每课必做，前六课已补）**：统一 16:9 版式，由 `docs/whiteboard_cover_maker.py` 生成——学校 logo（垫深蓝底，否则白字看不见）、红色“第 N 课”序号标签、手写体大标题 + 红线、一行悬念问句、等宽代码小卡片、右侧医生、右上角“C语言白板课”。新课只需在脚本 `LESSONS` 里加一行 `(项目目录, 序号, 标题, 悬念问句, 代码片段)` 再运行；英文、数字、符号一律走等宽字体（手写体会画成方块）。输出 `exports/thumbnails/cover.png`（1920×1080）和 `cover_1280x720.jpg`，并把序号写进 `exports/metadata/metadata.json` 的 `lesson_number`、`cover_path`；总览图 `projects/_covers/contact_sheet.png`，按序号命名的副本 `projects/_covers/cover_NN_<名>.png`。封面与 `thumbnail.png`（成片截帧）并存，不互相覆盖。出图后先看总览图，再放大看 logo 与标题。**嵌入视频**：`ffmpeg -i output.mp4 -i cover_1280x720.jpg -map 0:v -map 0:a -map 1 -c copy -disposition:v:1 attached_pic -movflags +faststart 新文件.mp4`，不重编码、时长与字幕时间不变；用 `-map 0:v:0 -c copy -f md5 -` 对比成片与新文件的视频流和音频流 md5，一致再替换 `exports/video/output.mp4`（`renders/final.mp4` 保持原样，二者字节不再相同）。
+
+**片头封面规则（第 7 课起，用户要求：每课成片开头都有约 2 秒封面）**
+
+- 做法：不重新渲染。成片渲染、核对通过后，在发布阶段运行 `.venv/bin/python docs/whiteboard_prepend_cover.py projects/<课> --seconds 2`：把封面做成 2 秒静帧 + 静音的小片段，编码参数与 Remotion 成片一致（h264 High、`yuvj420p`、30 fps、aac 48 kHz 立体声），再用 concat 拼在成片前面（`-c copy`），同时把封面图作为附加图片流嵌入（取代上一条的单独“嵌入视频”命令）。
+- 脚本一并处理：`subtitles.srt` 整体后移封面时长；章节整体后移，但**第一个章节保持 0:00**（平台要求章节从 0:00 开始）；`metadata.json` 写入 `cover_seconds`，并保存 `chapters_original`，让脚本可重复运行而不叠加偏移；最后自动核对。
+- 原始成片 `renders/final.mp4`、`assets/subtitles.srt` 永远不改；`exports/video/output.mp4` 是“带封面版”，与 `final.mp4` 字节不同。核对口径：封面之后第 0.5 秒的画面与 `final.mp4` 第 0.5 秒逐像素相同（实测差 0.000），时长多约 2 秒，整片能完整解码。
+- 实测（第 6 课，只在临时目录里做，没有改正式文件）：390.251 → 392.272 秒（多 2.021 秒，多出的 0.02 秒是 aac 补的静音）；封面帧与 `cover.png` 平均差约 0.9（色彩空间转换所致，肉眼不可见）；脚本连跑两次结果一致；用音频互相关粗测，拼接后旁白相对画面约晚 27 毫秒，低于可察觉的程度，没有再修。
+- 像素格式必须是 `yuvj420p`（Remotion 成片就是全范围）；用普通 `yuv420p` 做封面小片段会造成拼接处偏色或 concat 失败。
+- 没有在播放器里目测过拼接处的衔接，只做了数值核对。
+- 前六课（已发布）只嵌了附加图片流，**没有**加 2 秒片头，用户说的是“以后”；如要补，对每课运行同一脚本即可。
+- 成片的旁白时间线、场景锚点都不用改：封面是渲染之后才加的。审阅页、发布说明里引用时间点时，一律用后移后的时间。
 - **必须写明做不到的**：没有语音识别转写核对；字幕时间是估计。
 - **工具自检不能直接采信**：`video_compose` 的自带 `final_review` 曾错报，应自己核对后写入 `final_review.json`。
 
@@ -610,7 +622,7 @@ for t in 6 30 60 100; do ffmpeg -v error -y -ss $t -i final.mp4 -frames:v 1 revi
 | `assets/images/` 与 `assets/images/raw/` | 抠底后的透明插图与原图（含 `_v1` 失败图） |
 | `render_props.json` | 交给 Remotion 的完整渲染参数 |
 | `renders/final.mp4`、`renders/review_frames/` | 成片与抽帧 |
-| `exports/` | 发布包（视频、字幕、缩略图、元数据） |
+| `exports/` | 发布包（视频、字幕、缩略图 `thumbnail.png`、封面 `cover.png` 与 `cover_1280x720.jpg`、元数据） |
 | `code/*.c`（传参课、数组传参课） | 真实运行的示例程序 |
 | `artifacts/*.v1.json`、`script-review.v1.html`（数组传参课） | 改稿前的上一版备份 |
 | `validation/*-checks.json`（数组传参课） | 各阶段的校验记录 |

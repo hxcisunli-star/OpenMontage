@@ -29,7 +29,7 @@
 | 5 | scanf 与 &（读整数要 &，读字符串不用） | `projects/c-scanf-address-cn` | 327.15 秒 | 发布已通过 |
 | 6 | 结构体传参（整张卡复印） | `projects/c-struct-parameters-cn` | 390.25 秒 | 发布已通过 |
 
-每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png`、`metadata/*`），已逐字节核对与 `renders/final.mp4` 相同。
+每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png`（统一封面）、`metadata/*`），`output.mp4` 内嵌了封面图（附加图片流，ffmpeg `-c copy` 只重新封装）；视频流、音频流经 md5 核对与 `renders/final.mp4` 完全相同，整个文件字节不再相同，原始成片仍在 `renders/final.mp4`。
 
 ---
 
@@ -93,7 +93,7 @@
 6. **素材**：先复制 `gen_tts.py`、`make_captions.py`、`sample_voice.py`、`finish_assets.py`（`sed 's/旧PID/新PID/g'`）；先跑 `sample_voice.py`（样音，含最难一句），**等“样音通过”**，再跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py`（字幕估计时间）→ `finish_assets.py`（素材清单与检查点；改段 id、问句段名、费用字典）。**停下等“素材通过”**。
 7. **剪辑**：`build_edit.py` = `_build_head.py` + `_body_helpers.py` + `_body_boards.py` + `_build_tail.py`（`cat` 拼接；**改源文件，不要改拼接产物**）。写完先 `render_stills.py <秒…>` 渲染关键帧，用 `ffmpeg xstack` 拼 2×2 大图用 Read 逐张看，修版面，再 `render_sample.py <名> <起点> 30` 出 30 秒样片，写 `edit` 检查点，**等“样片通过，开始合成”**。
 8. **合成**：`nohup .venv/bin/python projects/<课>/scripts/render_final.py > $CLAUDE_JOB_DIR/tmp/final.log 2>&1 &`，后台等**真实进程**；完成后自己核对：`ffprobe`（分辨率/帧率/编码/时长）、`ebur128`（≈−16 LUFS）、`silencedetect=n=-40dB:d=1.2`（只应有两处问答停顿 + 结尾收尾静音，位置对 `narration_timeline.json` 的 `answer_not_before`）、`blackdetect`、抽 15 帧拼图看；写 `render_report.json`、`final_review.json` 和 `compose` 检查点。**等“成片通过，进入发布阶段”**。
-9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`，写 `publish` awaiting_human）。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档并本地提交。
+9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ 封面（`docs/whiteboard_cover_maker.py`，在 `LESSONS` 加一行再运行，带“第 N 课”序号）→ **成片开头加 2 秒封面**（`docs/whiteboard_prepend_cover.py projects/<课>`，第 7 课起必做，不重渲染；字幕、章节自动后移，详见做课手册“片头封面规则”）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`，写 `publish` awaiting_human）。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档并本地提交。
 
 **脚本文件作用速查**（第 6 课 `scripts/` 目录）
 
