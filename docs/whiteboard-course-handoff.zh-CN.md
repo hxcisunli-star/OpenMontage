@@ -18,7 +18,7 @@
 
 ## 1. 一句话现状
 
-用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**7 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定（第 7 课指针初步已发布）。
+用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**8 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定（第 8 课指针与数组已发布）。
 
 | # | 课程 | 项目目录 | 成片时长 | 状态 |
 |---|---|---|---|---|
@@ -29,8 +29,9 @@
 | 5 | scanf 与 &（读整数要 &，读字符串不用） | `projects/c-scanf-address-cn` | 327.15 秒 | 发布已通过 |
 | 6 | 结构体传参（整张卡复印） | `projects/c-struct-parameters-cn` | 390.25 秒 | 发布已通过 |
 | 7 | 指针初步（地址纸条是个变量，两个星号两个意思） | `projects/c-pointer-basics-cn` | 400.43 秒（加 2 秒片头后 402.45 秒） | 发布已通过 |
+| 8 | 指针与数组（数组名是地址，函数数不出长度） | `projects/c-pointer-array-cn` | 397.31 秒（加 2 秒片头后 399.33 秒） | 发布已通过 |
 
-每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。7 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
+每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。8 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
 
 ---
 
@@ -160,9 +161,9 @@
 | 候选 | 说明 | 风险 |
 |---|---|---|
 | **scanf 返回值与输入检查**（第 5 课提案里的备选 c2） | 返回值 1/0/EOF，输入不合法时变量保持原样 | 要讲缓冲区与失败输入，需严格限定范围 |
-| **二维数组传参** | 数组的数组、行与列 | 参数写法 `int a[][3]`、行指针；第 7 课已有指针初步，可只讲“按行传” |
+| **二维数组传参** | 数组的数组、行与列 | 参数写法 `int a[][3]`、行指针；第 7、8 课已有指针初步与指针和数组，可只讲“按行传” |
 | 结构体延伸：`typedef` / 结构体数组 / 返回结构体 | 第 6 课范围外 | 容易发散 |
-| 指针与数组（`a[i]` 与 `*(a+i)`，二维数组按行传的前提） | 第 7 课已讲指针变量与 `*p`，可以接着讲 | 容易发散到指针运算，先限定范围 |
+| 字符串与 `char *`（字符串字面量、`'\0'` 与指针） | 第 4、7、8 课已铺垫，可以接着讲 | 容易发散到字符串函数与只读内存，先限定范围 |
 
 **未决/待办**
 - 无进行中的课程；下一课选题待用户确认。
