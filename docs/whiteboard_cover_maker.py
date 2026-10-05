@@ -5,6 +5,7 @@ Latin letters / digits / symbols always use a mono font (ZCOOL draws 0, o, c and
 capitals as squares, see playbook 2.6).
 """
 import random
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
@@ -27,6 +28,7 @@ LESSONS = [
     ("c-strings-cn", 4, "字符串", "字符串为什么不用另外传长度？", "'h' 'i' '\\0'"),
     ("c-scanf-address-cn", 5, "scanf 与 &", "读整数要加 &，读字符串却不用？", 'scanf("%d", &n);'),
     ("c-struct-parameters-cn", 6, "结构体传参", "传整张卡，函数改了也白改？", "birthday_value(card);"),
+    ("c-pointer-basics-cn", 7, "指针初步", "地址纸条原来是个变量，星号什么意思？", "int *p = &age;"),
 ]
 
 
@@ -131,19 +133,35 @@ def make(proj, no, title, sub, code):
     img.paste(doc, (W - 90 - doc.width - 60, H - 70 - dh), doc)
 
     out = ROOT / proj / "exports/thumbnails/cover.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
     img.save(out)
+    img.resize((1280, 720), Image.LANCZOS).save(out.parent / "cover_1280x720.jpg", quality=92)
+    mp = ROOT / proj / "exports/metadata/metadata.json"
+    if mp.exists():  # lesson number and cover paths go into the publish metadata
+        import json
+        m = json.loads(mp.read_text(encoding="utf-8"))
+        m.update(lesson_number=no, cover_path="exports/thumbnails/cover.png", cover_path_1280x720="exports/thumbnails/cover_1280x720.jpg")
+        mp.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
     return out, img
 
 
 def main():
+    """No argument: rebuild every lesson and the contact sheet. With lesson numbers (e.g. `... 7`): only those lessons."""
+    only = {int(a) for a in sys.argv[1:]}
     imgs = []
     for row in LESSONS:
+        if only and row[1] not in only:
+            continue
         out, img = make(*row)
         print("wrote", out)
         imgs.append(img.resize((960, 540), Image.LANCZOS))
-    sheet = Image.new("RGB", (960 * 2, 540 * 3), (255, 255, 255))
+    if only:
+        return
+    rows = (len(imgs) + 1) // 2
+    sheet = Image.new("RGB", (960 * 2, 540 * rows), (255, 255, 255))
     for i, im in enumerate(imgs):
         sheet.paste(im, ((i % 2) * 960, (i // 2) * 540))
+    (ROOT / "_covers").mkdir(exist_ok=True)
     sheet.save(ROOT / "_covers/contact_sheet.png")
 
 

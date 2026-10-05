@@ -18,7 +18,7 @@
 
 ## 1. 一句话现状
 
-用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**6 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定。
+用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**7 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定（第 7 课指针初步已发布）。
 
 | # | 课程 | 项目目录 | 成片时长 | 状态 |
 |---|---|---|---|---|
@@ -28,8 +28,9 @@
 | 4 | 字符串（终点牌 `'\0'`） | `projects/c-strings-cn` | 356.42 秒 | 发布已通过 |
 | 5 | scanf 与 &（读整数要 &，读字符串不用） | `projects/c-scanf-address-cn` | 327.15 秒 | 发布已通过 |
 | 6 | 结构体传参（整张卡复印） | `projects/c-struct-parameters-cn` | 390.25 秒 | 发布已通过 |
+| 7 | 指针初步（地址纸条是个变量，两个星号两个意思） | `projects/c-pointer-basics-cn` | 400.43 秒（加 2 秒片头后 402.45 秒） | 发布已通过 |
 
-每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png`（统一封面）、`metadata/*`），`output.mp4` 内嵌了封面图（附加图片流，ffmpeg `-c copy` 只重新封装）；视频流、音频流经 md5 核对与 `renders/final.mp4` 完全相同，整个文件字节不再相同，原始成片仍在 `renders/final.mp4`。
+每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。7 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
 
 ---
 
@@ -93,7 +94,7 @@
 6. **素材**：先复制 `gen_tts.py`、`make_captions.py`、`sample_voice.py`、`finish_assets.py`（`sed 's/旧PID/新PID/g'`）；先跑 `sample_voice.py`（样音，含最难一句），**等“样音通过”**，再跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py`（字幕估计时间）→ `finish_assets.py`（素材清单与检查点；改段 id、问句段名、费用字典）。**停下等“素材通过”**。
 7. **剪辑**：`build_edit.py` = `_build_head.py` + `_body_helpers.py` + `_body_boards.py` + `_build_tail.py`（`cat` 拼接；**改源文件，不要改拼接产物**）。写完先 `render_stills.py <秒…>` 渲染关键帧，用 `ffmpeg xstack` 拼 2×2 大图用 Read 逐张看，修版面，再 `render_sample.py <名> <起点> 30` 出 30 秒样片，写 `edit` 检查点，**等“样片通过，开始合成”**。
 8. **合成**：`nohup .venv/bin/python projects/<课>/scripts/render_final.py > $CLAUDE_JOB_DIR/tmp/final.log 2>&1 &`，后台等**真实进程**；完成后自己核对：`ffprobe`（分辨率/帧率/编码/时长）、`ebur128`（≈−16 LUFS）、`silencedetect=n=-40dB:d=1.2`（只应有两处问答停顿 + 结尾收尾静音，位置对 `narration_timeline.json` 的 `answer_not_before`）、`blackdetect`、抽 15 帧拼图看；写 `render_report.json`、`final_review.json` 和 `compose` 检查点。**等“成片通过，进入发布阶段”**。
-9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ 封面（`docs/whiteboard_cover_maker.py`，在 `LESSONS` 加一行再运行，带“第 N 课”序号）→ **成片开头加 2 秒封面**（`docs/whiteboard_prepend_cover.py projects/<课>`，第 7 课起必做，不重渲染；字幕、章节自动后移，详见做课手册“片头封面规则”）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`，写 `publish` awaiting_human）。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档并本地提交。
+9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`）→ 封面（`docs/whiteboard_cover_maker.py` 在 `LESSONS` 加一行，再运行 `... 7` 这样只出该课；带“第 N 课”序号）→ **成片开头加 2 秒封面**（`docs/whiteboard_prepend_cover.py projects/<课>`，第 7 课起必做，不重渲染，详见做课手册“片头封面规则”）→ `docs/whiteboard_release_pack.py` 重建成品文件夹和 zip → 写 `publish` awaiting_human。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档；提交与推送等用户说“提交”“推送到 fork”再做。
 
 **脚本文件作用速查**（第 6 课 `scripts/` 目录）
 
@@ -146,7 +147,7 @@
 | 用户记忆 | `/root/.claude/projects/-home-MyProject-OpenMontage/memory/`（`MEMORY.md` 索引） |
 | 每课审阅页 | `projects/<课>/script-review.html`、`scene-plan-review.html` |
 | 每课关键产物 | `projects/<课>/artifacts/{research_brief,proposal_packet,script,scene_plan,asset_manifest,edit_decisions,render_report,final_review}.json`、`checkpoint_*.json`、`decision_log.json` |
-| 每课成品 | `projects/<课>/exports/` |
+| 每课成品 | `projects/<课>/exports/`；统一成品文件夹 `projects/C语言白板课_成品/` |
 | 本地生图工具 | `tools/graphics/qwen_local_image.py`（说明见 playbook 2.8） |
 | 中文使用指南与能力页 | 提交 `3ddfe33` 加入的文档 |
 
@@ -159,9 +160,9 @@
 | 候选 | 说明 | 风险 |
 |---|---|---|
 | **scanf 返回值与输入检查**（第 5 课提案里的备选 c2） | 返回值 1/0/EOF，输入不合法时变量保持原样 | 要讲缓冲区与失败输入，需严格限定范围 |
-| **二维数组传参** | 数组的数组、行与列 | 参数写法 `int a[][3]`、行指针对没学指针的学生门槛高；建议先放一课“指针初步”或只讲“按行传” |
+| **二维数组传参** | 数组的数组、行与列 | 参数写法 `int a[][3]`、行指针；第 7 课已有指针初步，可只讲“按行传” |
 | 结构体延伸：`typedef` / 结构体数组 / 返回结构体 | 第 6 课范围外 | 容易发散 |
-| 指针初步（`int *p`、`*p`） | 前六课一直刻意避开 | 与“只讲值传递/地址传递”的术语约束要协调 |
+| 指针与数组（`a[i]` 与 `*(a+i)`，二维数组按行传的前提） | 第 7 课已讲指针变量与 `*p`，可以接着讲 | 容易发散到指针运算，先限定范围 |
 
 **未决/待办**
 - 无进行中的课程；下一课选题待用户确认。
