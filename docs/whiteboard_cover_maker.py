@@ -31,6 +31,7 @@ LESSONS = [
     ("c-pointer-basics-cn", 7, "指针初步", "地址纸条原来是个变量，星号什么意思？", "int *p = &age;"),
     ("c-pointer-array-cn", 8, "指针与数组", "数组名为什么是地址？函数为什么数不出？", "a[i] == *(a + i)"),
     ("c-function-return-cn", 9, "函数返回值", "为什么不能把局部变量的地址交出来？", "return &local;"),
+    ("c-two-dim-array-cn", 10, "二维数组传参", "为什么列数不能省？", "int a[][3]"),
 ]
 
 
@@ -102,7 +103,8 @@ def make(proj, no, title, sub, code):
 
     # lesson badge
     bx, by = 110, 250
-    d.rounded_rectangle((bx, by, bx + 270, by + 112), 28, fill=RED)
+    bw = max(270, int(width_mixed(d, f"第{no}课", 80)) + 72)   # two-digit lesson numbers need a wider badge
+    d.rounded_rectangle((bx, by, bx + bw, by + 112), 28, fill=RED)
     draw_mixed(d, (bx + 36, by + 12), f"第{no}课", 80, (255, 255, 255))
 
     # title (shrink to fit left area)

@@ -18,7 +18,7 @@
 
 ## 1. 一句话现状
 
-用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**9 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定（第 9 课函数返回值已发布）。
+用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**10 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定（第 10 课二维数组传参已发布）。
 
 | # | 课程 | 项目目录 | 成片时长 | 状态 |
 |---|---|---|---|---|
@@ -31,8 +31,9 @@
 | 7 | 指针初步（地址纸条是个变量，两个星号两个意思） | `projects/c-pointer-basics-cn` | 400.43 秒（加 2 秒片头后 402.45 秒） | 发布已通过 |
 | 8 | 指针与数组（数组名是地址，函数数不出长度） | `projects/c-pointer-array-cn` | 397.31 秒（加 2 秒片头后 399.33 秒） | 发布已通过 |
 | 9 | 函数返回值（带回来的是抄来的，不能交回局部地址） | `projects/c-function-return-cn` | 394.26 秒（加 2 秒片头后 396.28 秒） | 发布已通过 |
+| 10 | 二维数组传参（列数为什么不能省） | `projects/c-two-dim-array-cn` | 389.61 秒（加 2 秒片头后 391.63 秒） | 发布已通过 |
 
-每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。9 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
+每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。10 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
 
 ---
 
@@ -162,7 +163,6 @@
 | 候选 | 说明 | 风险 |
 |---|---|---|
 | **scanf 返回值与输入检查**（第 5 课提案里的备选 c2） | 返回值 1/0/EOF，输入不合法时变量保持原样 | 要讲缓冲区与失败输入，需严格限定范围 |
-| **二维数组传参** | 数组的数组、行与列 | 参数写法 `int a[][3]`、行指针；第 7、8 课已有指针初步与指针和数组，可只讲“按行传” |
 | 结构体延伸：`typedef` / 结构体数组 / 返回结构体 | 第 6 课范围外 | 容易发散 |
 | 字符串与 `char *`（复审后降级） | 与第 4、8 课重复多；核心结论“不能改字符串字面量”是未定义行为，无法用真实输出支撑 | 若要做，先想清楚如何不依赖未定义行为讲 |
 
