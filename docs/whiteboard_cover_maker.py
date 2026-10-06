@@ -33,6 +33,7 @@ LESSONS = [
     ("c-function-return-cn", 9, "函数返回值", "为什么不能把局部变量的地址交出来？", "return &local;"),
     ("c-two-dim-array-cn", 10, "二维数组传参", "为什么列数不能省？", "int a[][3]"),
     ("c-dynamic-memory-cn", 11, "动态内存分配", "函数结束了，申请的病房为什么还在？", "malloc(3 * sizeof(int))"),
+    ("c-linked-list-intro-cn", 12, "链表初识", "数组要挪，病历卡为什么不用挪？", "head → 9 → 1 → 2 → 3"),
 ]
 
 
