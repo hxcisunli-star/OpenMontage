@@ -30,6 +30,7 @@ LESSONS = [
     ("c-struct-parameters-cn", 6, "结构体传参", "传整张卡，函数改了也白改？", "birthday_value(card);"),
     ("c-pointer-basics-cn", 7, "指针初步", "地址纸条原来是个变量，星号什么意思？", "int *p = &age;"),
     ("c-pointer-array-cn", 8, "指针与数组", "数组名为什么是地址？函数为什么数不出？", "a[i] == *(a + i)"),
+    ("c-function-return-cn", 9, "函数返回值", "为什么不能把局部变量的地址交出来？", "return &local;"),
 ]
 
 
