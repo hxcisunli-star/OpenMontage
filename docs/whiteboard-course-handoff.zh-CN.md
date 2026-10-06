@@ -1,6 +1,6 @@
-# 白板课程项目交接文档（C 语言系列，已做完 6 课）
+# 白板课程项目交接文档（C 语言系列，已做完 11 课）
 
-> 目的：新开一个 Claude Code 会话，读完本文档就能接着做第 7 课，不用重新摸索。
+> 目的：新开一个 Claude Code 会话，读完本文档就能接着做第 12 课，不用重新摸索。
 > 写于 2026-10-03。事实来自本机文件、检查点和提交记录；没测过的地方直接写“未测”。
 > 配套文档：`docs/whiteboard-course-playbook.zh-CN.md`（做课方法与踩坑大全，**必读**）。本文档只讲“现状 + 怎么接着干 + 注意事项”。
 
@@ -18,7 +18,7 @@
 
 ## 1. 一句话现状
 
-用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**10 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课尚未选定（第 10 课二维数组传参已发布）。
+用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**11 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；路线已定：第 12 课链表初识、第 13 课动态链表（第 11 课动态内存分配已发布）。
 
 | # | 课程 | 项目目录 | 成片时长 | 状态 |
 |---|---|---|---|---|
@@ -32,8 +32,9 @@
 | 8 | 指针与数组（数组名是地址，函数数不出长度） | `projects/c-pointer-array-cn` | 397.31 秒（加 2 秒片头后 399.33 秒） | 发布已通过 |
 | 9 | 函数返回值（带回来的是抄来的，不能交回局部地址） | `projects/c-function-return-cn` | 394.26 秒（加 2 秒片头后 396.28 秒） | 发布已通过 |
 | 10 | 二维数组传参（列数为什么不能省） | `projects/c-two-dim-array-cn` | 389.61 秒（加 2 秒片头后 391.63 秒） | 发布已通过 |
+| 11 | 动态内存分配（向医院申请病房，申请—检查—使用—归还） | `projects/c-dynamic-memory-cn` | 383.02 秒（加 2 秒片头后 385.04 秒） | 发布已通过 |
 
-每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。10 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
+每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。11 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`；第 11 课起另有 `_课后练习.txt`）+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
 
 ---
 
@@ -97,7 +98,7 @@
 6. **素材**：先复制 `gen_tts.py`、`make_captions.py`、`sample_voice.py`、`finish_assets.py`（`sed 's/旧PID/新PID/g'`）；先跑 `sample_voice.py`（样音，含最难一句），**等“样音通过”**，再跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py`（字幕估计时间）→ `finish_assets.py`（素材清单与检查点；改段 id、问句段名、费用字典）。**停下等“素材通过”**。
 7. **剪辑**：`build_edit.py` = `_build_head.py` + `_body_helpers.py` + `_body_boards.py` + `_build_tail.py`（`cat` 拼接；**改源文件，不要改拼接产物**）。写完先 `render_stills.py <秒…>` 渲染关键帧，用 `ffmpeg xstack` 拼 2×2 大图用 Read 逐张看，修版面，再 `render_sample.py <名> <起点> 30` 出 30 秒样片，写 `edit` 检查点，**等“样片通过，开始合成”**。
 8. **合成**：`nohup .venv/bin/python projects/<课>/scripts/render_final.py > $CLAUDE_JOB_DIR/tmp/final.log 2>&1 &`，后台等**真实进程**；完成后自己核对：`ffprobe`（分辨率/帧率/编码/时长）、`ebur128`（≈−16 LUFS）、`silencedetect=n=-40dB:d=1.2`（只应有两处问答停顿 + 结尾收尾静音，位置对 `narration_timeline.json` 的 `answer_not_before`）、`blackdetect`、抽 15 帧拼图看；写 `render_report.json`、`final_review.json` 和 `compose` 检查点。**等“成片通过，进入发布阶段”**。
-9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`）→ 封面（`docs/whiteboard_cover_maker.py` 在 `LESSONS` 加一行，再运行 `... 7` 这样只出该课；带“第 N 课”序号）→ **成片开头加 2 秒封面**（`docs/whiteboard_prepend_cover.py projects/<课>`，第 7 课起必做，不重渲染，详见做课手册“片头封面规则”）→ `docs/whiteboard_release_pack.py` 重建成品文件夹和 zip → 写 `publish` awaiting_human。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档；提交与推送等用户说“提交”“推送到 fork”再做。
+9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`）→ 课后练习（第 11 课起：`code/exercises/*.c` 实测，`scripts/make_exercises.py` 生成 `exports/metadata/exercises.txt`，打包脚本会复制）→ 封面（`docs/whiteboard_cover_maker.py` 在 `LESSONS` 加一行，再运行 `... 7` 这样只出该课；带“第 N 课”序号）→ **成片开头加 2 秒封面**（`docs/whiteboard_prepend_cover.py projects/<课>`，第 7 课起必做，不重渲染，详见做课手册“片头封面规则”）→ `docs/whiteboard_release_pack.py` 重建成品文件夹和 zip → 写 `publish` awaiting_human。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档；提交与推送等用户说“提交”“推送到 fork”再做。
 
 **脚本文件作用速查**（第 6 课 `scripts/` 目录）
 
@@ -158,22 +159,25 @@
 
 ## 9. 下一课建议与未决事项
 
-**候选知识点**（用户说“策划下一个知识点”时，给 1 个推荐 + 理由，等确认再建项目；策划阶段在计划模式下写计划文件后 `ExitPlanMode`）：
+**策划下一课的做法**（用户说“策划下一个知识点”时）：先在计划模式下研究，不直接建项目；写计划文件，内容见 playbook 2.16：选题四条标准（前置讲过没有 / 能否从最近一两课长出来 / 新东西只有一两个 / 核心结论能否实测）、难点→学生怎么想→讲法→实测证据表、通俗度目标（平均句长 ≤24、最长 ≤50、旁白无英文字母与数字）；只见摘要的来源要标明，转述要对原文；用户批准计划后才建项目。用户随口提的题目只是想法，可以否定。
 
-| 候选 | 说明 | 风险 |
+**已定路线**（用户 2026-10-05 批准）：
+
+| 课 | 内容 | 回扣 |
 |---|---|---|
-| **scanf 返回值与输入检查**（第 5 课提案里的备选 c2） | 返回值 1/0/EOF，输入不合法时变量保持原样 | 要讲缓冲区与失败输入，需严格限定范围 |
-| 结构体延伸：`typedef` / 结构体数组 / 返回结构体 | 第 6 课范围外 | 容易发散 |
-| 字符串与 `char *`（复审后降级） | 与第 4、8 课重复多；核心结论“不能改字符串字面量”是未定义行为，无法用真实输出支撑 | 若要做，先想清楚如何不依赖未定义行为讲 |
+| 12 链表初识 | 病历卡上多一栏装“下一张卡在哪”的纸条；最后一张写空纸条；顺着纸条走；先用主函数里的普通变量 | 第 6 课病历卡与箭头、第 7 课换纸条不动病房、第 8 课一排病房、第 11 课空纸条 |
+| 13 动态链表 | 函数里申请一张卡、交回新的第一张；逐张归还；先用“交回新头”，不引入两个星号 | 第 11 课申请与归还、第 9 课申请来的病房可以交回 |
+
+其他候选：选择排序放到以后的“结构体数组与排序”（接不上指针线；同分学生先后顺序补上第 1 课的“稳定”）；递归另排；scanf 返回值与输入检查（要讲缓冲区与失败输入，需严格限定范围）；`typedef` 与结构体数组；`char *` 已降级（见 playbook 2.14）。
 
 **未决/待办**
-- 无进行中的课程；下一课选题待用户确认。
+- 无进行中的课程。
+- 第 11 课的课后练习是新做法：是否给前十课补练习，待用户定。
 - playbook 里个别“三门课/四门课”旧表述未改（描述当时事实）。
-- 未做：语音识别核对字幕、动效化故事画面、局部重渲染流程在后几课没再用到（第 1 课有）。
-- 第 5 课脚本偏短，用户按“接受”处理；第 6 课已修正。
+- 未做：语音识别核对字幕、动效化故事画面。
 
 ---
 
 ## 10. 给新会话的建议开场语（可直接贴给用户）
 
-> 我已读完 `AGENT_GUIDE.md`、做课经验文档和交接文档：6 门课都已发布（本地打包）。接着做第 7 课吗？我的推荐是《……》（理由……）。你确认选题后我先建项目、联网调研、实测例子、写提案，然后停在提案门等你批准。
+> 我已读完 `AGENT_GUIDE.md`、做课经验文档和交接文档：11 门课都已发布（本地打包）。接着做第 12 课（链表初识）吗？还是先策划别的？（策划我会先研究衔接、难点讲法和通俗度，你批准计划后才建项目，然后停在提案门等你批准。）
