@@ -18,7 +18,7 @@
 
 ## 1. 一句话现状
 
-用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**15 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课候选见第 9 节（第 15 课按顺序插入已发布）。
+用户是中文 C 语言教师，在做一套“老师边讲边画”的白板风格教学视频，用 OpenMontage（`animated-explainer` 管道 + Remotion + DashScope Cherry 配音）逐课生产。**17 门课全部已发布（本地打包，未上传任何平台）**，没有进行中的课程；下一课按第 9 节的补漏路线做第 18 课“栈”（第 17 课变量的一生已发布）。**第 16 课起渲染流程已改进：分块渲染 + 多进程并行（本机整课 27 分钟，旧法 40+）+ 渲染前检查 + 关键帧总览 + 字体确定性 +（待对方升级后）远程 CPU/GPU 渲染（见第 5 节与 playbook 4.4）。**
 
 | # | 课程 | 项目目录 | 成片时长 | 状态 |
 |---|---|---|---|---|
@@ -37,6 +37,8 @@
 | 13 | 动态链表（函数里申请一张卡并交回、交回新的头纸条、先存下一张再整串归还） | `projects/c-dynamic-list-cn` | 404.54 秒（加 2 秒片头后 406.57 秒） | 发布已通过 |
 | 14 | 删除一张卡（病人出院：停在前一张、先绕过再还、删第一张交回新头） | `projects/c-list-delete-cn` | 397.99 秒（加 2 秒片头后 400.02 秒） | 发布已通过 |
 | 15 | 按顺序插入（新卡该排哪：停在前一张、先连后面再改前面、三种位置） | `projects/c-list-insert-cn` | 396.54 秒（加 2 秒片头后 398.57 秒） | 发布已通过 |
+| 16 | 递归（函数自己叫自己：一层层问一层层答、到头了就停、等它回来再接着做） | `projects/c-recursion-cn` | 376.73 秒（加 2 秒片头后 378.75 秒） | 发布已通过 |
+| 17 | 变量的一生（局部、全局、static：病房看得见多远、能活多久） | `projects/c-variable-life-cn` | 362.67 秒（加 2 秒片头后 364.69 秒） | 发布已通过（本地打包，未上传） |
 
 每个项目的成品在 `exports/`（`video/output.mp4`、`video/subtitles.srt`、`thumbnails/thumbnail.png` + `thumbnails/cover.png` + `cover_1280x720.jpg`、`metadata/*`）。`output.mp4` 是“带 2 秒封面片头”的发布版（`docs/whiteboard_prepend_cover.py` 生成，字幕与章节已后移 2 秒，并嵌入封面图）；原始成片和原始字幕仍是 `renders/final.mp4`、`assets/subtitles.srt`，没有改动。15 课的成品统一收集在 `projects/C语言白板课_成品/第NN课_课名/`（`.mp4`、`.srt`、`_封面.png`、`_简介.txt`；第 11 课起另有 `_课后练习.txt`（第 12–15 课同样有））+ `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建。
 
@@ -100,9 +102,20 @@
 4. **脚本**：复制上一课 `build_script.py`（含全部数据 + 自审 + 审阅页 + 检查点），改各段旁白与画面提示。**写完立刻对账时长**：按 `字数 × 0.21 秒 + 6 秒静默 + 段间 0.7 秒` 与提案目标核对，偏短就补“讲清道理”的句子，别堆内容；检查：旁白里点名的数字、成员、字母与实测逐一对照；相邻画面提示间隔 ≤10 秒；问句各只出现一次；无冲突词。产出 `script.json`、`script_review.json`、`teaching_examples.json`、`script-review.html`。**停下等“脚本通过”**。
 5. **场景计划**：复制 `build_scene_plan.py`，改各块版面与事件。**每个事件带旁白锚点 `anchor_phrase`，事件必须按旁白先后顺序写**（找不到就停下改计划，不放宽查找）。运行时它会把 `script` 检查点标为 completed。**脚本里的决策编号要唯一且可重跑**（第 6 课曾重复 d10；现在场景计划脚本是“先删本阶段旧条目再追加 d11”）。**停下等“场景计划通过”**。
 6. **素材**：先复制 `gen_tts.py`、`make_captions.py`、`sample_voice.py`、`finish_assets.py`（`sed 's/旧PID/新PID/g'`）；先跑 `sample_voice.py`（样音，含最难一句），**等“样音通过”**，再跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py`（字幕估计时间）→ `finish_assets.py`（素材清单与检查点；改段 id、问句段名、费用字典）。**停下等“素材通过”**。
-7. **剪辑**：`build_edit.py` = `_build_head.py` + `_body_helpers.py` + `_body_boards.py` + `_build_tail.py`（`cat` 拼接；**改源文件，不要改拼接产物**）。写完先 `render_stills.py <秒…>` 渲染关键帧，用 `ffmpeg xstack` 拼 2×2 大图用 Read 逐张看，修版面，再 `render_sample.py <名> <起点> 30` 出 30 秒样片，写 `edit` 检查点，**等“样片通过，开始合成”**。
-8. **合成**：`nohup .venv/bin/python projects/<课>/scripts/render_final.py > $CLAUDE_JOB_DIR/tmp/final.log 2>&1 &`，后台等**真实进程**；完成后自己核对：`ffprobe`（分辨率/帧率/编码/时长）、`ebur128`（≈−16 LUFS）、`silencedetect=n=-40dB:d=1.2`（只应有两处问答停顿 + 结尾收尾静音，位置对 `narration_timeline.json` 的 `answer_not_before`）、`blackdetect`、抽 15 帧拼图看；写 `render_report.json`、`final_review.json` 和 `compose` 检查点。**等“成片通过，进入发布阶段”**。
+7. **剪辑**：`build_edit.py` = `_build_head.py` + `_body_helpers.py` + `_body_boards.py` + `_build_tail.py`（`cat` 拼接；**改源文件，不要改拼接产物**）。写完先跑 `docs/whiteboard_lint.py`（`build_edit.py` 末尾已调用）和 `docs/whiteboard_render.py projects/<课> --contact` 看每块的关键帧（也可 `render_stills.py <秒…>` 渲单帧），用 `ffmpeg xstack` 拼 2×2 大图用 Read 逐张看，修版面，再 `render_sample.py <名> <起点> 30` 出 30 秒样片，写 `edit` 检查点，**等“样片通过，开始合成”**。
+8. **合成**（第 16 课起 `render_final.py` 转调分块渲染：只重渲指纹变了的块，详见 playbook 4.4；`render_final_full.py` 是旧整片版）：`nohup .venv/bin/python projects/<课>/scripts/render_final.py > $CLAUDE_JOB_DIR/tmp/final.log 2>&1 &`，后台等**真实进程**；完成后自己核对：`ffprobe`（分辨率/帧率/编码/时长）、`ebur128`（≈−16 LUFS）、`silencedetect=n=-40dB:d=1.2`（只应有两处问答停顿 + 结尾收尾静音，位置对 `narration_timeline.json` 的 `answer_not_before`）、`blackdetect`、抽 15 帧拼图看；写 `render_report.json`、`final_review.json` 和 `compose` 检查点。**等“成片通过，进入发布阶段”**。
 9. **发布**：`publish_prep.py`（缩略图取帧要**画完且没淡出**，先看图再导出；SRT；章节；元数据）→ `finish_publish.py`（`ExportBundle`，`platform=generic, visibility=private`）→ 课后练习（第 11 课起：`code/exercises/*.c` 实测，`scripts/make_exercises.py` 生成 `exports/metadata/exercises.txt`，打包脚本会复制）→ 封面（`docs/whiteboard_cover_maker.py` 在 `LESSONS` 加一行，再运行 `... 7` 这样只出该课；带“第 N 课”序号）→ **成片开头加 2 秒封面**（`docs/whiteboard_prepend_cover.py projects/<课>`，第 7 课起必做，不重渲染，详见做课手册“片头封面规则”）→ `docs/whiteboard_release_pack.py` 重建成品文件夹和 zip → 写 `publish` awaiting_human。**等“发布通过”**，然后写 `publish` completed、更新记忆、把经验补进做课文档；提交与推送等用户说“提交”“推送到 fork”再做。
+
+**渲染工艺改进（2026-10-07，第 16 课起；用户嫌“改一处就要整片重渲”，确认方案后实现）**
+
+| 工具 | 作用 |
+|---|---|
+| `docs/whiteboard_lint.py <项目>` | 渲染前检查：等宽字体里的中文/全角（方块字）、手写体里的 0 与大写字母、`null`（`until: None`）、内存图竖箭头间隙 < 88、问答静默里提前出现的内容；错误退出码为 1。`build_edit.py` 末尾已调用 |
+| `docs/whiteboard_render.py <项目> --final` | 分块 + 多进程渲染：每块白板一个帧区间，拆成并行部件，按指纹缓存到 `renders/chunks/`，只重渲变了的块，`concat -c copy` 拼接并一次混旁白；`--plan` 看哪些块过期与将用的后端，`--force K4` 强制，`--only K1,K5` 只渲指定板，`--out` 指定输出，`--keep-old` 保留旧缓存，`--sample 起 止` 出样片，`--local` / `--remote-cpu` / `--workers` / `--render-profile` 控制后端 |
+| `… --stills 秒…` / `… --contact [块…]` | 单帧一次打包渲多张（约 0.7 秒/张，旧法约 5 秒）；`--contact` 出每块关键时刻的缩略总览 `renders/contact/K#.png` |
+| `remotion-composer/render-tools/render_chunks.mjs` | 上面两个工具的 Node 端（打包一次，渲多段多帧） |
+
+实测（第 16 课）：旧整片 2772 秒；分块单进程 2395 秒；**多进程 1625 秒（本机默认）**（逐帧对比旧版 PSNR 平均 55.3 dB、最低 47.3 dB，响度同）；缓存全命中 34 秒；改一个词只重渲一块共 6 分 27 秒。**每课新建时**：`render_final.py` / `render_stills.py` 照第 16 课那两个小文件复制（改项目名），`build_edit.py` 与 `_build_tail.py` 末尾的 lint 调用也要带上。限制：配音重生成使时间平移后面的块仍要重渲；改了 `remotion-composer/src` 或字体全部重渲；`render_sample.py` 仍是旧法。完成后抽帧改为 **4 秒一帧加每个问答时刻**，不再 28 帧稀疏抽样。详见 playbook 4.4。
 
 **脚本文件作用速查**（第 6 课 `scripts/` 目录）
 
@@ -138,7 +151,7 @@
 ## 7. Git / GitHub 状态
 
 - 工作分支 `feat/whiteboard-scene-dashscope-image`，远端 `fork` = `https://github.com/hxcisunli-star/OpenMontage.git`。
-- 本地领先 fork **4 个提交**（含本交接文档的提交），均为文档更新、**未推送**；其中三个做课经验提交为：`b16d076`（第 4 课经验）、`8449938`（第 5 课经验）、`2970c5f`（第 6 课经验）。更早提交（`27cdb38` 及之前）已推送；用户 fork 里有 PR #1（6 个提交）。**推送/更新 PR 要用户明确要求**。
+- 第 14、15 课的做课经验提交已推送到 fork（PR #1，头提交 `0dc4155`）；之后的第 16 课与渲染工具改动**尚未提交**（见下）。早期状态：本地领先 fork **4 个提交**（含本交接文档的提交），均为文档更新、**未推送**；其中三个做课经验提交为：`b16d076`（第 4 课经验）、`8449938`（第 5 课经验）、`2970c5f`（第 6 课经验）。更早提交（`27cdb38` 及之前）已推送；用户 fork 里有 PR #1（6 个提交）。**推送/更新 PR 要用户明确要求**。
 - 提交署名：本仓库没设全局 git 身份；提交时用 `git -c user.name="$(git log -1 --format=%an)" -c user.email="$(git log -1 --format=%ae)" commit …`，提交信息末尾加 `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`（以当前会话系统提示的署名要求为准）。
 - `projects/` 被 `.gitignore` 忽略，**课程产物不进 git**；真正需要版本管理的只有 `docs/` 和（如有）仓库代码。本文档新增在 `docs/`，已本地提交。
 - `.env`、`apidocs/` 不提交。
@@ -151,6 +164,8 @@
 |---|---|
 | 做课经验手册 | `docs/whiteboard-course-playbook.zh-CN.md`（0 摘要、1 对照数据、2 设计方法、3 流程、4 脚本速查、5 验收、6 踩坑、7 协作、8 模板、9 附录） |
 | 本交接文档 | `docs/whiteboard-course-handoff.zh-CN.md` |
+| 渲染工具（第 16 课起） | `docs/whiteboard_render.py`、`docs/whiteboard_lint.py`、`remotion-composer/render-tools/render_chunks.mjs`、`remotion-composer/render-fonts/`（说明见 playbook 4.4） |
+| 远程渲染（对方智能体配合） | 给对方的需求文档 **`docs/remote-render-agent-brief-v3.zh-CN.md`**（只读这份，取代 v1/v2）、自测包 `projects/_remote_kit/`（`docs/make_remote_kit.py` 生成）、回复目录 `docs/remote-render-replies/`、验收脚本 `docs/remote-render-test.sh`、客户端 `tools/video/remote_cpu_render.py`、对方的说明 `docs/remote-render-client.md` |
 | 仓库规则 | `CLAUDE.md`、`AGENT_GUIDE.md`、`docs/stage-gates/` |
 | 用户记忆 | `/root/.claude/projects/-home-MyProject-OpenMontage/memory/`（`MEMORY.md` 索引） |
 | 每课审阅页 | `projects/<课>/script-review.html`、`scene-plan-review.html` |
@@ -172,13 +187,32 @@
 | 13 动态链表（已发布） | 函数里申请一张卡并交回、交回新的头纸条、先存下一张再整串归还 | 第 2、9、11、12 课 |
 | 14 删除一张卡（已发布） | 走路纸条停在前一张、先绕过再还、删第一张改头纸条（交回新头） | 第 2、11、12、13 课 |
 | 15 按顺序插入（已发布） | 找位置（停在前一张）、先连后面再改前面、三种位置同一个函数 | 第 1、12、13、14 课 |
+| 16 递归（已发布） | 函数里再叫自己（每叫一次出一位新医生）、到头了就停、等它回来再接着做 | 第 2、9、12–15 课 |
+| 17 变量的一生（已发布） | 大厅病房（全局）、加了静态的临时病房（static 局部）、“谁看得见”与“活多久”是两件事；一句话澄清函数前的 static | 第 2、9、11、16 课 |
+
+**补漏路线**（用户 2026-10-06 确认；每课仍要先在计划模式研究、你批准计划后才建项目）：
+
+| 课 | 内容 | 回扣 / 注意 |
+|---|---|---|
+| 17 变量的一生（局部、全局、static）（已发布） | 三种病房：临时病房、医院病房、大厅病房；static 局部是“记得住的临时病房”；三者活多久 | 第 2、9、11 课；补第 9 课推迟的 static |
+| 18 栈（链表头插删头做栈，括号配对） | 后进先出、放上去/拿下来；几乎只是给第 13、14 课起名字 | 旁白说“叠起来的卡”，术语要小心 |
+| 19 结构体数组与 typedef | 结构体数组、typedef 只是起别名；解决“看别人代码看不懂 typedef struct” | 第 3、6 课 |
+| 20 文件读写 | 打开与关闭、写与读、打开失败要检查 | 第 5、11、19 课 |
+| 21 函数指针与回调（qsort 给名单排序） | 函数名也是地址、把函数交给别的函数 | 第 1、7、19 课；抽象度最高 |
+
+之后候选：动态数组 realloc、`char *` 与字符串库函数、scanf 返回值与输入检查、二分查找、链表反转与尾指针、共用体与枚举、给前十课补课后练习（等 16–21 做完再定）。
+
+做下一课要注意（来自第 17 课）：同一条 `printf` 里既调用改全局的函数又读该全局会打印旧值 0，先存结果再另起一句读；引用别课内容前对该课 `script.json`（传地址是第 2 课）；缩略图取板子写完的帧；纯说话语速约 0.224 秒/字，按 0.24 估会偏长约 7%；第 17 课整课 `--local` 分块多进程渲染 1594 秒，**整课远程实验还没做**（用户要自己运行 `! FULL=1 bash docs/remote-render-test.sh ...`，期间不改 `docs/whiteboard_render.py`、`render_chunks.mjs`、`tools/video/remote_cpu_render.py`）。
+
+做下一课要注意（来自第 16 课）：先跑 lint，再用 `whiteboard_render.py --contact` 看每块关键帧，然后才 `--final`；成片抽帧按 4 秒一帧加问答帧；等宽字体里不能有中文，标签与数值分开写；已经被说“通过”的成片发现缺陷要如实说明、重做、请用户重新审；两个“叫不完”的递归版本只编译不运行；旁白不说“栈”“调用栈”“基准情形”。
 
 做下一课要注意（来自第 15 课）：渲染完成前用户说的“样片通过”“成片通过”不当批准，核对后请用户再说一次；练习文件只留用到的函数（-Werror 会挡 unused-function）；s7 这类长代码行先算宽度（55 字符、字号 28 会碰到右列）；LeakSanitizer 演示要把其余的卡还掉；每个错法各测各的编译器提醒；语速短句稿按 0.24 秒/字估（连续两课只差 1.2%）；命令里不要用 pkill -f。候选路线：指向头纸条的指针（两个星号，第 13–15 课范围外）、链表反转、查找与计数、给前十课补课后练习（待用户定）。
 
-其他候选：中间插入与删除（接第 12、13 课）；选择排序放到以后的“结构体数组与排序”（接不上指针线；同分学生先后顺序补上第 1 课的“稳定”）；递归另排；scanf 返回值与输入检查（要讲缓冲区与失败输入，需严格限定范围）；`typedef` 与结构体数组；`char *` 已降级（见 playbook 2.14）。
+其他候选：中间插入与删除（接第 12、13 课）；选择排序放到以后的“结构体数组与排序”（接不上指针线；同分学生先后顺序补上第 1 课的“稳定”）；scanf 返回值与输入检查（要讲缓冲区与失败输入，需严格限定范围）；`typedef` 与结构体数组；`char *` 已降级（见 playbook 2.14）。
 
 **未决/待办**
 - 无进行中的课程。
+- **远程 CPU/GPU 渲染：进行中**——已把 v3 需求文档和自测包交付，等对方智能体按 v3 实现并写回复（`docs/remote-render-replies/`）；之后由用户运行 `docs/remote-render-test.sh`（我们自己运行会被权限检查拦下），按结果写下一轮缺口文档，循环到验收全部通过。在对方声明 `src_overlay` + `fontconfig_self_managed` 之前，调度器自动用本机渲染（用户无感）。
 - 课后练习从第 11 课起做：是否给前十课补练习，待用户定。
 - 第 12 课结尾第三句回顾比旁白晚约 2 秒写完，没有重做（已在核对报告里记录）；第 13 课结尾回顾已提前触发，401 秒前写完；第 14 课 395 秒前写完；第 15 课 392 秒前写完。
 - playbook 里个别“三门课/四门课”旧表述未改（描述当时事实）。
@@ -188,4 +222,4 @@
 
 ## 10. 给新会话的建议开场语（可直接贴给用户）
 
-> 我已读完 `AGENT_GUIDE.md`、做课经验文档和交接文档：15 门课都已发布（本地打包）。下一课做什么？（策划我会先研究衔接、难点讲法和通俗度，你批准计划后才建项目，然后停在提案门等你批准。）
+> 我已读完 `AGENT_GUIDE.md`、做课经验文档和交接文档：17 门课都已发布（本地打包），渲染已改成分块渲染并带渲染前检查。按补漏路线下一课是第 18 课“栈”，要我先研究并给计划吗？（策划我会先研究衔接、难点讲法和通俗度，你批准计划后才建项目，然后停在提案门等你批准。）
