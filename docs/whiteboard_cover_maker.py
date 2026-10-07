@@ -36,6 +36,7 @@ LESSONS = [
     ("c-linked-list-intro-cn", 12, "链表初识", "数组要挪，病历卡为什么不用挪？", "head → 9 → 1 → 2 → 3"),
     ("c-dynamic-list-cn", 13, "动态链表", "函数里改了头纸条，外面为什么没变？", "head = push_front(head, 9);"),
     ("c-list-delete-cn", 14, "删除一张卡", "走到要删的那张就还，为什么不行？", "p->next = gone->next;"),
+    ("c-list-insert-cn", 15, "按顺序插入", "新卡该排在哪两张卡之间？", "n->next = p->next;"),
 ]
 
 
