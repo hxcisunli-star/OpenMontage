@@ -40,6 +40,7 @@ FPS = 30
 CORES = os.cpu_count() or 4
 TOOL_VERSION = "chunks-v3"  # bump when the way chunks are rendered/stitched changes
 MIN_PART = 120              # do not split a chunk into parts shorter than this many frames
+JOB_MIN_FRAMES = 2400       # remote: do not open another job for less than this many frames (each job costs ~3 SSH round trips + a bundle)
 TABS = 2                    # browser tabs per render process (more does not help: the process, not the tab count, is the limit)
 REMOTE_NEEDS = ("src_overlay", "fontconfig_self_managed")
 
@@ -316,15 +317,41 @@ def split_parts(chunk, workers, part_dir):
     a, b = chunk["from"], chunk["to"]
     total = b - a + 1
     k = max(1, min(workers, total // MIN_PART))
-    size = math.ceil(total / k)
-    parts = []
+    base, extra = divmod(total, k)  # sizes differ by at most one frame: no tiny last part (a 1-frame part encodes noticeably worse)
+    parts, fa = [], a
     for i in range(k):
-        fa = a + i * size
-        if fa > b:
-            break
-        fb = min(b, fa + size - 1)
+        fb = fa + base + (1 if i < extra else 0) - 1
         parts.append({"id": chunk["id"], "from": fa, "to": fb, "name": f"{chunk['id']}-{chunk['fp']}.p{i}.mp4", "path": part_dir / f"{chunk['id']}-{chunk['fp']}.p{i}.mp4"})
+        fa = fb + 1
     return parts
+
+
+def remote_groups(todo, backend, part_dir):
+    """Remote work plan: cut ALL stale chunks into about `total_workers` parts of similar length, then deal the parts to as many jobs as
+    are worth it (LPT: biggest part to the emptiest job), so every job carries about the same number of frames and no long board is left
+    rendering alone at the end.  Returns (groups by id, parts by chunk id)."""
+    total_w, max_jobs = backend["total_workers"], backend["max_jobs"]
+    frames = {c["id"]: c["to"] - c["from"] + 1 for c in todo}
+    T = sum(frames.values())
+    want = max(1, min(total_w, T // MIN_PART))
+    parts, by_chunk = [], {}
+    for c in todo:
+        k = max(1, min(frames[c["id"]] // MIN_PART, round(want * frames[c["id"]] / T)))
+        by_chunk[c["id"]] = split_parts(c, k, part_dir)
+        parts += by_chunk[c["id"]]
+    n_jobs = max(1, min(max_jobs, len(parts), math.ceil(T / JOB_MIN_FRAMES)))
+    bins = [[] for _ in range(n_jobs)]
+    for p in sorted(parts, key=lambda p: p["to"] - p["from"], reverse=True):
+        min(bins, key=lambda b: sum(q["to"] - q["from"] for q in b)).append(p)
+    groups = {}
+    for i, ps in enumerate(b for b in bins if b):
+        gid = f"j{i + 1}"
+        ps.sort(key=lambda p: p["from"])
+        groups[gid] = {"id": gid, "parts": ps, "local_parts": ps, "local_stills": [], "stills": [],
+                       "workers": min(len(ps), math.ceil(total_w / n_jobs)),
+                       "chunks": [{"out": p["name"], "from": p["from"], "to": p["to"]} for p in ps],
+                       "outputs": [(p["name"], p["path"]) for p in ps], "expected": {p["name"]: p["to"] - p["from"] + 1 for p in ps}}
+    return groups, by_chunk
 
 
 def merge_parts(parts, out):
@@ -392,9 +419,10 @@ def build_remote_input(dest, props_path, pub, spec):
 
 
 def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
-    """groups: [{"id", "chunks":[{"out","from","to"}], "stills":[{"out","frame"}], "outputs":[(name, dest Path)], "expected":{name:frames}}].
-    One remote job per group, all queued up front; each finished group is downloaded and handed to install(group).
-    Returns the ids of groups that failed (caller falls back to local)."""
+    """groups: [{"id", "chunks":[{"out","from","to"}], "stills":[{"out","frame"}], "outputs":[(name, dest Path)], "expected":{name:frames}, "workers"?}].
+    One remote job per group.  Jobs are queued in parallel, polled in parallel, and each finished job is downloaded in the background while the
+    others keep rendering, then handed to install(group).  Returns the ids of groups that failed (caller falls back to local)."""
+    from concurrent.futures import ThreadPoolExecutor, wait
     from tools.video.remote_cpu_render import RemoteRenderError
     client, feats = backend["client"], backend["features"]
     runtime = args.remote_runtime
@@ -402,67 +430,111 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
     prog = Progress(proj / "renders" / "render.log", expected)
     jobs, failed = [], set()
     stamp = int(time.time() * 1000)
+    t0 = time.time()
+    tm = {}  # phase timings, printed at the end so we see where the time goes
+    pool = ThreadPoolExecutor(max_workers=max(4, 2 * len(groups)))
 
-    def drop(job):
-        for fn in (client.cancel, client.cleanup):
+    def since():
+        return time.time() - t0
+
+    bg = []  # best-effort cleanups running in the background: they must never hold up the render
+
+    def tidy(job, cancel):
+        t1 = time.time()
+        for fn in ((client.cancel, client.cleanup) if cancel else (client.cleanup,)):
             try:
                 fn(job["id"])
             except Exception:  # noqa: BLE001 - best effort
                 pass
+        if time.time() - t1 > 10:
+            print(f"remote: cleanup of {job['id']} took {time.time() - t1:.0f}s", flush=True)
+
+    def drop(job, background=True):
+        if background:
+            bg.append(pool.submit(tidy, job, True))
+        else:
+            tidy(job, True)
+
+    def queue(g):
+        job = {"id": f"om-{sha(proj.name.encode())[:10]}-{g['id']}-{stamp}".lower(), "group": g, "shown": 0, "offset": 0, "state": None}
+        spec = {"propsPath": "props.json", "publicDir": "public", "composition": "Explainer", "concurrency": backend["tabs"],
+                "workers": g.get("workers") or backend["workers"], "timeoutMs": 7200000, "chunks": g["chunks"], "stills": g["stills"], "render": backend.get("render") or {},
+                "composer_hash": composer_hash(), "lock_sha256": sha((COMPOSER / "package-lock.json").read_bytes())}
+        try:
+            with tempfile.TemporaryDirectory(prefix=".remote-in-", dir=cleanup_dir) as tmp:
+                build_remote_input(Path(tmp) / "input", pp, pub, spec)
+                client.prepare(job["id"]); client.upload(job["id"], Path(tmp) / "input"); client.submit(job["id"], runtime)
+            return job, None
+        except RemoteRenderError as exc:
+            return job, exc
+
+    def poll(job):
+        st = client.status(job["id"])
+        state, text, offset, shown = st.get("state"), "", job["offset"], job["shown"]
+        if state in ("running", "completed", "failed"):  # stream the log of jobs that are (or were) running
+            if "log_offset" in feats:
+                r = client.logs(job["id"], job["offset"]); text, offset = r.get("log", ""), r.get("next", job["offset"])
+            else:
+                full = client.logs(job["id"]).get("log", ""); text, shown = full[job["shown"]:], len(full)
+        return st, state, text, offset, shown
+
+    def fetch(job):
+        out = Path(tempfile.mkdtemp(prefix=".remote-out-", dir=cleanup_dir))
+        try:
+            client.download(job["id"], out)
+            for name, dest in job["group"]["outputs"]:
+                src = out / name
+                if not src.is_file():
+                    raise RemoteRenderError(f"remote output missing: {name}")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+        finally:
+            shutil.rmtree(out, ignore_errors=True)
 
     try:
-        for g in groups:
-            job = {"id": f"om-{sha(proj.name.encode())[:10]}-{g['id']}-{stamp}".lower(), "group": g, "shown": 0, "offset": 0, "state": None}
-            spec = {"propsPath": "props.json", "publicDir": "public", "composition": "Explainer", "concurrency": backend["tabs"],
-                    "workers": backend["workers"], "timeoutMs": 7200000, "chunks": g["chunks"], "stills": g["stills"], "render": backend.get("render") or {},
-                    "composer_hash": composer_hash(), "lock_sha256": sha((COMPOSER / "package-lock.json").read_bytes())}
-            try:
-                with tempfile.TemporaryDirectory(prefix=".remote-in-", dir=cleanup_dir) as tmp:
-                    build_remote_input(Path(tmp) / "input", pp, pub, spec)
-                    client.prepare(job["id"]); client.upload(job["id"], Path(tmp) / "input"); client.submit(job["id"], runtime)
+        for fut in [pool.submit(queue, g) for g in groups]:
+            job, exc = fut.result()
+            if exc is None:
                 jobs.append(job)
-                print(f"remote: queued {g['id']} ({job['id']})", flush=True)
-            except RemoteRenderError as exc:
-                print(f"remote: could not queue {g['id']}: {str(exc)[:200]}", flush=True)
-                drop(job); failed.add(g["id"])
+                print(f"remote: queued {job['group']['id']} ({job['id']})", flush=True)
+            else:
+                print(f"remote: could not queue {job['group']['id']}: {str(exc)[:200]}", flush=True)
+                drop(job); failed.add(job["group"]["id"])
+        tm["queued"] = since()
         deadline = time.time() + args.remote_timeout
         while jobs:
-            for job in list(jobs):  # the agent may run several jobs at once: poll them all, take whichever finishes first
+            round_start = time.time()
+            polls = {j["id"]: pool.submit(poll, j) for j in jobs if "fetch" not in j}  # all jobs asked at the same time
+            for job in list(jobs):
                 g = job["group"]
+                if "fetch" in job:
+                    if not job["fetch"].done():
+                        continue
+                    try:
+                        job["fetch"].result()
+                        g["rendered_by"] = "remote"
+                        install(g)
+                        tm["installed"] = since()
+                        bg.append(pool.submit(tidy, job, False))
+                    except (RemoteRenderError, SystemExit) as exc:  # bad/missing download or a part that fails verification
+                        print(f"remote: {g['id']} result rejected: {str(exc)[:200]}", flush=True)
+                        failed.add(g["id"]); drop(job)
+                    jobs.remove(job)
+                    continue
                 try:
-                    st = client.status(job["id"])
-                    state = st.get("state")
+                    st, state, text, job["offset"], job["shown"] = polls[job["id"]].result()
                     job["errors"] = 0
-                    if state in ("running", "completed", "failed"):  # stream the log of jobs that are (or were) running
-                        if "log_offset" in feats:
-                            r = client.logs(job["id"], job["offset"]); text, job["offset"] = r.get("log", ""), r.get("next", job["offset"])
-                        else:
-                            full = client.logs(job["id"]).get("log", ""); text, job["shown"] = full[job["shown"]:], len(full)
-                        for line in text.splitlines():
-                            prog.feed(line)
+                    for line in text.splitlines():
+                        prog.feed(line)
                     if state != job["state"]:
                         job["state"] = state
                         if state not in ("queued", None):
                             print(f"remote: {g['id']} {state}", flush=True)
+                        if state == "running":
+                            tm.setdefault("first_running", since())
                     if state == "completed":
-                        out = Path(tempfile.mkdtemp(prefix=".remote-out-", dir=cleanup_dir))
-                        try:
-                            client.download(job["id"], out)
-                            for name, dest in g["outputs"]:
-                                src = out / name
-                                if not src.is_file():
-                                    raise RemoteRenderError(f"remote output missing: {name}")
-                                dest.parent.mkdir(parents=True, exist_ok=True)
-                                shutil.copy2(src, dest)
-                            g["rendered_by"] = "remote"
-                            install(g)
-                            client.cleanup(job["id"])
-                        except (RemoteRenderError, SystemExit) as exc:  # bad/missing download or a part that fails verification
-                            print(f"remote: {g['id']} result rejected: {str(exc)[:200]}", flush=True)
-                            failed.add(g["id"]); drop(job)
-                        finally:
-                            shutil.rmtree(out, ignore_errors=True)
-                        jobs.remove(job)
+                        tm["last_done"] = since()
+                        job["fetch"] = pool.submit(fetch, job)  # download in the background; the other jobs keep being polled
                     elif state in ("failed", "canceled"):
                         print(f"remote: {g['id']} {state}: {str(st.get('error'))[:300]}", flush=True)
                         failed.add(g["id"]); drop(job); jobs.remove(job)
@@ -477,13 +549,17 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
                         print(f"remote: timeout for {j['group']['id']}; it will render locally", flush=True)
                         failed.add(j["group"]["id"]); drop(j); jobs.remove(j)
                     break
-                time.sleep(args.remote_poll_seconds)
+                time.sleep(max(0.5, args.remote_poll_seconds - (time.time() - round_start)))
     except BaseException:
         for j in jobs:
-            drop(j)
+            drop(j, background=False)  # Ctrl-C and errors: the cancel must really be sent
         raise
     finally:
+        wait(bg, timeout=10)  # then give up on stragglers; the agent also cleans old jobs by itself
+        pool.shutdown(wait=False, cancel_futures=True)
         prog.close()
+        if tm:
+            print("remote timing: " + ", ".join(f"{k.replace('_', ' ')} {v:.0f}s" for k, v in tm.items()) + f", total {since():.0f}s", flush=True)
     return failed
 
 
@@ -537,29 +613,49 @@ def cmd_final(proj, args):
     backend = choose_backend(args)
     announce(backend)
     if args.plan:
+        if todo and backend["kind"] == "remote":
+            groups, by_chunk = remote_groups(todo, backend, cdir / ".parts")
+            print(f"remote plan: {sum(len(v) for v in by_chunk.values())} parts in {len(groups)} job(s): "
+                  + ", ".join(f"{g['id']} {sum(p['to'] - p['from'] + 1 for p in g['parts'])} frames/{g['workers']} processes" for g in groups.values()), flush=True)
         return
     used = backend["kind"]
+    audio = start_audio(proj, narr, total) if narr and not only else None
     if todo:
         parts_dir = cdir / ".parts"
         shutil.rmtree(parts_dir, ignore_errors=True); parts_dir.mkdir()
-        groups = {}
-        plan_workers(backend, len(todo))
-        for c in todo:
-            parts = split_parts(c, backend["workers"], parts_dir)
-            groups[c["id"]] = {"id": c["id"], "chunk": c, "parts": parts, "local_parts": parts, "local_stills": [],
-                               "chunks": [{"out": p["name"], "from": p["from"], "to": p["to"]} for p in parts], "stills": [],
-                               "outputs": [(p["name"], p["path"]) for p in parts], "expected": {p["name"]: p["to"] - p["from"] + 1 for p in parts}}
+        chunk_by_id = {c["id"]: c for c in todo}
+        if backend["kind"] == "remote":
+            groups, by_chunk = remote_groups(todo, backend, parts_dir)
+            print(f"remote plan: {sum(len(v) for v in by_chunk.values())} parts in {len(groups)} job(s): "
+                  + ", ".join(f"{g['id']} {sum(p['to'] - p['from'] + 1 for p in g['parts'])} frames/{g['workers']} processes" for g in groups.values()), flush=True)
+        else:
+            groups, by_chunk = {}, {}
+            plan_workers(backend, len(todo))
+            for c in todo:
+                parts = split_parts(c, backend["workers"], parts_dir)
+                by_chunk[c["id"]] = parts
+                groups[c["id"]] = {"id": c["id"], "parts": parts, "local_parts": parts, "local_stills": [],
+                                   "chunks": [{"out": p["name"], "from": p["from"], "to": p["to"]} for p in parts], "stills": [],
+                                   "outputs": [(p["name"], p["path"]) for p in parts], "expected": {p["name"]: p["to"] - p["from"] + 1 for p in parts}}
 
         def install(g):
+            """Check the parts of one finished job; every chunk whose parts are all there is joined and goes into the cache."""
             for p in g["parts"]:
                 n = ffprobe_frames(p["path"]); want = p["to"] - p["from"] + 1
                 if n != want:
                     p["path"].unlink(missing_ok=True)
                     raise SystemExit(f"part {p['name']}: {n} frames, expected {want}")
-            merge_parts(g["parts"], g["chunk"]["path"])
-            g["chunk"]["path"].with_suffix(".json").write_text(json.dumps({"rendered_by": g.get("rendered_by"), "backend": backend["label"],
-                "render_profile": backend.get("render") or {}, "parts": len(g["parts"]), "at": time.strftime("%Y-%m-%d %H:%M:%S")}, ensure_ascii=False), encoding="utf-8")
-            print(f"  {g['id']} ready ({g['chunk']['path'].name})", flush=True)
+                p["ok"] = True; p["by"] = g.get("rendered_by")
+            for cid in dict.fromkeys(p["id"] for p in g["parts"]):
+                ps = by_chunk[cid]
+                if not all(p.get("ok") for p in ps) or chunk_by_id[cid].get("installed"):
+                    continue
+                c = chunk_by_id[cid]
+                merge_parts(ps, c["path"])
+                c["installed"] = True
+                c["path"].with_suffix(".json").write_text(json.dumps({"rendered_by": "+".join(sorted({p["by"] or "?" for p in ps})), "backend": backend["label"],
+                    "render_profile": backend.get("render") or {}, "parts": len(ps), "at": time.strftime("%Y-%m-%d %H:%M:%S")}, ensure_ascii=False), encoding="utf-8")
+                print(f"  {cid} ready ({c['path'].name})", flush=True)
 
         render_parts(proj, args, backend, pp, pub, groups, install)
         shutil.rmtree(parts_dir, ignore_errors=True)
@@ -571,7 +667,11 @@ def cmd_final(proj, args):
         if n != want:
             raise SystemExit(f"chunk {c['id']}: {n} frames, expected {want}; delete {c['path']} and retry")
     out = (proj / args.out) if args.out else proj / "renders" / "final.mp4"
-    mux_final(proj, chunks, total, narr, out)
+    t_mux = time.time()
+    mux_final(proj, chunks, total, narr, out, audio)
+    print(f"joined and muxed in {time.time() - t_mux:.0f}s", flush=True)
+    if audio:
+        audio[1].unlink(missing_ok=True)
     keep = {c["path"].name for c in chunks}
     for f in list(cdir.glob("*.mp4")) + list(cdir.glob("*.json")):
         if f.stem not in {Path(k).stem for k in keep} and not args.keep_old:
@@ -584,7 +684,17 @@ def cmd_final(proj, args):
     print("success", json.dumps(res["data"], ensure_ascii=False), flush=True)
 
 
-def mux_final(proj, chunks, total, narr, out):
+def start_audio(proj, narr, total):
+    """Encode the narration (stereo 48 kHz AAC 320k, padded/cut to the video length) in the background while the video renders:
+    AAC at 320k takes ~30 s of one core, which used to be added after the last chunk."""
+    dest = proj / "renders" / ".narration.m4a"
+    dest.unlink(missing_ok=True)
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-i", narr, "-af", "apad", "-ac", "2", "-ar", "48000", "-c:a", "aac", "-b:a", "320k",
+                             "-t", f"{total / FPS:.6f}", str(dest)])
+    return proc, dest
+
+
+def mux_final(proj, chunks, total, narr, out, audio=None):
     lst = proj / "renders" / ".concat.txt"
     lst.write_text("".join(f"file '{c['path']}'\n" for c in chunks), encoding="utf-8")
     vid = proj / "renders" / ".video_only.mp4"
@@ -600,7 +710,9 @@ def mux_final(proj, chunks, total, narr, out):
         if ffprobe_frames(vid) != total:
             raise SystemExit(f"still {ffprobe_frames(vid)} frames, expected {total}")
     cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(vid)]
-    if narr:
+    if audio and audio[0].wait() == 0 and audio[1].is_file():  # pre-encoded while rendering: just copy both streams
+        cmd += ["-i", str(audio[1]), "-map", "0:v", "-map", "1:a", "-c", "copy"]
+    elif narr:
         # same audio as the CLI render: stereo 48 kHz AAC 320k, padded with silence to the video length
         cmd += ["-i", narr, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", "apad", "-ac", "2", "-ar", "48000", "-c:a", "aac", "-b:a", "320k", "-shortest"]
     else:
@@ -747,9 +859,12 @@ def main():
     ap.add_argument("--remote-identity", default=os.environ.get("OPENMONTAGE_RENDER_IDENTITY", "/root/.ssh/openmontage_render_local"))
     ap.add_argument("--remote-known-hosts", default=os.environ.get("OPENMONTAGE_RENDER_KNOWN_HOSTS", "/root/.ssh/openmontage_render_known_hosts"))
     ap.add_argument("--remote-port", type=int, default=int(os.environ.get("OPENMONTAGE_RENDER_PORT", "17865")))
-    ap.add_argument("--remote-poll-seconds", type=float, default=4.0)
+    ap.add_argument("--min-part", type=int, default=None, help="shortest part (frames) a chunk may be split into (default 120); longer parts mean fewer Chrome start-ups")
+    ap.add_argument("--remote-poll-seconds", type=float, default=3.0)
     ap.add_argument("--remote-timeout", type=float, default=8 * 60 * 60)
     args = ap.parse_args()
+    if args.min_part:
+        globals()["MIN_PART"] = args.min_part
     proj = Path(args.proj).resolve()
     if args.final or args.plan or args.only:
         cmd_final(proj, args)
