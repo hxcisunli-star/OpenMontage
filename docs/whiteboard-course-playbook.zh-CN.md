@@ -627,6 +627,8 @@
 
 **为什么要多进程**：一个 Remotion/Chrome 进程内部有串行瓶颈，标签页（`--concurrency`）开到 2 以上没有收益；要用满核必须多开进程。`render_chunks.mjs` 的 `workers` 就是并行进程数（父进程打包一次、子进程共用，各自一个 Chrome）；每个块拆成若干 ≥120 帧的部件并行渲，再用 `ffmpeg -c copy` 拼回块（部件流参数不一致时自动改重编码拼接）。本机默认 `核数/2` 个进程×2 标签页。
 
+**工人失败时快速失败**：`render_chunks.mjs` 父进程任一子进程失败（含被信号杀、创建子进程失败）就打印 `worker N failed (exit CODE)`（格式固定，渲染机 agent 靠这一行判断）、向所有子进程发 SIGTERM、5 秒后 SIGKILL、7 秒后硬退出（码 1）；收到 SIGTERM/SIGINT 则退出 143；子进程自己也处理 SIGTERM 与未捕获错误并以非零码退出。原来父进程会无限等不响应的子进程，远程作业因此挂着不结束（第 17 课后的整课远程实验里 K2 就是这样）。
+
 **字体确定性**：`remotion-composer/render-fonts/`（DejaVu 8 个字体 + `fonts.conf`，占位符 `@FONTS_DIR@`/`@CACHE_DIR@`）。`render_chunks.mjs` 启动 Chrome 前设私有 `FONTCONFIG_FILE`，所以任何机器字体一致（本机验证与原默认逐像素相同；环境变量确实生效，改配置画面会变）。本机默认开着 RGB 子像素抗锯齿，`fonts.conf` 已显式写出。
 
 **远程渲染（自动选择，用户无感）**：`whiteboard_render.py` 默认 `auto`——先探测反向 SSH 通道（`tools/video/remote_cpu_render.py`，对方渲染机，强制命令协议），通道健康且对方声明 `src_overlay`+`fontconfig_self_managed`（保证画面一致）才用远程，否则**自动回退本机**并说明原因；`--local` 强制本机，`--remote-cpu` 强制远程（不可用就报错，`--allow-drift` 仅供实验）。远程每个板一个作业，全部入队，谁先完成先下载并拼成块；失败的块自动回本机重渲。对方通过 `probe.render_profile`（`gl`、`chromeMode`、`hardwareAcceleration` 等）和 `probe.capacity` 发布最佳配置，调度器随作业下发，`--render-profile '<json>'` 可覆盖做实验。缓存与后端无关（同一个块在本机或远程渲出来都可复用，来源记在 `chunks/<块>.json`）。**GPU 路径**（`angle-egl`、NVENC）像素不会逐位等同 CPU 光栅化，验收分两级：CPU 路径静帧 PSNR ≥ 50 dB，GPU 路径 PSNR ≥ 45 dB 且 SSIM ≥ 0.995。

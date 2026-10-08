@@ -14,7 +14,7 @@ STILLS="6 120 153.3 158 290.8 336"          # hand font, mono rows + arrows (K4)
 ALLOW=""; [ "${ALLOW_DRIFT:-0}" = "1" ] && ALLOW="--allow-drift"
 LOCAL_BASELINE_S=1625                         # whole lesson, this machine, multi-process (measured)
 mkdir -p "$T/local" "$T/remote"
-cp -a $R/chunks "$T/chunks_backup" 2>/dev/null
+rm -rf "$T/chunks_backup"; cp -a $R/chunks "$T/chunks_backup" 2>/dev/null   # rm first: cp -a into an existing dir would nest and later restore a stale copy
 restore() { rm -rf $R/chunks; cp -a "$T/chunks_backup" $R/chunks; echo "(local chunk cache restored)"; }
 trap restore EXIT
 

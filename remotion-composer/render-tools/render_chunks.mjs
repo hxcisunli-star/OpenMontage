@@ -57,6 +57,14 @@ if (workers > 1 && tasks.length > 1) {
   log(`bundle ok ${((Date.now() - tb) / 1000).toFixed(1)}s (shared by ${n} processes)`);
   const kids = [];
   let failed = false;
+  // Fail fast: the first failing child ends the whole run.  SIGTERM to every live child, SIGKILL after 5 s, and a hard
+  // exit 2 s later, so a child that ignores SIGTERM (or is stopped) can never keep the parent waiting forever.
+  const stopAll = (exitCode) => {
+    const live = () => kids.filter((k) => k.exitCode === null && k.signalCode === null);
+    live().forEach((k) => k.kill("SIGTERM"));
+    setTimeout(() => live().forEach((k) => k.kill("SIGKILL")), 5000).unref();
+    setTimeout(() => { log("FAILED"); process.exit(exitCode); }, 7000).unref();
+  };
   const results = buckets.map((b, i) => new Promise((resolve) => {
     // Ordered by frame so each child renders its parts front to back.
     b.chunks.sort((x, y) => x.from - y.from);
@@ -79,22 +87,38 @@ if (workers > 1 && tasks.length > 1) {
       });
     };
     relay(child.stdout); relay(child.stderr);
-    child.on("exit", (code) => {
-      if (code !== 0 && !failed) { failed = true; kids.forEach((k) => k.kill("SIGTERM")); log(`worker ${i} failed (exit ${code})`); }
-      resolve(code);
+    // Keep the "worker N failed (exit CODE)" line format: the remote agent watches the log for it.
+    const fail = (code, why) => {
+      if (!failed) { failed = true; log(`worker ${i} failed (exit ${code})`); if (why) log(`worker ${i}: ${why}`); stopAll(1); }
+    };
+    child.on("error", (err) => { fail("spawn-error", String(err && err.message || err)); resolve(1); });
+    child.on("exit", (code, signal) => {
+      if (code !== 0) fail(code, signal ? `killed by ${signal}` : "");
+      resolve(code === null ? 1 : code);
     });
   }));
-  const onSignal = () => { kids.forEach((k) => k.kill("SIGTERM")); process.exit(143); };
+  let signalled = false;
+  const onSignal = () => {
+    signalled = true; failed = true;
+    kids.forEach((k) => k.kill("SIGTERM"));
+    setTimeout(() => kids.forEach((k) => k.kill("SIGKILL")), 5000).unref();
+    setTimeout(() => process.exit(143), 5500).unref();
+  };
   process.on("SIGTERM", onSignal); process.on("SIGINT", onSignal);
   const codes = await Promise.all(results);
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
   log(failed ? "FAILED" : "all done");
-  process.exit(codes.every((c) => c === 0) ? 0 : 1);
+  process.exit(signalled ? 143 : codes.every((c) => c === 0) ? 0 : 1);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Single-process mode (also what every child runs).
 // ---------------------------------------------------------------------------------------------------------------
+// Always exit non-zero on a fatal error or when asked to stop, so the parent (and the remote agent) never wait on us.
+process.on("SIGTERM", () => process.exit(143));
+process.on("SIGINT", () => process.exit(143));
+process.on("uncaughtException", (e) => { console.error(e && e.stack || e); process.exit(1); });
+process.on("unhandledRejection", (e) => { console.error(e && e.stack || e); process.exit(1); });
 const { bundle } = await import("@remotion/bundler");
 const { openBrowser, renderMedia, renderStill, selectComposition } = await import("@remotion/renderer");
 const inputProps = JSON.parse(fs.readFileSync(jobs.propsPath, "utf-8"));
