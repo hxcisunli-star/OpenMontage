@@ -1,0 +1,8 @@
+MainPID=2516555
+NRestarts=0
+CPUQuotaPerSecUSec=1min 36s
+MemoryMax=103079215104
+TasksMax=32768
+LimitNPROC=65536
+Nice=10
+DropInPaths=/etc/systemd/system.control/openmontage-render-agent.service.d/50-CPUQuota.conf /etc/systemd/system.control/openmontage-render-agent.service.d/50-MemoryMax.conf /etc/systemd/system.control/openmontage-render-agent.service.d/50-TasksMax.conf /etc/systemd/system/openmontage-render-agent.service.d/90-v5-tmpfs.conf
