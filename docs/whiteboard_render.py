@@ -40,6 +40,8 @@ FPS = 30
 CORES = os.cpu_count() or 4
 TOOL_VERSION = "chunks-v3"  # bump when the way chunks are rendered/stitched changes
 MIN_PART = 120              # do not split a chunk into parts shorter than this many frames
+REMOTE_MIN_PART = 30        # remote default (the machine has far more workers than a small job has frames): measured on a 900-frame sample, parts >=120 frames 74 s, >=60 57 s, >=30 54 s end to end (PSNR between them >=48.6 dB)
+STILLS_LOCAL_MAX = 60       # auto mode: up to this many stills are faster here than through the channel (6 stills: 7 s local, 36 s remote; 137 stills: about equal)
 JOB_MIN_FRAMES = 2400       # remote: do not open another job for less than this many frames (each job costs ~3 SSH round trips + a bundle)
 TABS = 2                    # browser tabs per render process (more does not help: the process, not the tab count, is the limit)
 REMOTE_NEEDS = ("src_overlay", "fontconfig_self_managed")
@@ -299,6 +301,11 @@ def choose_backend(args, quiet=False):
                      + (f", profile {json.dumps({k: v for k, v in prof.items() if k != 'tabs'})}" if prof else "") + ")"}
 
 
+def set_min_part(args, backend):
+    """Shortest allowed part: --min-part wins; otherwise 120 frames locally, REMOTE_MIN_PART on the remote machine."""
+    globals()["MIN_PART"] = args.min_part or (REMOTE_MIN_PART if backend["kind"] == "remote" else 120)
+
+
 def plan_workers(backend, n_groups):
     """Processes per job: the machine's total split over the jobs it can run at the same time."""
     if backend["kind"] == "remote":
@@ -326,6 +333,24 @@ def split_parts(chunk, workers, part_dir):
     return parts
 
 
+def part_counts(frames, budget):
+    """Parts per chunk so that their total is EXACTLY min(budget, what MIN_PART allows) -- one part per worker.  A plain round() per chunk
+    gave 30 parts for a budget of 32 and 65 for 64; the surplus part made one worker render two parts and the lesson ended with a lone straggler.
+    Largest-remainder rounding: floor of each chunk's share first, then the leftover parts go to the chunks with the biggest remainders."""
+    T = sum(frames.values())
+    cap = {c: max(1, n // MIN_PART) for c, n in frames.items()}
+    want = max(1, min(budget, T // MIN_PART, sum(cap.values())))
+    quota = {c: want * n / T for c, n in frames.items()}
+    ks = {c: max(1, min(cap[c], int(quota[c]))) for c in frames}
+    while sum(ks.values()) < want:
+        c = max((c for c in frames if ks[c] < cap[c]), key=lambda c: quota[c] - ks[c])
+        ks[c] += 1
+    while sum(ks.values()) > want:
+        c = min((c for c in frames if ks[c] > 1), key=lambda c: quota[c] - ks[c])
+        ks[c] -= 1
+    return ks
+
+
 def remote_groups(todo, backend, part_dir):
     """Remote work plan: cut ALL stale chunks into about `total_workers` parts of similar length, then deal the parts to as many jobs as
     are worth it (LPT: biggest part to the emptiest job), so every job carries about the same number of frames and no long board is left
@@ -333,11 +358,10 @@ def remote_groups(todo, backend, part_dir):
     total_w, max_jobs = backend["total_workers"], backend["max_jobs"]
     frames = {c["id"]: c["to"] - c["from"] + 1 for c in todo}
     T = sum(frames.values())
-    want = max(1, min(total_w, T // MIN_PART))
+    ks = part_counts(frames, total_w)
     parts, by_chunk = [], {}
     for c in todo:
-        k = max(1, min(frames[c["id"]] // MIN_PART, round(want * frames[c["id"]] / T)))
-        by_chunk[c["id"]] = split_parts(c, k, part_dir)
+        by_chunk[c["id"]] = split_parts(c, ks[c["id"]], part_dir)
         parts += by_chunk[c["id"]]
     n_jobs = max(1, min(max_jobs, len(parts), math.ceil(T / JOB_MIN_FRAMES)))
     bins = [[] for _ in range(n_jobs)]
@@ -611,6 +635,7 @@ def cmd_final(proj, args):
         todo = [c for c in todo if c["id"] in only]
         print(f"--only {sorted(only)}: rendering {[c['id'] for c in todo]} into the cache, no final video", flush=True)
     backend = choose_backend(args)
+    set_min_part(args, backend)
     announce(backend)
     if args.plan:
         if todo and backend["kind"] == "remote":
@@ -732,6 +757,8 @@ def cmd_stills(proj, args, times=None, outdir=None, names=None):
         nm = names[i] if names else f"t{int(round(t * 10)):05d}.png"
         stills.append({"out": str(outdir / nm), "frame": round(t * FPS), "name": nm})
     backend = choose_backend(args)
+    if backend["kind"] == "remote" and not args.remote_cpu and len(stills) <= STILLS_LOCAL_MAX:
+        backend = local_backend(f"only {len(stills)} stills: faster on this machine than through the channel")
     announce(backend)
     g = {"id": "stills", "local_parts": [], "local_stills": [{"out": s["out"], "frame": s["frame"]} for s in stills], "chunks": [],
          "stills": [{"out": s["name"], "frame": s["frame"]} for s in stills], "outputs": [(s["name"], Path(s["out"])) for s in stills], "expected": {}}
@@ -748,6 +775,7 @@ def cmd_sample(proj, args):
     pp = proj / "renders" / ".chunk_props.json"; pp.write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     fa, fb = round(a * FPS), round(b * FPS) - 1
     backend = choose_backend(args)
+    set_min_part(args, backend)
     announce(backend)
     parts_dir = proj / "renders" / ".sample_parts"
     shutil.rmtree(parts_dir, ignore_errors=True); parts_dir.mkdir()
@@ -863,8 +891,6 @@ def main():
     ap.add_argument("--remote-poll-seconds", type=float, default=3.0)
     ap.add_argument("--remote-timeout", type=float, default=8 * 60 * 60)
     args = ap.parse_args()
-    if args.min_part:
-        globals()["MIN_PART"] = args.min_part
     proj = Path(args.proj).resolve()
     if args.final or args.plan or args.only:
         cmd_final(proj, args)

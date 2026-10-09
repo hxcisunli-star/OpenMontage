@@ -39,6 +39,7 @@ LESSONS = [
     ("c-list-insert-cn", 15, "按顺序插入", "新卡该排在哪两张卡之间？", "n->next = p->next;"),
     ("c-recursion-cn", 16, "递归", "函数怎么自己叫自己？", "count_cards(p->next)"),
     ("c-variable-life-cn", 17, "变量的一生", "病房看得见多远，能活多久？", "static int n = 0;"),
+    ("c-stack-cn", 18, "栈", "一摞卡：后放的，先拿", "top = put(top, 3);"),
 ]
 
 
