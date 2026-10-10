@@ -46,6 +46,7 @@ LESSONS = [
     ("c-realloc-cn", 22, "动态数组与 realloc", "名单不够长了怎么办", "tmp = realloc(list, n);"),
     ("c-bsearch-cn", 23, "二分查找", "每次扔掉一半", "mid = low + (high - low) / 2;"),
     ("c-strcmp-cn", 24, "比名字", "字符串的比较与复制", "if (strcmp(a, b) == 0) {"),
+    ("c-scanf-check-cn", 25, "读入会失败", "检查 scanf 的返回值", "ret = scanf(\"%d\", &n);"),
 ]
 
 
