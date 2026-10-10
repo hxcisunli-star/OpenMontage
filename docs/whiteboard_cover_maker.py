@@ -43,6 +43,7 @@ LESSONS = [
     ("c-typedef-array-cn", 19, "结构体数组", "一排卡，一个别名", "typedef struct card Card;"),
     ("c-file-io-cn", 20, "文件读写", "把名单存起来，再读回来", "fp = fopen(\"list.txt\", \"w\");"),
     ("c-func-ptr-cn", 21, "函数指针与回调", "把“比法”交给排序", "sort_cards(list, 3, by_age);"),
+    ("c-realloc-cn", 22, "动态数组与 realloc", "名单不够长了怎么办", "tmp = realloc(list, n);"),
 ]
 
 
