@@ -40,6 +40,9 @@ LESSONS = [
     ("c-recursion-cn", 16, "递归", "函数怎么自己叫自己？", "count_cards(p->next)"),
     ("c-variable-life-cn", 17, "变量的一生", "病房看得见多远，能活多久？", "static int n = 0;"),
     ("c-stack-cn", 18, "栈", "一摞卡：后放的，先拿", "top = put(top, 3);"),
+    ("c-typedef-array-cn", 19, "结构体数组", "一排卡，一个别名", "typedef struct card Card;"),
+    ("c-file-io-cn", 20, "文件读写", "把名单存起来，再读回来", "fp = fopen(\"list.txt\", \"w\");"),
+    ("c-func-ptr-cn", 21, "函数指针与回调", "把“比法”交给排序", "sort_cards(list, 3, by_age);"),
 ]
 
 

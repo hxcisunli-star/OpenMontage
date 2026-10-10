@@ -536,6 +536,7 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
                         continue
                     try:
                         job["fetch"].result()
+                        tm["fetched"] = since()
                         g["rendered_by"] = "remote"
                         install(g)
                         tm["installed"] = since()
@@ -664,23 +665,29 @@ def cmd_final(proj, args):
                                    "outputs": [(p["name"], p["path"]) for p in parts], "expected": {p["name"]: p["to"] - p["from"] + 1 for p in parts}}
 
         def install(g):
-            """Check the parts of one finished job; every chunk whose parts are all there is joined and goes into the cache."""
-            for p in g["parts"]:
-                n = ffprobe_frames(p["path"]); want = p["to"] - p["from"] + 1
+            """Check the parts of one finished job (in parallel: one ffprobe per part); every chunk whose parts are all there is joined (in parallel) and goes into the cache."""
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(8, max(1, len(g["parts"])))) as ex:
+                counts = list(ex.map(lambda p: ffprobe_frames(p["path"]), g["parts"]))
+            for p, n in zip(g["parts"], counts):
+                want = p["to"] - p["from"] + 1
                 if n != want:
                     p["path"].unlink(missing_ok=True)
                     raise SystemExit(f"part {p['name']}: {n} frames, expected {want}")
                 p["ok"] = True; p["by"] = g.get("rendered_by")
-            for cid in dict.fromkeys(p["id"] for p in g["parts"]):
-                ps = by_chunk[cid]
-                if not all(p.get("ok") for p in ps) or chunk_by_id[cid].get("installed"):
-                    continue
-                c = chunk_by_id[cid]
+            ready = [cid for cid in dict.fromkeys(p["id"] for p in g["parts"])
+                     if all(p.get("ok") for p in by_chunk[cid]) and not chunk_by_id[cid].get("installed")]
+
+            def finish(cid):
+                ps, c = by_chunk[cid], chunk_by_id[cid]
                 merge_parts(ps, c["path"])
                 c["installed"] = True
                 c["path"].with_suffix(".json").write_text(json.dumps({"rendered_by": "+".join(sorted({p["by"] or "?" for p in ps})), "backend": backend["label"],
                     "render_profile": backend.get("render") or {}, "parts": len(ps), "at": time.strftime("%Y-%m-%d %H:%M:%S")}, ensure_ascii=False), encoding="utf-8")
                 print(f"  {cid} ready ({c['path'].name})", flush=True)
+
+            with ThreadPoolExecutor(max_workers=min(4, max(1, len(ready)))) as ex:
+                list(ex.map(finish, ready))
 
         render_parts(proj, args, backend, pp, pub, groups, install)
         shutil.rmtree(parts_dir, ignore_errors=True)
