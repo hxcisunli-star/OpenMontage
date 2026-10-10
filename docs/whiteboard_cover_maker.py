@@ -45,6 +45,7 @@ LESSONS = [
     ("c-func-ptr-cn", 21, "函数指针与回调", "把“比法”交给排序", "sort_cards(list, 3, by_age);"),
     ("c-realloc-cn", 22, "动态数组与 realloc", "名单不够长了怎么办", "tmp = realloc(list, n);"),
     ("c-bsearch-cn", 23, "二分查找", "每次扔掉一半", "mid = low + (high - low) / 2;"),
+    ("c-strcmp-cn", 24, "比名字", "字符串的比较与复制", "if (strcmp(a, b) == 0) {"),
 ]
 
 
