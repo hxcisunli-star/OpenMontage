@@ -47,6 +47,7 @@ LESSONS = [
     ("c-bsearch-cn", 23, "二分查找", "每次扔掉一半", "mid = low + (high - low) / 2;"),
     ("c-strcmp-cn", 24, "比名字", "字符串的比较与复制", "if (strcmp(a, b) == 0) {"),
     ("c-scanf-check-cn", 25, "读入会失败", "检查 scanf 的返回值", "ret = scanf(\"%d\", &n);"),
+    ("c-fgets-line-cn", 26, "先读一整行", "再慢慢分析", "fgets(buf, 8, stdin);"),
 ]
 
 
