@@ -1,0 +1,17 @@
+{
+  "bench_results.md": "2668a4565598d55ee36bc25fb31095ba8b69e4a13fc5839aa2b1284e1730a5d6",
+  "bench_results.json": "7664d821926ee5ce4718b1e5b1498ccb10a62d1c91296a437aa7d66e7217f390",
+  "raw-evidence.tar.gz": "e2931d228440dc73355f73f18db8c62a096c1b040f3ecd3112552128cc37db4b",
+  "raw-evidence.sha256": "f069abfbc6808ef979587c949afb5591cde41522e9e10a8dbdc58f11e7be6235",
+  "validation-summary.json": "85820681b1e0e62831e152df2509c24c372e6e11b74e2fc0af646b31cd6958e1",
+  "selection.json": "6b39ebb2c766c0ef17c8955b59ef9493080a9419d7fc858e8cb557e93e46d90c",
+  "frozen-inputs.json": "8d8511de96e5d9673dc94b97fe5f4f31a220b3c494e93e8b3400e3b5a23819a4",
+  "deployment.json": "d3bcae1bd95b56a55e341fba9c622534e2e329af3fce98b4bcba4ace374185e6",
+  "limits-release.txt": "e5e650f53112ae67eb40e58b88b7f21f619d7d219bd64aa5cae205b8f4a695f5",
+  "regression.json": "b40453119fe6af51dd870d3d5e459f1bb30ac91cf1eac9c26ea80201e0157a13",
+  "controller-notes.json": "e82212e083bd8db50f823947b3c050954c628925e37b83cbb906dc03751c38e8",
+  "gpu-services-final.txt": "e07888e9c3244299b527eb8bb583bf76a3aec831d2f8fee6d29b0365f28e6687",
+  "knowledge-pids-final.txt": "80a2f22ba0d3f415e96f0a848043f9baa6f7a7b3a002504c45ba5e22a26fc7dd",
+  "poll-summary.json": "9a92331578f11381f89ab6efbaf5d84694e3d00b20c8c23d180b9c79fc4c3064",
+  "../2026-10-08-round4.md": "a0c7106684ba5704e0ed4e60a243902ae392b0f00d6f95ea8ff2e4678b30b330"
+}
