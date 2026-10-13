@@ -49,6 +49,9 @@ LESSONS = [
     ("c-scanf-check-cn", 25, "读入会失败", "检查 scanf 的返回值", "ret = scanf(\"%d\", &n);"),
     ("c-fgets-line-cn", 26, "先读一整行", "再慢慢分析", "fgets(buf, 8, stdin);"),
     ("c-queue-cn", 27, "队列", "先来的先走", "q->tail = c;"),
+    ("c-reverse-list-cn", 28, "链表反转", "把链倒过来", "rev = head;"),
+    ("c-multifile-cn", 29, "头文件与多文件", "拆成几个文件", "#include \"queue.h\""),
+    ("c-macro-cn", 30, "宏", "先替换，再编译", "#define CAP 4"),
 ]
 
 
