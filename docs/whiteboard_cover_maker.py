@@ -52,6 +52,7 @@ LESSONS = [
     ("c-reverse-list-cn", 28, "链表反转", "把链倒过来", "rev = head;"),
     ("c-multifile-cn", 29, "头文件与多文件", "拆成几个文件", "#include \"queue.h\""),
     ("c-macro-cn", 30, "宏", "先替换，再编译", "#define CAP 4"),
+    ("c-enum-switch-cn", 31, "枚举与多路选择", "按编号走门", "case INNER:"),
 ]
 
 
