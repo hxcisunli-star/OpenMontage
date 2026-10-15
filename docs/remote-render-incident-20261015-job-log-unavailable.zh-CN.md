@@ -100,3 +100,15 @@ python3 tools/video/remote_cpu_render.py probe                     # 看 free_by
 - 客户端：`tools/video/remote_cpu_render.py`（`logs()`、`submit()` 等）；`docs/whiteboard_render.py` 约 540–575 行（轮询与“连续 3 轮失败即放弃”的逻辑）。
 - 通道说明：`docs/remote-render-client.md`；历史记录与验收：`docs/remote-render-replies/`、`docs/remote-render-acceptance-20261007.json`。
 - 本次失败的客户端完整日志：`/tmp/claude-0/-home-MyProject-OpenMontage/72e277ca-7d03-4435-8de4-b7d043594716/scratchpad/final31.log`（第一次）和 `final31b.log`（第二次，后半段是本机渲染进度）。这是会话临时目录，不是项目文件；如需长期保留，请告诉我，我再把它们拷到 `docs/remote-render-replies/`。
+
+## 9. 处理结果（2026-10-15，第 32 课素材通过后复测）
+
+- 用户说渲染机硬盘空间已清理。`probe`：`free_bytes` = 220,566,257,664（约 205 GiB），高于 `min_free_bytes` 100 GiB；agent/5 在线，没有任务在跑。
+- 复测一个真实的远程作业（第 31 课项目第 100 秒一张静帧，`--stills 100 --remote-cpu`，作业 `om-9e52fe4e23-stills-1792042992111`）：排队 11 秒、开始 17 秒、完成 23 秒、取回 30 秒，总计 32 秒；这次**能正常读到作业日志**（客户端日志里有渲染机上的 fonts 一行），没有出现 `job log unavailable`。同一帧本机重渲，两个 png **逐字节相同**（md5 9d534dcd9ee36cfc93358093a6baa076）。
+- 这只证明“提交、读日志、下载”这条路径在空间恢复后是通的；**当时失败的是 65 个进程、12039 帧的整课大作业，那一种还没有复测**，要等第 32 课整课渲染才能确认。“磁盘剩余空间低于 min_free_bytes 是原因”仍只是时间与数值上吻合的线索，没有得到渲染机一侧的证实。
+
+### 追加（第 32 课整课渲染后）
+
+- 2026-10-15，第 32 课整课（12305 帧、65 个进程、1 个作业，作业 `om-96c27e859e-j1-1792043385300`）远程渲染：排队 11 秒、第一个开始 17 秒、最后完成 154 秒、取回 164 秒、装好 167 秒，总计 170 秒；作业日志读取正常，没有出现 `job log unavailable`，**上次失败的那种整课大作业已确认可用**。
+- 同一天关键帧总览（123 张）远程 44 秒、样片远程 46 秒；6 张静帧远程与本机逐字节相同。
+- 渲染前 `probe` 的 `free_bytes` 约 205 GiB（`min_free_bytes` 100 GiB）。“剩余空间低于 min_free_bytes 是原因”仍只是时间与数值上吻合的线索，没有得到渲染机一侧的证实。
