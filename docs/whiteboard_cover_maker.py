@@ -54,6 +54,7 @@ LESSONS = [
     ("c-macro-cn", 30, "宏", "先替换，再编译", "#define CAP 4"),
     ("c-enum-switch-cn", 31, "枚举与多路选择", "按编号走门", "case INNER:"),
     ("c-string-bound-cn", 32, "字符串的边界", "读进来限宽，抄过去限数", "strncpy(dst, src, 7);"),
+    ("c-literal-cn", 33, "字符串字面量", "能指，不能改", "const char *p = \"li\";"),
 ]
 
 
