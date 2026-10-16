@@ -55,6 +55,7 @@ LESSONS = [
     ("c-enum-switch-cn", 31, "枚举与多路选择", "按编号走门", "case INNER:"),
     ("c-string-bound-cn", 32, "字符串的边界", "读进来限宽，抄过去限数", "strncpy(dst, src, 7);"),
     ("c-literal-cn", 33, "字符串字面量", "能指，不能改", "const char *p = \"li\";"),
+    ("c-ptr-to-ptr-cn", 34, "二级指针", "把纸条的地址交出去", "push_front(&head, 9);"),
 ]
 
 
