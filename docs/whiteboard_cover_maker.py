@@ -56,6 +56,7 @@ LESSONS = [
     ("c-string-bound-cn", 32, "字符串的边界", "读进来限宽，抄过去限数", "strncpy(dst, src, 7);"),
     ("c-literal-cn", 33, "字符串字面量", "能指，不能改", "const char *p = \"li\";"),
     ("c-ptr-to-ptr-cn", 34, "二级指针", "把纸条的地址交出去", "push_front(&head, 9);"),
+    ("c-merge-cn", 35, "合并有序链", "每次取排头最小的", "*tail = pick;"),
 ]
 
 
