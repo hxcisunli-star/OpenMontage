@@ -1,0 +1,59 @@
+{
+  "ok": true,
+  "agent": "openmontage-render-agent/5",
+  "socket": "/run/openmontage-render/agent.sock",
+  "root": "/srv/openmontage-render",
+  "node": "/usr/bin/node",
+  "runtimes": [
+    "om-20261007-remotion-v1",
+    "om-20261007-remotion-v2"
+  ],
+  "running": [
+    "v6-release-w65-j1-r3-0"
+  ],
+  "queued": 0,
+  "features": [
+    "src_overlay",
+    "fontconfig_self_managed",
+    "manifest",
+    "log_offset",
+    "multi_queue"
+  ],
+  "chrome_version": "Google Chrome for Testing 143.0.7499.4",
+  "runtime_lock_sha256": "6fe7b19a85562ef0e927a0d196265ffd203059fa97ad9c69d54f5198b65f65d2",
+  "render_profile": {
+    "gl": null,
+    "chromeMode": "headless-shell",
+    "tabs": 2,
+    "hardwareAcceleration": "disabled",
+    "videoBitrate": null,
+    "x264Preset": null,
+    "jpegQuality": null,
+    "restartEvery": null
+  },
+  "capacity": {
+    "max_concurrent_jobs": 1,
+    "max_total_workers": 65,
+    "recommended_workers_per_job": 65
+  },
+  "load": {
+    "cpu_busy_percent": 100,
+    "mem_free_mb": 397088,
+    "gpu_busy_percent": 0,
+    "other_gpu_jobs_running": true,
+    "active_workers": 65
+  },
+  "limits": {
+    "max_queue": 16,
+    "max_job_seconds": 28800,
+    "cpu_quota_cores": 96.0
+  },
+  "runtime_settings": {
+    "tmp_mode": "disk",
+    "ffmpeg_threads": "auto"
+  },
+  "max_concurrent": 1,
+  "max_concurrency": 16,
+  "free_bytes": 201035845632,
+  "min_free_bytes": 107374182400
+}

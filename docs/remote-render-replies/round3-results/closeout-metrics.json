@@ -1,0 +1,13 @@
+{
+  "control_seconds": 205.991,
+  "candidate_seconds": 144.277,
+  "release_seconds": 146.82,
+  "speedup_conservative": 1.403017300095355,
+  "health_requests": 2124,
+  "poll_rounds": 47,
+  "poll_requests": 94,
+  "poll_errors": 0,
+  "poll_interval_min": 2.9991033519618213,
+  "poll_interval_max": 3.000402822974138,
+  "video_sha256": "56b59f7b10f0747ce25916c9bb6c671c3458b4b2a0db7fa8495ae954502ccb6d"
+}
