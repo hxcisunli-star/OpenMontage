@@ -58,6 +58,7 @@ LESSONS = [
     ("c-ptr-to-ptr-cn", 34, "二级指针", "把纸条的地址交出去", "push_front(&head, 9);"),
     ("c-merge-cn", 35, "合并有序链", "每次取排头最小的", "*tail = pick;"),
     ("c-insertion-sort-cn", 36, "插入排序", "拿一张，往左找位置", "a[j + 1] = key;"),
+    ("c-bst-cn", 37, "二叉查找树", "小的往左，大的往右", "link = &(*link)->left;"),
 ]
 
 
