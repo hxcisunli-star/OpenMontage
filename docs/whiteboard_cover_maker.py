@@ -57,6 +57,7 @@ LESSONS = [
     ("c-literal-cn", 33, "字符串字面量", "能指，不能改", "const char *p = \"li\";"),
     ("c-ptr-to-ptr-cn", 34, "二级指针", "把纸条的地址交出去", "push_front(&head, 9);"),
     ("c-merge-cn", 35, "合并有序链", "每次取排头最小的", "*tail = pick;"),
+    ("c-insertion-sort-cn", 36, "插入排序", "拿一张，往左找位置", "a[j + 1] = key;"),
 ]
 
 
