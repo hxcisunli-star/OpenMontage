@@ -61,6 +61,7 @@ LESSONS = [
     ("c-bst-cn", 37, "二叉查找树", "小的往左，大的往右", "link = &(*link)->left;"),
     ("c-union-cn", 38, "联合体", "几种东西，共用一块地方", "union result r;"),
     ("c-bits-cn", 39, "位运算", "一个整数，一排开关", "flags |= FEVER;"),
+    ("c-argv-cn", 40, "命令行参数", "运行时，交给程序几句话", "./show_list list.txt 2"),
 ]
 
 
