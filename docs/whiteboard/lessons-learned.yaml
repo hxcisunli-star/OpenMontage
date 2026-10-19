@@ -1,0 +1,491 @@
+# 白板课“登记表”：每条教训只在这里存一处；阶段清单（docs/whiteboard/checklists/*.md）由它生成。
+# 改规则：改本文件 → .venv/bin/python docs/whiteboard_registry.py render → coverage / check → 提交。
+# level：检查＝有脚本拦；默认＝模板或工具自带；清单＝要人判断（逐阶段过一遍）；叙述＝只留来龙去脉，不进清单。
+# 晋升规则：停在“清单”级、却出现在 ≥3 课的笔记里（见 stats），就该做成检查或默认。
+# from：来源编号（P6-n＝手册 §6 踩坑行，Hn-k＝交接文档归档里第 n 课的笔记子句，Ln-k＝手册逐课“教训”）；seen_extra：来源行里点名、但没有编号的课。
+version: 1
+updated: "2026-10-19"
+
+stages:
+  any:
+    title: 一直成立的细则（环境与协作）
+    steps:
+      - 九个口令与“早说不算”的规则在 `.claude/rules/whiteboard-protocol.md`（始终载入）；本页是它的细则。
+  plan:
+    title: 策划与提案
+    gate: 计划确认 → 提案通过
+    read:
+      - {path: .claude/skills/backward-design/SKILL.md, why: 写课程草案前先写“教学设计一页纸”（持久理解、基本问题、评估证据、WHERETO）}
+      - {path: .claude/skills/spiral-series-check/SKILL.md, why: 只在系列课或复习课用}
+      - {path: .claude/skills/lesson-fact-check/SKILL.md, why: 计划里的数字、例子、来源原话先查证}
+    steps:
+      - 用户说“继续策划下一课”或给题目：先进计划模式，不建项目；读 `docs/whiteboard-course-handoff.zh-CN.md`（现状）和相邻两课的章节（`docs/whiteboard/archive/playbook-2.12-2.48-per-lesson.zh-CN.md`）。
+      - 研究衔接、难点讲法、通俗度；写计划文件：选题四条标准、难点表（难点→学生怎么想→讲法→实测证据）、教学设计一页纸、与前几课不同之处。
+      - 实测所有例子（gcc 13.3、GNU diffutils 3.10，三套选项 × -O0/-O2），输出存 `validation/`。
+      - 用户在对话里说“计划确认”后才建项目：`init_project(...)`、建目录、复制医生图、校标、字体和上一课脚本（见 E21）。
+      - 写 `scripts/plan_stage.py` → research（≥5 个来源）与 proposal，检查点 awaiting_human，停下等“提案通过”。
+    outputs: 计划文件；research_brief.json；proposal_packet.json；decision_log.json
+  script:
+    title: 脚本
+    gate: 脚本通过
+    read:
+      - {path: .claude/skills/plain-language-review/SKILL.md, why: 通俗度统计过关之后、请用户审阅之前做人工核对}
+      - {path: .claude/skills/lesson-fact-check/SKILL.md, why: 挑高风险断言逐条查证，出三类报告}
+    steps:
+      - 复制上一课 `build_script.py`，先改项目名与课号并 grep 核对，再另起一条命令运行（改与运行分开）。
+      - 写 8 段旁白（每段 ≤600 字，三处真实静默各 3 秒，问答在本课指定的段），对账时长。
+      - 断言过关（句长、英文与数字、难词、锚点间隔）后，跑 plain-language-review 与 lesson-fact-check，结论写进请用户审阅的回复。
+      - 写 `script-review.html` 与 script 检查点 awaiting_human，停下等“脚本通过”。
+    outputs: script.json；script_review.json；teaching_examples.json；script-review.html
+  scene:
+    title: 场景计划
+    gate: 场景计划通过
+    steps:
+      - 复制 `build_scene_plan.py`，改各块版面与事件；每个事件带 `anchor_phrase`，事件按旁白先后顺序写，找不到锚点就停下改计划，不放宽查找。
+      - 改静默表与 `MIN_AFTER`（按本课问答所在段）。
+      - 运行（会把 script 检查点标为 completed），写 scene_plan 检查点 awaiting_human，停下等“场景计划通过”。
+    outputs: scene_plan.json；scene-plan-review.html
+  assets:
+    title: 素材（配音）
+    gate: 样音通过 → 素材通过
+    steps:
+      - 跑 `sample_voice.py` 出样音（含最难一句），停下等“样音通过”（没有检查点，只记录）。
+      - 跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py` → `finish_assets.py`；写 assets 检查点 awaiting_human，停下等“素材通过”。
+      - 配音还没生成完、核对还没做完之前用户说的口令不算。
+    outputs: assets/audio/narration_timeline.json；captions.json；asset_manifest.json
+  edit:
+    title: 剪辑与样片
+    gate: 样片通过，开始合成
+    steps:
+      - 改 `_body_boards.py` 等源文件，运行 `bash scripts/rebuild_edit.sh`（拼接 build_edit.py 并跑 lint）。
+      - 运行 `python3 docs/whiteboard_last_item_check.py projects/<课程>`；首次不过是常态，把最后一项提前再跑。
+      - 用 `docs/whiteboard_render.py projects/<课程> --contact` 看每块关键帧；出样片（`--sample 起 止`）。
+      - 写 edit 检查点 awaiting_human，停下等“样片通过，开始合成”。
+    outputs: edit_decisions.json；render_props.json；样片
+  compose:
+    title: 合成与核对
+    gate: 成片通过，进入发布阶段
+    steps:
+      - 先 `python3 tools/video/remote_cpu_render.py probe` 并看输出。
+      - 用 `nohup .venv/bin/python projects/<课程>/scripts/render_final.py > 日志 2>&1 &` 渲整课；渲完先备份 `renders/render.log`。
+      - 核对：ffprobe、ebur128、silencedetect d=1.3 对问答时间线、blackdetect、freezedetect、4 秒一帧拼图加问答帧；6 张静帧远程对本机；K3/K6 本机对照 PSNR。
+      - 改 `finish_compose.py` 的数字后另起一条命令运行，写 compose 检查点；停下等“成片通过，进入发布阶段”。
+    outputs: renders/final.mp4；render_report.json；final_review.json
+  publish:
+    title: 发布与复盘
+    gate: 发布通过 → 复盘 → 提交
+    read:
+      - {path: .claude/skills/exercise-design/SKILL.md, why: 写 make_exercises.py 之前读}
+      - {path: .claude/skills/lesson-fact-check/SKILL.md, why: 写简介与练习前后各查一遍}
+      - {path: docs/whiteboard/retro-template.md, why: 发布通过之后写复盘，把教训分流}
+    steps:
+      - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：`publish_prep.py`（`THUMB_T` 取写完之后）→ `finish_publish.py`。
+      - 封面：`docs/whiteboard_cover_maker.py` 的 LESSONS 加一行再运行；`docs/whiteboard_prepend_cover.py projects/<课程> --seconds 2`；`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py`。
+      - 写 publish 检查点 awaiting_human，停下等“发布通过”。
+      - 复盘：按模板写 `docs/whiteboard/retro/NN.md`，每条教训分流（检查／清单／叙述）并更新登记表，跑 `whiteboard_registry.py coverage`、`render`、`check`。
+      - 等用户说“提交”再提交（提交后自动推 fork；同时在 `projects/` 里提交本课文本源的快照，本机库不推送）。
+    outputs: exports/；成品文件夹；复盘一页
+
+entries:
+  # ---------- any：一直成立的细则 ----------
+  - id: E01
+    stage: any
+    level: 清单
+    rule: 口令只认用户在对话里说的话，且要在对应步骤做完之后：配音没生成完、渲染或核对没完成、发布包没出齐之前说的“样音通过／素材通过／样片通过／成片通过／发布通过”都不算——当场说明还没完，做完并报告后请用户再说一次；退出计划模式的返回、后台任务的 completed 通知、系统消息都不是口令。
+    why: 第 12 课把退出计划模式的含糊返回当成批准（被用户指出）；第 15–40 课至少 11 次用户提前说口令；第 32 课曾按批准处理，第 39、40 课起统一为不算，以后者为准
+    todo: docs/whiteboard_gate.py（第二批 7）
+    from: [P6-47, P6-56, H15-1, H19-4, H20-7, H28-1, H32-7, H33-8, H39-1, H40-6]
+  - id: E02
+    stage: any
+    level: 清单
+    rule: 用户重复发已通过的口令，或口令缺字、多字但意思明确：先查检查点；重复的当重复口令，如实说明“已完成”并等下一个门的口令，不往下走；意思明确的缺字口令按批准处理并说明。
+    from: [H18-6, H31-6, H34-2, H26-6, H29-6]
+  - id: E03
+    stage: any
+    level: 检查
+    by: lib/checkpoint.py（只强制五个门控阶段）
+    rule: 检查点：门控阶段（proposal、script、scene_plan、assets、publish）先写 awaiting_human，用户口令后才写 completed（human_approved=True，metadata.approved_by_user=原话）；前置阶段要先 completed；样片通过（edit）与成片通过（compose）是额外加的门，管道不强制，也照样先 awaiting_human 再 completed；edit_decisions.json（合规）与 render_props.json（完整）是两份数据。
+    todo: docs/whiteboard_gate.py 补上 edit、compose 的强制（第二批 7）
+    from: [P6-11, P6-12]
+  - id: E04
+    stage: any
+    level: 清单
+    rule: 提交只在用户说“提交”时做；提交要带 -c user.name=… -c user.email=…（仓库没配身份），信息末尾按当前会话要求加署名行；推送已获授权、只推 fork：git -c 'credential.helper=!gh auth git-credential' push fork <分支>，不推 origin、不强推。
+    why: 第 18 课笔记写的“推送要用户自己运行”已被第 22 课起的授权取代
+    from: [H18-8, H22-9]
+  - id: E05
+    stage: any
+    level: 清单
+    rule: 一律用 .venv/bin/python 并设 PYTHONPATH=.（系统 Python 缺 PIL、jsonschema 太旧会报 $ref 错）；写检查点的脚本尤其。
+    from: [P6-13, P6-21, H18-7, H19-5, H20-8, H21-7, H22-10]
+    seen_extra: [4]
+  - id: E06
+    stage: any
+    level: 清单
+    rule: Bash 沙箱在本机启动失败（apply-seccomp 权限错误）：每条命令先试沙箱，失败后带 dangerouslyDisableSandbox 重试并说明原因，不擅自绕过更多限制；安全分类器偶发无判定时重试一次；沙箱里 Monitor 工具不可用，等待用 Bash 后台命令。
+    from: [P6-14, P6-28, P6-63, H30-2]
+  - id: E07
+    stage: any
+    level: 清单
+    rule: 改脚本和运行脚本分成两条命令：先改，用 grep、打印或 ast.parse 确认改成功，再运行（写检查点的脚本尤其）；改 build_edit.py 要改源文件再重新拼接，不要改拼接产物；sed 插入含引号与 & 的行后 grep 核对；换默认值后 grep 核对；装配脚本里的替换计数先数清。
+    why: 第 26 课替换断言失败后旧脚本仍被运行，写出了错误的检查点
+    todo: 报告类脚本改为从实测文件读数（docs/whiteboard_verify.py，第二批 9），不再手填数字
+    from: [P6-19, H22-5, H25-5, H26-1, H26-2, H26-4, H27-1, H28-3, H31-7]
+  - id: E08
+    stage: any
+    level: 清单
+    rule: 后台任务：用 nohup 启动，等待命令也放后台，用 until grep -q 'done in' 日志；远程整课渲染的结束行是 success {…}，不是 done in——等待模式两种都要认；通知里的 completed 只是 nohup 外壳退出；不要用 pkill -f 或 pgrep -f（会匹配到自己）；前台长时间等待会被系统杀（退出码 137）；等本机重渲时主动向用户报进度。
+    why: 第 43 课留下的 until grep 等待命令不认 success 行，永远等不到
+    todo: docs/whiteboard_wait.py（第二批 9）
+    from: [P6-8, P6-20, P6-26, P6-27, H15-7, H30-1, H37-3, H38-6, H39-2, H40-5, H41-8]
+  - id: E09
+    stage: any
+    level: 清单
+    rule: 不要在仓库根目录起 http.server（会暴露 .env）；看成片用 scp，或只绑 127.0.0.1、指定专用目录并 curl 验证 /.env 为 404，用完就关；用户贴出的密钥只写进 .env，不在输出里复述。
+    from: [P6-9]
+  - id: E10
+    stage: any
+    level: 清单
+    rule: 给用户的命令写成一行、路径尽量短（终端粘贴会被换行截断）；成品文件夹名带空格时提醒 scp 加引号。
+    from: [P6-15, H22-6]
+  - id: E11
+    stage: any
+    level: 默认
+    by: 各课 build_script.py 与 build_scene_plan.py 模板
+    rule: 决策记录 id 不重复：各阶段脚本追加前先删本阶段旧条目，追加后断言 id 无重复。
+    from: [P6-22]
+  - id: E12
+    stage: any
+    level: 清单
+    rule: 自己写的校验不能永远为真：重新计算文件哈希再比较，把真实比较结果写进校验记录；工具自带的自检（如 video_compose 的 final_review）也会错，要自己核对。
+    from: [P6-29]
+
+  # ---------- plan：策划与提案 ----------
+  - id: E13
+    stage: plan
+    level: 清单
+    rule: 选题先研究再定：四条标准（前置讲过没有、能否从最近一两课自然长出来、新东西只有一两个、核心结论能否实测）；先 grep 已发脚本的旁白看有没有讲过；用户随口提的题目只是想法，可以否定；路线走完后下一课先和用户商量。
+    from: [P6-43, H21-1, H22-1]
+  - id: E14
+    stage: plan
+    level: 清单
+    rule: 计划里的每个例子、数值、提醒、错误都要先实测再写：错误例子先在好版本上试会不会真的出这个错；每个提醒各选项与 -O0/-O2 实跑存原文；课里每个“出错”都要先实验，没有可见的错就只引规则，不编“实测出错”；发现计划里的例子不合适，先换掉、写进提案决定并告诉用户。
+    why: 第 36、38、41、42 课都因此改了计划里的例子
+    from: [P6-55, H21-2, H23-2, H38-1, H41-2, H42-2]
+  - id: E15
+    stage: plan
+    level: 清单
+    rule: 会写或读数组外、读未初始化、改字面量等未定义行为的例子只编译不运行，换一个确定行为的错误来运行；确定行为的错误可以运行；旁白不说“未定义行为”，只讲现象。
+    from: [H16-5, H33-6, H35-3, H36-1]
+  - id: E16
+    stage: plan
+    level: 清单
+    rule: 编译提醒和检查工具的报告会随选项、-O 级别、函数写法与 gcc 版本变化：课里只陈述现象，只引本机 gcc 13.3 的原文并写明选项与版本，不下“为什么”；结构体类型不对是硬错误，scanf 漏 & 只是警告，板上如实写；检查工具先试不同开关组合再决定怎么讲。
+    from: [P6-23, H15-5, H22-3, H24-1, H25-3, H25-4, H26-5, H27-4, H28-6, H33-5, H34-4, H38-3]
+  - id: E17
+    stage: plan
+    level: 清单
+    rule: 示例程序的写法：例子来源别写常量字符串（-O2 会在永远走不到的分支里提醒），改成读入的；到没到末尾的循环多读一张只在最后一行有换行时出现，板上与练习只用有换行的文件；同一条 printf 里既调用改全局的函数又读该全局会打印旧值，先存变量再另起一句读。
+    from: [P6-70, H17-1, H20-3, H32-3]
+  - id: E18
+    stage: plan
+    level: 清单
+    rule: 多文件类例子每个场景拷到独立临时目录，记录 gcc/ld 原文与退出码；只想演示某个错误时别漏掉 `#include` 那一行（会被无关报错掩盖）；链接错误里的 .text 偏移与临时文件名不上板。
+    from: [H29-1, H29-2, H29-4]
+  - id: E19
+    stage: plan
+    level: 清单
+    rule: 对比与怪数只引实测：怪数不念具体的数，板上注明别的机器可能不同；步数、次数对比如实说“倒着排一样多”；练习里“编译器一个字也不提醒、检查工具却能发现”的题很好；括号陷阱只放练习。
+    from: [H34-5, H36-4, H37-7, H38-4, H39-8]
+  - id: E20
+    stage: plan
+    level: 清单
+    rule: 研究与提案的数据要对上 schema：research_brief 的 sources 至少 5 条，reliability 只有 primary、secondary、anecdotal，数据点的 credibility 只有 primary_source、secondary_source、anecdotal；只看到搜索摘要的来源如实标，打不开原页（如 429）也如实写。
+    from: [P6-31, P6-35, H26-3, H29-3, H40-9]
+  - id: E21
+    stage: plan
+    level: 清单
+    rule: 建新课：开项目时一并 mkdir -p code validation scripts assets/images assets/captions review references artifacts（漏 assets/captions 会让字幕脚本报错）；复制上一课脚本后先 grep 并替换旧项目名与课号、删掉用不到的中间文件（如 _newB.py），再运行（复制 finish_compose.py 后先运行，改写了上一课的文件）。
+    todo: docs/whiteboard_new_lesson.py（第二批 13）
+    from: [P6-24, P6-34, P6-50]
+  - id: E22
+    stage: plan
+    level: 清单
+    rule: 综合案例课没有新语法，重点放“办法”：错误例子选 diff 报告好读的（行位不变）；第一份考卷里不放会让 diff 行位错开的命令（如 list）；“拼”的那一层要有自己的零件（如 desk.c），才能单独测、单独出错。
+    from: [H41-3, H42-3, H43-4]
+  - id: E23
+    stage: plan
+    level: 清单
+    rule: 课的钩子要回到已发布课里留下的别扭；先自己写，再讲现成的函数，难的类型（如 const void *）只讲成固定模板。
+    from: [H34-7, H21-3]
+  - id: E24
+    stage: plan
+    level: 清单
+    rule: 计划里的数字要当场数清（“九条命令”实为八句），对照 diff 与运行的真实输出再写旁白（初稿“两处不一样”实测是三行），写进提案调整并告诉用户。
+    why: 第 43 课
+    from: [H43-1, H43-3]
+  - id: E25
+    stage: plan
+    level: 清单
+    rule: 音乐被拒（如 Pixabay 403）时不擅自换来源，问用户；本系列不加背景音乐，提案里要写明音乐计划。
+    from: [P6-10]
+  - id: E26
+    stage: plan
+    level: 清单
+    rule: 策划先读 backward-design（教学设计一页纸）；系列或复习课才用 spiral-series-check；这些 skill 不改变既有审批门。
+    from: [Hskill-1, Hskill-4]
+
+  # ---------- script：脚本 ----------
+  - id: E27
+    stage: script
+    level: 检查
+    by: projects/<课程>/scripts/build_script.py（ascii_words、digits 断言）
+    rule: 旁白里没有英文字母与阿拉伯数字，数字说汉字；命令、文件名、函数名、typedef 之类只写在板上的等宽字体，旁白用中文说法（typedef 说“起别名”）。
+    from: [H19-2, H20-2]
+  - id: E28
+    stage: script
+    level: 检查
+    by: projects/<课程>/scripts/build_script.py（FORB、JARGON 断言）
+    rule: 旁白不用难词与禁词（预处理器、展开、栈、调用栈、基准情形、堆、折半、一大堆、静态链表、命名空间、单元测试、断言……），自检拦下就换词（“折半”说“每次扔掉一半”，“一大堆”说“很多很多行”）；本课要教的新词要从难词表里去掉，但仍限制次数并检查大白话；教材里一词多义的词不用；检查口径别把否定说明算命中。
+    why: 词表在每课 build_script.py 里各存一份，第 38→41 课每课手工多加 5–7 个词
+    todo: 单一词表 wordlist.yaml + docs/whiteboard_script_lint.py（第二批 11）
+    from: [P6-32, P6-60, H16-6, H30-4, H34-1, H37-1, H41-5, H42-5]
+  - id: E29
+    stage: script
+    level: 检查
+    by: projects/<课程>/scripts/build_script.py（avg_sentence_chars、max_sentence_chars 断言）
+    rule: 通俗度断言：平均句长 ≤24 字、最长句 ≤50 字；超了按句号拆句，不改字数。
+    from: [P6-51, H36-2]
+  - id: E30
+    stage: script
+    level: 清单
+    rule: 写完首稿立刻对账时长：字数 × 0.238 秒/字 + 三次 3 秒静默 + 段间 0.7 秒（历史上实测比预估短 1–9%）；预估低于约 390 秒就补“讲清道理”的句子（为什么、怎么想），偏长就删不新增东西的句子，不凑字。
+    why: 13 课的首稿偏短或偏长
+    todo: 字数预算表（docs/whiteboard_script_lint.py，第二批 11）
+    from: [H15-6, H17-4, H22-2, H25-1, H33-1, H37-2, H40-7, H41-4, H43-5]
+  - id: E31
+    stage: script
+    level: 检查
+    by: projects/<课程>/scripts/build_script.py（max_cue_gap_seconds 断言）
+    rule: 相邻画面提示间隔不超过 10 秒，超过要把长事件拆成两条。
+    from: [H33-2, H34-6, H36-3, H39-5]
+  - id: E32
+    stage: script
+    level: 清单
+    rule: 引用别课内容前，对那一课项目的 script.json 找到原话再写，课号与措辞都要对（传地址是第 2 课；第 22 课原话是“有时原地变大，有时搬到新的地方”，不能写成“长大就是搬家”）。
+    todo: docs/whiteboard_callbacks.py + lesson-fact-check（第二批 10）
+    from: [P6-71, H17-2, H43-2]
+  - id: E33
+    stage: script
+    level: 清单
+    rule: 脚本写完、通俗度断言过关后，请用户说“脚本通过”之前：跑 plain-language-review 与 lesson-fact-check，把结论写进回复；已批准的内容有错先问用户（全部改／只改已确认的／保留），不静默改。
+    from: [Hskill-2, Hskill-5]
+
+  # ---------- scene：场景计划 ----------
+  - id: E34
+    stage: scene
+    level: 清单
+    rule: 每个画面事件带旁白锚点，事件按旁白先后顺序写，后续锚点必须在主锚点之后；锚点被前一个锚点消耗后用 A(S, …) 单独重找；逐张演示先打印各锚点的实际时间，按它们逐步定时，不要按整段平均分配。
+    from: [P6-61, H25-2, H28-4]
+  - id: E35
+    stage: scene
+    level: 清单
+    rule: build_scene_plan.py 的静默表与 MIN_AFTER 按本课问答所在段改（问答在哪几段就是哪几段，不总是 s3 与 s8）；样音也不一定在 s2。
+    todo: 从 script.json 的 quiz_pauses 自动生成（可选）
+    from: [H41-6, H43-6]
+  - id: E36
+    stage: scene
+    level: 清单
+    rule: 只出现一段时间的画面（结果行、中间态、问号、框）都要写擦除时间 until，指向它的箭头也设同样的 until；框和单元格自己带 until，不要拿底色矩形去盖；“先填问号再写字母”的小格用 until 去掉问号。
+    from: [P6-39, P6-53, H32-4, H34-3]
+
+  # ---------- assets：素材 ----------
+  - id: E37
+    stage: assets
+    level: 默认
+    by: projects/<课程>/scripts/gen_tts.py
+    rule: 配音脚本已处理：WAV 头时长不可信（ffmpeg 重封装再量）、单次 ≤600 字、问句处切段并插入真实静默 3 秒、按段给问句计数（两个段都有问句也不报错）；首次读超时重跑即可（缓存的段不会重生成）。
+    from: [P6-5, P6-49]
+
+  # ---------- edit：剪辑与样片 ----------
+  - id: E38
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py
+    rule: 手写体里没有 0、o、c、C、大写字母和单个拉丁字母：命令、文件名、代码、数字、零、终点牌一律用等宽字体叠写；写完先跑 lint；字幕里单个 c、o 字符指定拉丁字体。
+    why: 手写体字库里这些字是方块或像别的字母；第 4、16 课栽过
+    from: [P6-1, P6-17, P6-18, H18-5, H22-4, H23-3, H25-6, H32-5]
+    seen_extra: [4, 16]
+  - id: E39
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py
+    rule: 等宽字体里不能写中文和全角符号（含“→”）：标签（手写）与数值（等宽）分开写；等宽里只用半角 = + 等符号；计划里的汉字数字放不进等宽，板上改成阿拉伯数字并写进偏离说明。
+    from: [P6-2, P6-37, H16-3, H33-7, H39-3]
+    seen_extra: [16]
+  - id: E40
+    stage: edit
+    level: 清单
+    rule: 手写体里不要混写拉丁字母或文件名（如 list.txt 拆成手写加等宽）；lint 拦不住，要看关键帧总览。
+    todo: docs/whiteboard_lint.py 加“混写拉丁字母”警告（第二批 11）
+    from: [H40-2]
+  - id: E41
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py（WARN）
+    rule: 内存单元格的 name 只用拉丁字母（p、q、age）；中文说明另写 write。
+    from: [P6-30]
+  - id: E42
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py
+    rule: 板上元素里不能有 null 值（until=None 会被渲染器当 0，箭头和小格消失）；没有 until 就不写这个键。
+    from: [P6-64]
+  - id: E43
+    stage: edit
+    level: 清单
+    rule: 箭头：一摞卡等竖向连接用短的手绘 stroke 箭头，memory 竖箭头两格间隙要 ≥88 px（lint 会拦）；指向卡的箭头别穿过它的 next 格（让出发格在目标卡正上或正下）；纸条放在大病房左边、箭头水平指向目标床；自指回环线的起止点靠边，避开正中上方的名字。
+    from: [P6-44, P6-59, P6-62, P6-72, H18-3]
+  - id: E44
+    stage: edit
+    level: 清单
+    rule: 版面间距：带 name 的单元格离上方标题 ≥60 px；带 addr 的格子下方 60 px 内不放说明；small=True 的单元格宽度至少 215；等宽字一行最多约 60 个字符（字宽按 0.6 倍字号算）；长代码行先算宽度，别碰到右列；上下两行卡要给小格留位（卡串下移、问答区放右栏）。
+    from: [P6-38, P6-41, P6-45, P6-58, H15-3, H24-5, H28-2]
+  - id: E45
+    stage: edit
+    level: 清单
+    rule: 强调单元格用 box() 红框，圈只用于数字或短词（圈半径比单元格大会压外框）。
+    from: [P6-54]
+  - id: E46
+    stage: edit
+    level: 清单
+    rule: memory 单元格的 from（复制值）只在创建时生效：接收值的单元格推迟到复制发生的时刻再创建，创建时写 from。
+    from: [P6-40]
+  - id: E47
+    stage: edit
+    level: 清单
+    rule: 同类版面先用已有的辅助：括号串逐字写、固定间距；树用固定坐标表与 cardc/edge/stub/pathbox；一排开关用 switches/bitname/placenum/flash 与 Slot；数组类板用 Arr/Hand/Sorted 记录当前写入项。
+    from: [H18-4, H36-5, H37-6, H39-7]
+  - id: E48
+    stage: edit
+    level: 清单
+    rule: 板标题只用中文，不带方括号等英文符号；代码放等宽字体。
+    from: [P6-48]
+  - id: E49
+    stage: edit
+    level: 默认
+    by: projects/<课程>/scripts/_build_tail.py 与 _body_helpers.py
+    rule: 学校 logo 是白色线稿，放深蓝圆角底板，标题右移避让；代码块乱序书写时未写的行保留高度（模板已内置，不要改掉）。
+    from: [P6-3, P6-4]
+  - id: E50
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_last_item_check.py
+    rule: 每块白板最后一项笔迹要在淡出前写完（余量 ≥0.6 秒）；剪辑阶段首次不过是常态，把最后一项提前再跑；结尾三句回顾提前触发，余量别只剩零点二秒。
+    why: 以这个脚本回测所有课：第 1–40 课里 30 课至少有一块板在淡出开始后才写完（20 课超过半秒，324 块里 51 块），抽看的 3 个淡出前一帧最后一行都只写了一半；第 41–43 课最小余量 +0.65、+0.82、+1.19 秒
+    todo: 并入 rebuild_edit.sh，不合格即失败（第二批 12）
+    from: [P6-57, H24-6, H37-5, H40-1, H41-1, H42-4, H43-8]
+    seen_extra: [12, 27, 30, 33, 38]
+  - id: E51
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py
+    rule: 渲染前先跑 docs/whiteboard_lint.py（build_edit.py 末尾已调用），再用 whiteboard_render.py --contact 看每块关键帧，之后才 --final；改一块只重渲一块。
+    why: 第 16 课渲完才发现方块字，整片重渲
+    from: [P6-68, H16-1]
+    seen_extra: [16]
+  - id: E52
+    stage: edit
+    level: 清单
+    rule: 取单帧与取样帧：取帧时间用锚点时间 + 书写时长之后、板结束前 0.5 秒之前；关键帧总览是缩略图，疑似缺内容时先单取同一时刻的静帧核对；静帧时间点要小于成片总长；按帧号取样用 select='not(mod(n,120))'，不用 fps 滤镜；测远程静帧写 docs/whiteboard_render.py <项目> --remote-cpu --stills <秒...>（选项放在 --stills 之前）。
+    from: [P6-33, H24-2, H24-4, H27-3, H37-4]
+    seen_extra: [7]
+
+  # ---------- compose：合成与核对 ----------
+  - id: E53
+    stage: compose
+    level: 清单
+    rule: 渲染前先 python3 tools/video/remote_cpu_render.py probe 并看输出（通道、free_bytes 是否低于 min_free_bytes）；通道断开先告诉用户再决定，没有渲染机就在核对里如实写明、不编对照；渲染机故障后先 probe 再用真实小作业复测，整课大作业成功才算恢复；提交后读日志报 job log unavailable 时客户端会自动回退本机（约 30 分钟），先停下重试一次远程；render_result.json 的 backend 字段是请求值，不是实际后端；样片阶段连接超时回退本机要如实告诉用户。
+    todo: docs/whiteboard_verify.py 里先 probe（第二批 9）
+    from: [H23-1, H31-1, H31-2, H31-3, H32-1, H35-1]
+  - id: E54
+    stage: compose
+    level: 默认
+    by: docs/whiteboard_render.py
+    rule: 整课、样片、关键帧默认自动走远程渲染机（失败自动回退本机）；REMOTE_MIN_PART=30、STILLS_LOCAL_MAX=60 已内置，不用加参数；小任务（≤60 张静帧）走本机更快；慢的时候看 remote timing 里的 fetched 与 install 分开判断。
+    from: [H18-1, H18-2, P6-73, P6-77]
+  - id: E55
+    stage: compose
+    level: 默认
+    by: docs/whiteboard_render.py
+    rule: 分块渲染工具已处理 Remotion 超时与拼接内存：不要用 video_compose 默认的 600 秒超时；拼接时每个片段独立 -i（同一输入多次 trim 会缓存已解码帧、被系统杀掉）。
+    from: [P6-6, P6-7]
+  - id: E56
+    stage: compose
+    level: 清单
+    rule: 本机对照渲染（K3、K6）：启动前先告诉用户那是对照、整课已走远程；先备份远程分块、成片与 render.log；用 nohup 放后台，等待用 until grep；比较 PSNR 前把两边时间戳统一成 N/30（setpts=N/30/TB），否则末尾会显示成 29–40 dB 的假象；对照后恢复备份并逐字节核对；本机对照跑得太快、没有输出确认行时，删掉输出目录重渲再比。
+    todo: docs/whiteboard_verify.py 的本机对照子命令（第二批 9）
+    from: [P6-74, H20-6, H21-6, H22-8, H24-3, H32-2, H40-4, H41-7]
+  - id: E57
+    stage: compose
+    level: 清单
+    rule: 整课远程渲染一结束，先备份 renders/render.log 与输出日志（之后跑静帧会把它覆盖，分段计时就没了）。
+    why: 第 42 课的整课分段计时被后来的静帧覆盖，只剩总耗时；第 43 课做到了
+    todo: docs/whiteboard_verify.py 先备份（第二批 9）
+    from: [H42-1, H43-7]
+  - id: E58
+    stage: compose
+    level: 清单
+    rule: 成片核对：按 4 秒一帧加问答时刻帧逐张看完全部拼图再下“正常”的结论；结尾单独取最后几秒的帧确认最后一句写完；整课渲染后的 4 秒帧才看得出相邻文字贴在同一行；logo、字幕、字形都要看，问答时答案不早于 answer_not_before。
+    todo: docs/whiteboard_verify.py（第二批 9）
+    from: [H16-2, H30-3, H40-3]
+  - id: E59
+    stage: compose
+    level: 清单
+    rule: freezedetect 在稀疏白板上会报近似静止，要对照帧确认只有小字写入，并如实写进核对。
+    from: [H33-4]
+  - id: E60
+    stage: compose
+    level: 清单
+    rule: 已说“成片通过”后才发现缺陷：如实说明、修复、重渲、按 4 秒一帧加问答帧重新核对，发布前请用户重新审看并再说“发布通过”；要重渲已批准的成片先告知用户（第 40 课 K2、K6）。
+    from: [P6-69, H16-4]
+
+  # ---------- publish：发布与复盘 ----------
+  - id: E61
+    stage: publish
+    level: 清单
+    rule: 缩略图取“该块最后一项写完之后、淡出之前”的一帧：先用关键帧总览找时间，渲几个候选并排看，取完看图（不要写到一半）；改默认取帧时间后 grep 核对；最后一行直到旁白末尾才写完时，取最晚且仍在淡出之前的一帧。
+    why: 第 21、27、40 课确有出错（第 27 课第一次取 162.5 秒最后一行没写完，改 164.2 秒）
+    todo: docs/whiteboard_thumb_check.py（第二批 8）
+    from: [P6-42, P6-65, P6-75, P6-76, H17-3, H21-4, H23-4, H27-2, H33-3, H38-5]
+    seen_extra: [9]
+  - id: E62
+    stage: publish
+    level: 清单
+    rule: 封面：课名、缩略图字等一切手写体文字不能含小写 c/o（不能写 switch）；“第 N 课”标签按文字宽度自动加宽；封面代码行不超过约 30 个字符，含双引号要转义；出图后一定看一眼。
+    todo: cover_maker 加字形检查（可选）
+    from: [H31-4, P6-46, H29-5]
+    seen_extra: [21]
+  - id: E63
+    stage: publish
+    level: 清单
+    rule: 练习与验证程序要在 -Werror 下编译：演示“改不到”的函数里打印该参数（否则 set but not used）；sizeof 数组形参用 int *arr 的正确写法；丢掉 fscanf 的返回值会编译不过；文件只留用到的函数（unused-function 先看原文再删，不放宽选项），写完逐个编译；只编译的例子里别留没用的函数。
+    from: [P6-25, P6-36, P6-67, H15-2, H20-4, H28-5, H38-2, H39-4]
+  - id: E64
+    stage: publish
+    level: 清单
+    rule: 练习说明要写清运行提醒：需要输入的怎么送；故意少写 break 或抄满的练习写清编译选项（-Wall、-Wextra，不加 -Werror）；只能用特定参数运行的程序写明；ASan 报泄漏时重定向的 stdout 可能丢行，答案要写明，板上只放 SUMMARY 一行；泄漏练习把其余的卡整串还掉，只留要演示的那一张；课里已演示的错误练习放不下时要明说。
+    from: [P6-52, P6-66, H15-4, H31-5, H32-6, H35-2, H39-6, H40-8]
+  - id: E65
+    stage: publish
+    level: 清单
+    rule: 练习答案的“怎么改”只贴改的那个函数或 case 块，不贴整份程序；练习保持一个文件，不拆成题目和答案两个文件（用户 2026-10-19 决定）；每题标用途，答案不泄露到题面。
+    from: [H42-6]
+  - id: E66
+    stage: publish
+    level: 清单
+    rule: 写练习前读 exercise-design；写简介与练习前后各跑一次 lesson-fact-check。
+    from: [Hskill-3]
+
+# 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
+narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7]
