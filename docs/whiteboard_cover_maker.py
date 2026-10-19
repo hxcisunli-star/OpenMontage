@@ -63,6 +63,7 @@ LESSONS = [
     ("c-bits-cn", 39, "位运算", "一个整数，一排开关", "flags |= FEVER;"),
     ("c-argv-cn", 40, "命令行参数", "运行时，交给程序几句话", "./show_list list.txt 2"),
     ("c-caller-cn", 41, "门诊叫号机", "先写考卷，再拼零件", "diff - expected.txt"),
+    ("c-record-cn", 42, "病历册", "零件之间，要说好约定", "round trip ok"),
 ]
 
 
