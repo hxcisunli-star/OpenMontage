@@ -10,6 +10,7 @@ stages:
   any:
     title: 一直成立的细则（环境与协作）
     steps:
+      - 开场先 `.venv/bin/python docs/whiteboard_gate.py status`：现在哪课、哪一门、等什么口令。
       - 九个口令与“早说不算”的规则在 `.claude/rules/whiteboard-protocol.md`（始终载入）；本页是它的细则。
   plan:
     title: 策划与提案
@@ -22,8 +23,8 @@ stages:
       - 用户说“继续策划下一课”或给题目：先进计划模式，不建项目；读 `docs/whiteboard-course-handoff.zh-CN.md`（现状）和相邻两课的章节（`docs/whiteboard/archive/playbook-2.12-2.48-per-lesson.zh-CN.md`）。
       - 研究衔接、难点讲法、通俗度；写计划文件：选题四条标准、难点表（难点→学生怎么想→讲法→实测证据）、教学设计一页纸、与前几课不同之处。
       - 实测所有例子（gcc 13.3、GNU diffutils 3.10，三套选项 × -O0/-O2），输出存 `validation/`。
-      - 用户在对话里说“计划确认”后才建项目：`init_project(...)`、建目录、复制医生图、校标、字体和上一课脚本（见 E21）。
-      - 写 `scripts/plan_stage.py` → research（≥5 个来源）与 proposal，检查点 awaiting_human，停下等“提案通过”。
+      - 用户在对话里说“计划确认”后才建项目：`.venv/bin/python docs/whiteboard_new_lesson.py --pid c-xxx-cn --n 课号 --title 课名`（建目录、拷起步模板、换名、扫残留，见 E21）；用 `.venv/bin/python docs/whiteboard_gate.py record - plan "<用户原话>"` 记下口令。
+      - 写 `scripts/plan_stage.py` → research（≥5 个来源）与 proposal，检查点 awaiting_human，停下等“提案通过”；用户说了之后：`.venv/bin/python docs/whiteboard_gate.py approve <项目> proposal "<用户原话>"`。
     outputs: 计划文件；research_brief.json；proposal_packet.json；decision_log.json
   script:
     title: 脚本
@@ -34,8 +35,8 @@ stages:
     steps:
       - 复制上一课 `build_script.py`，先改项目名与课号并 grep 核对，再另起一条命令运行（改与运行分开）。
       - 写 8 段旁白（每段 ≤600 字，三处真实静默各 3 秒，问答在本课指定的段），对账时长。
-      - 断言过关（句长、英文与数字、难词、锚点间隔）后，跑 plain-language-review 与 lesson-fact-check，结论写进请用户审阅的回复。
-      - 写 `script-review.html` 与 script 检查点 awaiting_human，停下等“脚本通过”。
+      - 断言过关后跑 `.venv/bin/python docs/whiteboard_script_lint.py projects/<课程> --allow 本课新词`（英文数字、难词、句长、锚点间隔、字数预算）和 `python3 docs/whiteboard_callbacks.py projects/<课程>`（回扣原话），再跑 plain-language-review 与 lesson-fact-check，结论写进请用户审阅的回复。
+      - 写 `script-review.html` 与 script 检查点 awaiting_human，停下等“脚本通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> script "<用户原话>"`。
     outputs: script.json；script_review.json；teaching_examples.json；script-review.html
   scene:
     title: 场景计划
@@ -43,33 +44,33 @@ stages:
     steps:
       - 复制 `build_scene_plan.py`，改各块版面与事件；每个事件带 `anchor_phrase`，事件按旁白先后顺序写，找不到锚点就停下改计划，不放宽查找。
       - 改静默表与 `MIN_AFTER`（按本课问答所在段）。
-      - 运行（会把 script 检查点标为 completed），写 scene_plan 检查点 awaiting_human，停下等“场景计划通过”。
+      - 运行（会把 script 检查点标为 completed），写 scene_plan 检查点 awaiting_human，停下等“场景计划通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> scene_plan "<用户原话>"`。
     outputs: scene_plan.json；scene-plan-review.html
   assets:
     title: 素材（配音）
     gate: 样音通过 → 素材通过
     steps:
-      - 跑 `sample_voice.py` 出样音（含最难一句），停下等“样音通过”（没有检查点，只记录）。
-      - 跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py` → `finish_assets.py`；写 assets 检查点 awaiting_human，停下等“素材通过”。
+      - 跑 `sample_voice.py` 出样音（含最难一句），停下等“样音通过”；用户说了之后：`docs/whiteboard_gate.py record <项目> sample "<用户原话>"`（没有检查点，只追加记录）。
+      - 跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py` → `finish_assets.py`；写 assets 检查点 awaiting_human，停下等“素材通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> assets "<用户原话>"`。
       - 配音还没生成完、核对还没做完之前用户说的口令不算。
     outputs: assets/audio/narration_timeline.json；captions.json；asset_manifest.json
   edit:
     title: 剪辑与样片
     gate: 样片通过，开始合成
     steps:
-      - 改 `_body_boards.py` 等源文件，运行 `bash scripts/rebuild_edit.sh`（拼接 build_edit.py 并跑 lint）。
-      - 运行 `python3 docs/whiteboard_last_item_check.py projects/<课程>`；首次不过是常态，把最后一项提前再跑。
+      - 改 `_body_boards.py` 等源文件，运行 `bash scripts/rebuild_edit.sh`（拼接 build_edit.py、跑 lint，并跑 last_item_check：每块最后一项要在淡出前 0.6 秒写完，首次不过是常态，把最后一项提前再跑）。
       - 用 `docs/whiteboard_render.py projects/<课程> --contact` 看每块关键帧；出样片（`--sample 起 止`）。
-      - 写 edit 检查点 awaiting_human，停下等“样片通过，开始合成”。
+      - 写 edit 检查点 awaiting_human，停下等“样片通过，开始合成”；用户说了之后：`docs/whiteboard_gate.py approve <项目> edit "<用户原话>"`。
     outputs: edit_decisions.json；render_props.json；样片
   compose:
     title: 合成与核对
     gate: 成片通过，进入发布阶段
     steps:
-      - 先 `python3 tools/video/remote_cpu_render.py probe` 并看输出。
-      - 用 `nohup .venv/bin/python projects/<课程>/scripts/render_final.py > 日志 2>&1 &` 渲整课；渲完先备份 `renders/render.log`。
-      - 核对：ffprobe、ebur128、silencedetect d=1.3 对问答时间线、blackdetect、freezedetect、4 秒一帧拼图加问答帧；6 张静帧远程对本机；K3/K6 本机对照 PSNR。
-      - 改 `finish_compose.py` 的数字后另起一条命令运行，写 compose 检查点；停下等“成片通过，进入发布阶段”。
+      - 先 `.venv/bin/python docs/whiteboard_verify.py probe` 并看输出。
+      - 用 `nohup .venv/bin/python projects/<课程>/scripts/render_final.py > 日志 2>&1 &` 渲整课，`python3 docs/whiteboard_wait.py 日志` 等它结束。
+      - 立刻 `.venv/bin/python docs/whiteboard_verify.py verify projects/<课程> --render-log 日志`（先备份 render.log，再量 ffprobe、响度、静音对问答时间线、黑帧、静止、md5，生成 4 秒一帧拼图和问答帧拼图）；**逐张看拼图**。
+      - 独立对照：`docs/whiteboard_verify.py stills projects/<课程>`（6 张静帧远程对本机逐字节相同）；`nohup … docs/whiteboard_verify.py local-ref projects/<课程> > 日志2 2>&1 &`（K3/K6 本机对照 PSNR，先告诉用户这是对照）。
+      - 看完写 `validation/compose-notes.json`，运行 `scripts/finish_compose.py`（读实测，不手填数字；写 compose 检查点 awaiting_human），停下等“成片通过，进入发布阶段”；用户说了之后：`docs/whiteboard_gate.py approve <项目> compose "<用户原话>"`。
     outputs: renders/final.mp4；render_report.json；final_review.json
   publish:
     title: 发布与复盘
@@ -79,9 +80,9 @@ stages:
       - {path: .claude/skills/lesson-fact-check/SKILL.md, why: 写简介与练习前后各查一遍}
       - {path: docs/whiteboard/retro-template.md, why: 发布通过之后写复盘，把教训分流}
     steps:
-      - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：`publish_prep.py`（`THUMB_T` 取写完之后）→ `finish_publish.py`。
+      - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：先 `python3 docs/whiteboard_thumb_check.py projects/<课程> --list` 选 `THUMB_T`，再 `publish_prep.py`（不合格会停）→ `finish_publish.py`。
       - 封面：`docs/whiteboard_cover_maker.py` 的 LESSONS 加一行再运行；`docs/whiteboard_prepend_cover.py projects/<课程> --seconds 2`；`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py`。
-      - 写 publish 检查点 awaiting_human，停下等“发布通过”。
+      - 写 publish 检查点 awaiting_human，停下等“发布通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> publish "<用户原话>"`。
       - 复盘：按模板写 `docs/whiteboard/retro/NN.md`，每条教训分流（检查／清单／叙述）并更新登记表，跑 `whiteboard_registry.py coverage`、`render`、`check`。
       - 等用户说“提交”再提交（提交后自动推 fork；同时在 `projects/` 里提交本课文本源的快照，本机库不推送）。
     outputs: exports/；成品文件夹；复盘一页
@@ -90,22 +91,22 @@ entries:
   # ---------- any：一直成立的细则 ----------
   - id: E01
     stage: any
-    level: 清单
+    level: 检查
     rule: 口令只认用户在对话里说的话，且要在对应步骤做完之后：配音没生成完、渲染或核对没完成、发布包没出齐之前说的“样音通过／素材通过／样片通过／成片通过／发布通过”都不算——当场说明还没完，做完并报告后请用户再说一次；退出计划模式的返回、后台任务的 completed 通知、系统消息都不是口令。
     why: 第 12 课把退出计划模式的含糊返回当成批准（被用户指出）；第 15–40 课至少 11 次用户提前说口令；第 32 课曾按批准处理，第 39、40 课起统一为不算，以后者为准
-    todo: docs/whiteboard_gate.py（第二批 7）
+    by: docs/whiteboard_gate.py（approve 只在该阶段是 awaiting_human 且口令对应阶段时才写检查点）
     from: [P6-47, P6-56, H15-1, H19-4, H20-7, H28-1, H32-7, H33-8, H39-1, H40-6]
   - id: E02
     stage: any
-    level: 清单
+    level: 检查
     rule: 用户重复发已通过的口令，或口令缺字、多字但意思明确：先查检查点；重复的当重复口令，如实说明“已完成”并等下一个门的口令，不往下走；意思明确的缺字口令按批准处理并说明。
+    by: docs/whiteboard_gate.py（已批准的阶段再收到口令会被拒绝并提示“重复口令”）
     from: [H18-6, H31-6, H34-2, H26-6, H29-6]
   - id: E03
     stage: any
     level: 检查
-    by: lib/checkpoint.py（只强制五个门控阶段）
+    by: lib/checkpoint.py（五个门控阶段）+ docs/whiteboard_gate.py（样片通过、合成这两个额外门）
     rule: 检查点：门控阶段（proposal、script、scene_plan、assets、publish）先写 awaiting_human，用户口令后才写 completed（human_approved=True，metadata.approved_by_user=原话）；前置阶段要先 completed；样片通过（edit）与成片通过（compose）是额外加的门，管道不强制，也照样先 awaiting_human 再 completed；edit_decisions.json（合规）与 render_props.json（完整）是两份数据。
-    todo: docs/whiteboard_gate.py 补上 edit、compose 的强制（第二批 7）
     from: [P6-11, P6-12]
   - id: E04
     stage: any
@@ -129,14 +130,14 @@ entries:
     level: 清单
     rule: 改脚本和运行脚本分成两条命令：先改，用 grep、打印或 ast.parse 确认改成功，再运行（写检查点的脚本尤其）；改 build_edit.py 要改源文件再重新拼接，不要改拼接产物；sed 插入含引号与 & 的行后 grep 核对；换默认值后 grep 核对；装配脚本里的替换计数先数清。
     why: 第 26 课替换断言失败后旧脚本仍被运行，写出了错误的检查点
-    todo: 报告类脚本改为从实测文件读数（docs/whiteboard_verify.py，第二批 9），不再手填数字
+    todo: build_script 等仍靠手改；合成报告已改为读实测文件（docs/whiteboard_finish_compose.py），不再手填数字
     from: [P6-19, H22-5, H25-5, H26-1, H26-2, H26-4, H27-1, H28-3, H31-7]
   - id: E08
     stage: any
-    level: 清单
-    rule: 后台任务：用 nohup 启动，等待命令也放后台，用 until grep -q 'done in' 日志；远程整课渲染的结束行是 success {…}，不是 done in——等待模式两种都要认；通知里的 completed 只是 nohup 外壳退出；不要用 pkill -f 或 pgrep -f（会匹配到自己）；前台长时间等待会被系统杀（退出码 137）；等本机重渲时主动向用户报进度。
+    level: 默认
+    rule: 后台任务：用 nohup 启动，等待用 python3 docs/whiteboard_wait.py <日志>（同时认远程整课的 success { 与本机的 done in，失败行会报错，回退通知不当结束）；后台通知里的 completed 只是 nohup 外壳退出；不要用 pkill -f 或 pgrep -f（会匹配到自己）；前台长时间等待会被系统杀（退出码 137）；等本机重渲时主动向用户报进度。
     why: 第 43 课留下的 until grep 等待命令不认 success 行，永远等不到
-    todo: docs/whiteboard_wait.py（第二批 9）
+    by: docs/whiteboard_wait.py
     from: [P6-8, P6-20, P6-26, P6-27, H15-7, H30-1, H37-3, H38-6, H39-2, H40-5, H41-8]
   - id: E09
     stage: any
@@ -204,9 +205,9 @@ entries:
     from: [P6-31, P6-35, H26-3, H29-3, H40-9]
   - id: E21
     stage: plan
-    level: 清单
-    rule: 建新课：开项目时一并 mkdir -p code validation scripts assets/images assets/captions review references artifacts（漏 assets/captions 会让字幕脚本报错）；复制上一课脚本后先 grep 并替换旧项目名与课号、删掉用不到的中间文件（如 _newB.py），再运行（复制 finish_compose.py 后先运行，改写了上一课的文件）。
-    todo: docs/whiteboard_new_lesson.py（第二批 13）
+    level: 默认
+    rule: 建新课（用户说“计划确认”之后）：.venv/bin/python docs/whiteboard_new_lesson.py --pid c-xxx-cn --n 课号 --title 课名——它建目录（含 assets/captions）、拷起步模板、从上一课复制本课专属脚本并换名、扫描残留的别课项目名和上一课的课号（第 41–43 课的 render_stills.py 一直指着第 30 课的项目），不会运行任何东西；复制的脚本里要改写的内容照扫描结果逐个改，再运行。
+    by: docs/whiteboard_new_lesson.py + docs/whiteboard/starter/
     from: [P6-24, P6-34, P6-50]
   - id: E22
     stage: plan
@@ -239,41 +240,39 @@ entries:
   - id: E27
     stage: script
     level: 检查
-    by: projects/<课程>/scripts/build_script.py（ascii_words、digits 断言）
+    by: docs/whiteboard_script_lint.py（并且 build_script.py 里仍有 ascii_words、digits 断言）
     rule: 旁白里没有英文字母与阿拉伯数字，数字说汉字；命令、文件名、函数名、typedef 之类只写在板上的等宽字体，旁白用中文说法（typedef 说“起别名”）。
     from: [H19-2, H20-2]
   - id: E28
     stage: script
     level: 检查
-    by: projects/<课程>/scripts/build_script.py（FORB、JARGON 断言）
+    by: docs/whiteboard_script_lint.py + docs/whiteboard/wordlist.yaml（单一词表；新课 build_script.py 读它，NEW_TERMS 写本课新词）
     rule: 旁白不用难词与禁词（预处理器、展开、栈、调用栈、基准情形、堆、折半、一大堆、静态链表、命名空间、单元测试、断言……），自检拦下就换词（“折半”说“每次扔掉一半”，“一大堆”说“很多很多行”）；本课要教的新词要从难词表里去掉，但仍限制次数并检查大白话；教材里一词多义的词不用；检查口径别把否定说明算命中。
-    why: 词表在每课 build_script.py 里各存一份，第 38→41 课每课手工多加 5–7 个词
-    todo: 单一词表 wordlist.yaml + docs/whiteboard_script_lint.py（第二批 11）
+    why: 词表原来在每课 build_script.py 里各存一份，第 38→41 课每课手工多加 5–7 个词；现在 142 个词只存一份，每词有 from 与 allow_in
     from: [P6-32, P6-60, H16-6, H30-4, H34-1, H37-1, H41-5, H42-5]
   - id: E29
     stage: script
     level: 检查
-    by: projects/<课程>/scripts/build_script.py（avg_sentence_chars、max_sentence_chars 断言）
+    by: docs/whiteboard_script_lint.py（平均句长、最长句断言）
     rule: 通俗度断言：平均句长 ≤24 字、最长句 ≤50 字；超了按句号拆句，不改字数。
     from: [P6-51, H36-2]
   - id: E30
     stage: script
-    level: 清单
+    level: 检查
     rule: 写完首稿立刻对账时长：字数 × 0.238 秒/字 + 三次 3 秒静默 + 段间 0.7 秒（历史上实测比预估短 1–9%）；预估低于约 390 秒就补“讲清道理”的句子（为什么、怎么想），偏长就删不新增东西的句子，不凑字。
     why: 13 课的首稿偏短或偏长
-    todo: 字数预算表（docs/whiteboard_script_lint.py，第二批 11）
+    by: docs/whiteboard_script_lint.py（打印字数预算；预估时长出 360–480 秒报错，偏离提案目标 8% 提醒）
     from: [H15-6, H17-4, H22-2, H25-1, H33-1, H37-2, H40-7, H41-4, H43-5]
   - id: E31
     stage: script
     level: 检查
-    by: projects/<课程>/scripts/build_script.py（max_cue_gap_seconds 断言）
+    by: docs/whiteboard_script_lint.py（相邻提示间隔断言）
     rule: 相邻画面提示间隔不超过 10 秒，超过要把长事件拆成两条。
     from: [H33-2, H34-6, H36-3, H39-5]
   - id: E32
     stage: script
     level: 清单
-    rule: 引用别课内容前，对那一课项目的 script.json 找到原话再写，课号与措辞都要对（传地址是第 2 课；第 22 课原话是“有时原地变大，有时搬到新的地方”，不能写成“长大就是搬家”）。
-    todo: docs/whiteboard_callbacks.py + lesson-fact-check（第二批 10）
+    rule: 引用别课内容前，对那一课项目的 script.json 找到原话再写，课号与措辞都要对（传地址是第 2 课；第 22 课原话是“有时原地变大，有时搬到新的地方”，不能写成“长大就是搬家”）。辅助：python3 docs/whiteboard_callbacks.py projects/<课程> 列出每处“第N课”和那一课最像的句子（要人看，并跑 lesson-fact-check）。
     from: [P6-71, H17-2, H43-2]
   - id: E33
     stage: script
@@ -325,9 +324,9 @@ entries:
     seen_extra: [16]
   - id: E40
     stage: edit
-    level: 清单
+    level: 检查
     rule: 手写体里不要混写拉丁字母或文件名（如 list.txt 拆成手写加等宽）；lint 拦不住，要看关键帧总览。
-    todo: docs/whiteboard_lint.py 加“混写拉丁字母”警告（第二批 11）
+    by: docs/whiteboard_lint.py（WARN：手写体里文件名、函数调用、长英文单词与中文混写）
     from: [H40-2]
   - id: E41
     stage: edit
@@ -380,10 +379,9 @@ entries:
   - id: E50
     stage: edit
     level: 检查
-    by: docs/whiteboard_last_item_check.py
+    by: docs/whiteboard_last_item_check.py（起步模板的 rebuild_edit.sh 已并入，不合格即让构建失败）
     rule: 每块白板最后一项笔迹要在淡出前写完（余量 ≥0.6 秒）；剪辑阶段首次不过是常态，把最后一项提前再跑；结尾三句回顾提前触发，余量别只剩零点二秒。
-    why: 以这个脚本回测所有课：第 1–40 课里 30 课至少有一块板在淡出开始后才写完（20 课超过半秒，324 块里 51 块），抽看的 3 个淡出前一帧最后一行都只写了一半；第 41–43 课最小余量 +0.65、+0.82、+1.19 秒
-    todo: 并入 rebuild_edit.sh，不合格即失败（第二批 12）
+    why: 以这个脚本回测所有课：第 1–40 课里 30 课至少有一块板在淡出开始后才写完（20 课超过半秒，324 块里 51 块），抽看的 3 个淡出前一帧最后一行都只写了一半；第 41–43 课最小余量 +0.65、+0.82、+1.19 秒；逐课清单见 docs/whiteboard/old-lessons-last-item-report.zh-CN.md
     from: [P6-57, H24-6, H37-5, H40-1, H41-1, H42-4, H43-8]
     seen_extra: [12, 27, 30, 33, 38]
   - id: E51
@@ -405,8 +403,7 @@ entries:
   - id: E53
     stage: compose
     level: 清单
-    rule: 渲染前先 python3 tools/video/remote_cpu_render.py probe 并看输出（通道、free_bytes 是否低于 min_free_bytes）；通道断开先告诉用户再决定，没有渲染机就在核对里如实写明、不编对照；渲染机故障后先 probe 再用真实小作业复测，整课大作业成功才算恢复；提交后读日志报 job log unavailable 时客户端会自动回退本机（约 30 分钟），先停下重试一次远程；render_result.json 的 backend 字段是请求值，不是实际后端；样片阶段连接超时回退本机要如实告诉用户。
-    todo: docs/whiteboard_verify.py 里先 probe（第二批 9）
+    rule: 渲染前先 .venv/bin/python docs/whiteboard_verify.py probe 并看输出（通道、free_bytes 是否低于 min_free_bytes）；通道断开先告诉用户再决定，没有渲染机就在核对里如实写明、不编对照；渲染机故障后先 probe 再用真实小作业复测，整课大作业成功才算恢复；提交后读日志报 job log unavailable 时客户端会自动回退本机（约 30 分钟），先停下重试一次远程；render_result.json 的 backend 字段是请求值，不是实际后端（verify 的 --render-log 从作业日志里认真实后端）；样片阶段连接超时回退本机要如实告诉用户。
     from: [H23-1, H31-1, H31-2, H31-3, H32-1, H35-1]
   - id: E54
     stage: compose
@@ -422,22 +419,21 @@ entries:
     from: [P6-6, P6-7]
   - id: E56
     stage: compose
-    level: 清单
-    rule: 本机对照渲染（K3、K6）：启动前先告诉用户那是对照、整课已走远程；先备份远程分块、成片与 render.log；用 nohup 放后台，等待用 until grep；比较 PSNR 前把两边时间戳统一成 N/30（setpts=N/30/TB），否则末尾会显示成 29–40 dB 的假象；对照后恢复备份并逐字节核对；本机对照跑得太快、没有输出确认行时，删掉输出目录重渲再比。
-    todo: docs/whiteboard_verify.py 的本机对照子命令（第二批 9）
+    level: 默认
+    rule: 本机对照渲染（K3、K6）：启动前先告诉用户那是对照、整课已走远程；然后 nohup .venv/bin/python docs/whiteboard_verify.py local-ref projects/<课程> > 日志 2>&1 &，用 python3 docs/whiteboard_wait.py 日志 等待——它自己备份远程分块、本机重渲、把两边时间戳统一成 N/30 再算 PSNR、还原备份并逐文件 md5 核对（阈值最低 45 dB），结果写进 validation/local-ref.json。
+    by: docs/whiteboard_verify.py local-ref
     from: [P6-74, H20-6, H21-6, H22-8, H24-3, H32-2, H40-4, H41-7]
   - id: E57
     stage: compose
-    level: 清单
-    rule: 整课远程渲染一结束，先备份 renders/render.log 与输出日志（之后跑静帧会把它覆盖，分段计时就没了）。
+    level: 默认
+    rule: 整课远程渲染一结束，立刻跑 .venv/bin/python docs/whiteboard_verify.py verify projects/<课程> --render-log <渲染作业的日志>——它第一步就把 renders/render.log 等备份到 renders/log_backup/（之后跑静帧会把它覆盖，分段计时就没了），再做全部机械核对。
     why: 第 42 课的整课分段计时被后来的静帧覆盖，只剩总耗时；第 43 课做到了
-    todo: docs/whiteboard_verify.py 先备份（第二批 9）
+    by: docs/whiteboard_verify.py verify
     from: [H42-1, H43-7]
   - id: E58
     stage: compose
     level: 清单
-    rule: 成片核对：按 4 秒一帧加问答时刻帧逐张看完全部拼图再下“正常”的结论；结尾单独取最后几秒的帧确认最后一句写完；整课渲染后的 4 秒帧才看得出相邻文字贴在同一行；logo、字幕、字形都要看，问答时答案不早于 answer_not_before。
-    todo: docs/whiteboard_verify.py（第二批 9）
+    rule: 成片核对：verify 量完（ffprobe、响度、静音对问答时间线、黑帧、静止、md5）并生成拼图后，人要逐张看完 renders/review_dense/sheet_*.png（每 4 秒一帧）和 renders/review_cues/sheet.png（问答时刻与结尾），再下“正常”的结论；结尾单独看最后几秒的帧确认最后一句写完；整课渲染后的 4 秒帧才看得出相邻文字贴在同一行；logo、字幕、字形都要看，问答时答案不早于 answer_not_before；看完写 validation/compose-notes.json，再跑 docs/whiteboard_finish_compose.py（报告全部来自实测）。
     from: [H16-2, H30-3, H40-3]
   - id: E59
     stage: compose
@@ -453,10 +449,10 @@ entries:
   # ---------- publish：发布与复盘 ----------
   - id: E61
     stage: publish
-    level: 清单
-    rule: 缩略图取“该块最后一项写完之后、淡出之前”的一帧：先用关键帧总览找时间，渲几个候选并排看，取完看图（不要写到一半）；改默认取帧时间后 grep 核对；最后一行直到旁白末尾才写完时，取最晚且仍在淡出之前的一帧。
+    level: 检查
+    rule: 缩略图取“该块最后一项写完之后、淡出之前”的一帧：python3 docs/whiteboard_thumb_check.py projects/<课程> --list 看每块的合格时间，THUMB_T 取其中之一，publish_prep.py 不合格会直接停；取完仍要看图（不要写到一半）；改默认取帧时间后 grep 核对；最后一行直到旁白末尾才写完时，取最晚且仍在淡出之前的一帧。
     why: 第 21、27、40 课确有出错（第 27 课第一次取 162.5 秒最后一行没写完，改 164.2 秒）
-    todo: docs/whiteboard_thumb_check.py（第二批 8）
+    by: docs/whiteboard_thumb_check.py（新课的 publish_prep.py 已接入）
     from: [P6-42, P6-65, P6-75, P6-76, H17-3, H21-4, H23-4, H27-2, H33-3, H38-5]
     seen_extra: [9]
   - id: E62

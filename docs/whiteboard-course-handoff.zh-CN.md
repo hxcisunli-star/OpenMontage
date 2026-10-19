@@ -7,7 +7,7 @@
 
 1. 读 `CLAUDE.md` → `AGENT_GUIDE.md`（仓库规定：回应任何用户消息之前先读，它决定第一步做什么）。
 2. 读入口 skill `.claude/skills/whiteboard-lesson/SKILL.md`，再读当前阶段的清单 `docs/whiteboard/checklists/*.md`；协议规则 `.claude/rules/whiteboard-protocol.md` 会自动载入。
-3. 看 `projects/<课程>/checkpoint_*.json`（`status`、`human_approved`）知道进行到哪一步；没有进行中的课程时，告诉用户你已接手，下一课由用户另定。
+3. 跑 `.venv/bin/python docs/whiteboard_gate.py status`（从各课检查点算出现在哪课、哪一门、等什么口令）；没有进行中的课程时，告诉用户你已接手，下一课由用户另定。
 
 记忆在 `/root/.claude/projects/-home-MyProject-OpenMontage/memory/`（`MEMORY.md` 是索引）；与本文冲突时，**以本文和仓库文件为准**，并更新记忆。
 
@@ -18,7 +18,7 @@
 - **43 门课全部已发布**（第 1–43 课），没有进行中的课程；补漏路线 v2 与综合案例三部曲（叫号机 → 病历册 → 门诊系统）已走完，**没有已定的下一课**，由用户另定（用户说“继续策划下一课”或直接给题目再开始）。
 - 渲染：分块渲染 + 多进程；默认自动走远程渲染机（整课约 155–225 秒），失败自动回退本机（整课约 27 分钟起）；**每次渲染前先 `python3 tools/video/remote_cpu_render.py probe` 并看输出**；故障记录见 `docs/remote-render-incident-20261015-job-log-unavailable.zh-CN.md`。
 - 2026-10-19 起项目里有五个来自 OpenMAIC 的改编教学设计 skill（`backward-design`、`plain-language-review`、`lesson-fact-check`、`exercise-design`、`spiral-series-check`，见做课手册 2.49），还没在真实课里试用，下一课是首次试用。
-- 2026-10-19 起经验按“登记表 + 阶段清单 + 复盘”沉淀，不再往多处各写一遍（见第 7 节）。
+- 2026-10-19 起经验按“登记表 + 阶段清单 + 复盘”沉淀，不再往多处各写一遍（见第 7 节）；重复出现的教训已做成脚本（口令助手、缩略图检查、成片核对器、回扣提取器、单一词表与脚本检查、一键建课），回测见 `docs/whiteboard_backtest.py`。**老课体检**（每块板最后一项笔迹有没有写完就淡出）：`docs/whiteboard/old-lessons-last-item-report.zh-CN.md`，只出报告，是否重渲由用户定。
 
 ## 2. 43 课一览
 
@@ -140,7 +140,7 @@
 | `run_validation.sh` / `run_exercises.sh` / `make_exercises.py` | 例子与练习的真实运行 / 练习文本 |
 | `publish_prep.py` / `finish_publish.py` | 缩略图（`THUMB_T`）+ SRT + 章节元数据 / 导出包 + publish 检查点 |
 
-渲染与检查工具（都在 `docs/`，说明见做课手册 4.4）：`whiteboard_lint.py`（渲染前检查）、`whiteboard_last_item_check.py`（最后一项笔迹写完时间）、`whiteboard_render.py`（`--final`、`--contact`、`--stills`、`--sample`，`--local` / `--remote-cpu`）、`whiteboard_cover_maker.py`、`whiteboard_prepend_cover.py`、`whiteboard_release_pack.py`。白板元素（`remotion-composer/src/components/WhiteboardScene.tsx`）**不要改仓库代码，只改数据**。
+渲染与检查工具（都在 `docs/`，说明见做课手册 4.4）：`whiteboard_lint.py`（渲染前检查，含手写体混写拉丁字母警告）、`whiteboard_last_item_check.py`（最后一项笔迹写完时间，按渲染器算法；起步模板的 `rebuild_edit.sh` 已并入）、`whiteboard_thumb_check.py`（缩略图时间）、`whiteboard_script_lint.py`（旁白与脚本检查，词表 `docs/whiteboard/wordlist.yaml`）、`whiteboard_callbacks.py`（回扣原话核对）、`whiteboard_verify.py`（成片核对：`verify`、`probe`、`stills`、`local-ref`、`compare`）与 `whiteboard_finish_compose.py`（合成报告读实测）、`whiteboard_wait.py`（等后台任务）、`whiteboard_gate.py`（口令助手）、`whiteboard_new_lesson.py`（一键建课，模板在 `docs/whiteboard/starter/`）、`whiteboard_render.py`（`--final`、`--contact`、`--stills`、`--sample`，`--local` / `--remote-cpu`）、`whiteboard_cover_maker.py`、`whiteboard_prepend_cover.py`、`whiteboard_release_pack.py`。白板元素（`remotion-composer/src/components/WhiteboardScene.tsx`）**不要改仓库代码，只改数据**。
 
 ## 7. 经验怎么积累（2026-10-19 起）
 
@@ -148,7 +148,7 @@
 - **晋升规则**：每课“发布通过”后写复盘（`docs/whiteboard/retro-template.md` → `docs/whiteboard/retro/NN.md`，范例 `retro/43.md`），本课每条教训分流一次——能判对错的做成脚本或加进 lint；要人判断的在登记表加一条 `level: 清单`；只有来龙去脉的写“叙述”。同一条教训第二次出现还停在文字上，视为流程缺陷。
 - **命令**（仓库根目录）：`.venv/bin/python docs/whiteboard_registry.py coverage`（要 0 条未映射）、`render`、`check`、`stats`（列出该升级成脚本的条目）。
 - 手册、交接文档、记忆不再各记一遍：交接文档只更新“现状”与第 2 节的一行；记忆只写用户新给的偏好或权限。
-- 已做但**还没有**脚本的重复教训（口令时机、缩略图取帧、整课渲染后的备份与对照、成片核对的手工数字、词表各课各存一份）在登记表里标了 `todo`，等用户批准第二批后做成脚本。
+- 第二批已做：口令时机、缩略图取帧、整课渲染后的备份与对照、成片核对的手工数字、词表各课各存一份都已做成脚本（登记表里升为“检查／默认”）；仍停在“清单”的多是要人判断的（编译提醒怎么写、版面间距等），`stats` 会列出还该升级的。**还没有用真实新课试过**：下一课按新流程做，复盘里统计旧教训被拦下几条、有没有同类重复。
 
 ## 8. Git / GitHub
 

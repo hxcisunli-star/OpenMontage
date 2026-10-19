@@ -13,7 +13,7 @@ description: 做“老师边讲边画”C 语言白板教学视频（animated-ex
 5. 所有输出、diff、提醒都来自真实运行；没做的检查要明说；已批准的内容有错先问用户，不静默改。
 
 ## 现在到哪一步？
-读 `projects/<课程>/checkpoint_*.json`（看 `status`、`human_approved`、`metadata.approved_by_user`）。没有进行中的课程时，下一课由用户另定（用户说“继续策划下一课”或给题目）。现状与 43 课一览：`docs/whiteboard-course-handoff.zh-CN.md`。
+先跑 `.venv/bin/python docs/whiteboard_gate.py status`（从各课检查点算出现在哪课、哪一门、等什么口令；用户说了口令后用 `approve` 记录，样音通过与计划确认用 `record`）。没有进行中的课程时，下一课由用户另定（用户说“继续策划下一课”或给题目）。现状与 43 课一览：`docs/whiteboard-course-handoff.zh-CN.md`。每个阶段的脚本命令都在该阶段清单里（建课 `docs/whiteboard_new_lesson.py`、脚本检查 `docs/whiteboard_script_lint.py`、成片核对 `docs/whiteboard_verify.py` 等）。
 
 ## 各阶段：先 Read 清单，再动手
 清单由登记表 `docs/whiteboard/lessons-learned.yaml` 生成，列出本阶段做什么、哪些错已有脚本拦、哪些要人判断，以及开始前要先读的 skill。**不要凭记忆做，每个阶段开头都读一遍。**

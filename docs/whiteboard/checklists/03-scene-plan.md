@@ -7,7 +7,7 @@
 **本阶段做什么**：
 1. 复制 `build_scene_plan.py`，改各块版面与事件；每个事件带 `anchor_phrase`，事件按旁白先后顺序写，找不到锚点就停下改计划，不放宽查找。
 2. 改静默表与 `MIN_AFTER`（按本课问答所在段）。
-3. 运行（会把 script 检查点标为 completed），写 scene_plan 检查点 awaiting_human，停下等“场景计划通过”。
+3. 运行（会把 script 检查点标为 completed），写 scene_plan 检查点 awaiting_human，停下等“场景计划通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> scene_plan "<用户原话>"`。
 
 **产出**：scene_plan.json；scene-plan-review.html
 

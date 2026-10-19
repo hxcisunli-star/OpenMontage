@@ -9,7 +9,7 @@ Checks (each one is a mistake we already paid for, see docs/whiteboard-course-pl
   ERROR  null value anywhere in a board item (`until: None` hides arrows / items)
   ERROR  vertical memory arrow between two cells with less than 88 px gap (short hand-drawn stroke arrows are fine)
   ERROR  a non-circle item starts inside a quiz silence (question_end+0.3 .. answer_not_before) -> answer shown too early
-  WARN   other non-ASCII in mono text; non-ASCII memory-cell names; lowercase c/o in hand text
+  WARN   other non-ASCII in mono text; non-ASCII memory-cell names; lowercase c/o in hand text; file-name / call / long Latin word mixed with Chinese in a hand-font write
   WARN   estimated text boxes that are visible at the same time and overlap
 """
 import json
@@ -20,6 +20,7 @@ from pathlib import Path
 CJK = re.compile(r"[\u2e80-\u9fff\uff00-\uffef\u3000-\u303f]")
 MONO_SAFE = "\u2192\u2018\u2019\u201c\u201d\u2026\u00b7\u00d7\u2190\u2191\u2193"  # glyphs the mono font really has (seen rendered)
 MIN_VERTICAL_GAP = 88
+MIXED_LATIN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z0-9]+|[A-Za-z_][A-Za-z0-9_]*\(|[A-Za-z]{5,}")  # name.ext, call(, or a long Latin word
 
 
 def est_w(text, size, mono=False):
@@ -70,6 +71,8 @@ def lint_props(props, quiz=None):
                         errors.append(f"{where(it)}: {bad!r} in HAND-font write (drawn as squares; write in mono): {text!r}")
                     elif re.search(r"[co]", text):
                         warns.append(f"{where(it)}: lowercase c/o in hand-font write (square glyphs?): {text!r}")
+                    if CJK.search(text) and MIXED_LATIN.search(text):  # lesson 40: `list.txt` written in the hand font next to Chinese looked wrong; split into hand + mono
+                        warns.append(f"{where(it)}: file name / call / code-like Latin mixed into a CJK hand-font write; split it into hand text + a mono write: {text!r}")
                 size = float(it.get("size", 60))
                 w = est_w(text, size, mono) * (1.1 if mono else 1.0)
                 x0 = it["x"] - w / 2 if it.get("align") == "center" else it["x"]

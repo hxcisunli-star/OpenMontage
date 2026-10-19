@@ -1,0 +1,148 @@
+# 旁白里不用的词（难词与禁词）——单一来源。以前每课的 build_script.py 各存一份（FORB、JARGON），第 38→41 课每课手工多加 5–7 个词。
+# from：从第几课起不用（该词第一次进某课词表的课号；第 11 课起才有通俗度检查）。allow_in：这些课的旁白里用了它（历史记录，或那一课就是教这个词的）。
+# 新课要教的新词：把本课号加进它的 allow_in（复盘时补），旁白里点名一次并配大白话；新发现的难词：加一行 {from: 本课号}。
+# 检查：.venv/bin/python docs/whiteboard_script_lint.py projects/<课程>（旁白里出现了 N >= from 且 N 不在 allow_in 里的词就报错）。
+version: 1
+terms:
+  内存地址: {from: 11}
+  堆: {from: 11}
+  存储期: {from: 11}
+  实参: {from: 11}
+  形参: {from: 11}
+  悬挂: {from: 11}
+  未定义: {from: 11, allow_in: [29]}
+  栈: {from: 11, allow_in: [18, 27, 28]}
+  生命周期: {from: 11}
+  解引用: {from: 11}
+  前驱: {from: 12}
+  后继: {from: 12}
+  头指针: {from: 12}
+  指针域: {from: 12}
+  数据域: {from: 12}
+  遍历: {from: 12}
+  二级指针: {from: 13, allow_in: [34, 35, 37]}
+  返回值: {from: 13, allow_in: [21]}
+  基准: {from: 16}
+  栈溢出: {from: 16}
+  调用栈: {from: 16}
+  作用域: {from: 17}
+  外部链接: {from: 17}
+  生存期: {from: 17}
+  链接属性: {from: 17}
+  出入口: {from: 18}
+  压栈: {from: 18}
+  弹栈: {from: 18}
+  传值规则: {from: 19}
+  函数指针: {from: 19, allow_in: [21]}
+  动态数组: {from: 19}
+  名字空间: {from: 19}
+  命名空间: {from: 19}
+  声明符: {from: 19}
+  宏定义: {from: 19}
+  嵌套: {from: 19}
+  工作人员: {from: 19}
+  引用传递: {from: 19}
+  排序: {from: 19, allow_in: [21, 24, 36]}
+  枚举: {from: 19, allow_in: [31, 38, 39, 41]}
+  标识符: {from: 19}
+  管理员: {from: 19}
+  维修员: {from: 19}
+  联合体: {from: 19, allow_in: [38]}
+  静态链表: {from: 19}
+  二进制: {from: 20}
+  定位: {from: 20}
+  整行读: {from: 20, allow_in: [26]}
+  更新方式: {from: 20}
+  错误码: {from: 20}
+  二分: {from: 21}
+  强制转换: {from: 21}
+  泛型: {from: 21}
+  稳定: {from: 21}
+  calloc: {from: 22}
+  复杂度: {from: 22}
+  对数: {from: 23}
+  递归: {from: 23}
+  字典序: {from: 24}
+  字面量: {from: 24, allow_in: [33]}
+  溢出: {from: 24}
+  缓冲区: {from: 24}
+  编码表: {from: 24}
+  越界: {from: 24}
+  匹配失败: {from: 25}
+  文件结束: {from: 25}
+  标准输入: {from: 25}
+  输入流: {from: 25}
+  指针: {from: 26, allow_in: [34, 35, 37]}
+  尾指针: {from: 27}
+  时间复杂度: {from: 27}
+  结点: {from: 27}
+  迭代: {from: 28}
+  内部链接: {from: 29}
+  未定义行为: {from: 29}
+  目标文件: {from: 29}
+  符号: {from: 29}
+  符号表: {from: 29}
+  翻译单元: {from: 29}
+  预处理: {from: 29}
+  宏展开: {from: 30}
+  展开: {from: 30}
+  记号: {from: 30}
+  关键字: {from: 31}
+  分支: {from: 31}
+  常量表达式: {from: 31}
+  整型: {from: 31}
+  标签: {from: 31}
+  穿透: {from: 31}
+  贯穿: {from: 31}
+  截断: {from: 32}
+  只读内存: {from: 33}
+  寄存器: {from: 33}
+  常量: {from: 33}
+  静态存储期: {from: 33}
+  三级指针: {from: 34}
+  双重指针: {from: 34}
+  类型: {from: 34}
+  间接引用: {from: 34}
+  假头: {from: 35}
+  哨兵: {from: 35}
+  归并: {from: 35}
+  下标: {from: 36}
+  希尔: {from: 36}
+  折半: {from: 36, allow_in: [37]}
+  钥匙: {from: 36}
+  中序: {from: 37}
+  叶子: {from: 37}
+  子树: {from: 37}
+  平衡: {from: 37}
+  深度: {from: 37}
+  节点: {from: 37}
+  高度: {from: 37}
+  位域: {from: 38}
+  内存布局: {from: 38}
+  匿名: {from: 38}
+  填充: {from: 38}
+  字节序: {from: 38}
+  对齐: {from: 38}
+  成员: {from: 38}
+  类型双关: {from: 38}
+  十六进制: {from: 39}
+  右移: {from: 39}
+  移位: {from: 39}
+  符号位: {from: 39}
+  补码: {from: 39}
+  参数列表: {from: 40}
+  字符串: {from: 40}
+  数组: {from: 40}
+  环境变量: {from: 40}
+  解析: {from: 40}
+  进程: {from: 40}
+  函数调用: {from: 41}
+  单元测试: {from: 41}
+  接口: {from: 41}
+  断言: {from: 41}
+  标准输出: {from: 41}
+  模块: {from: 41}
+  测试用例: {from: 41}
+  脚本: {from: 41}
+  覆盖率: {from: 41}
+  重定向: {from: 41}

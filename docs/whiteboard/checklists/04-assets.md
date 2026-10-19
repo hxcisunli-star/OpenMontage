@@ -5,8 +5,8 @@
 **口令**：样音通过 → 素材通过
 
 **本阶段做什么**：
-1. 跑 `sample_voice.py` 出样音（含最难一句），停下等“样音通过”（没有检查点，只记录）。
-2. 跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py` → `finish_assets.py`；写 assets 检查点 awaiting_human，停下等“素材通过”。
+1. 跑 `sample_voice.py` 出样音（含最难一句），停下等“样音通过”；用户说了之后：`docs/whiteboard_gate.py record <项目> sample "<用户原话>"`（没有检查点，只追加记录）。
+2. 跑 `gen_tts.py`（批量配音 + 拼总轨 + loudnorm −16 LUFS）→ `make_captions.py` → `finish_assets.py`；写 assets 检查点 awaiting_human，停下等“素材通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> assets "<用户原话>"`。
 3. 配音还没生成完、核对还没做完之前用户说的口令不算。
 
 **产出**：assets/audio/narration_timeline.json；captions.json；asset_manifest.json

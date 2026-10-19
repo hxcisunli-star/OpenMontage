@@ -13,8 +13,8 @@
 1. 用户说“继续策划下一课”或给题目：先进计划模式，不建项目；读 `docs/whiteboard-course-handoff.zh-CN.md`（现状）和相邻两课的章节（`docs/whiteboard/archive/playbook-2.12-2.48-per-lesson.zh-CN.md`）。
 2. 研究衔接、难点讲法、通俗度；写计划文件：选题四条标准、难点表（难点→学生怎么想→讲法→实测证据）、教学设计一页纸、与前几课不同之处。
 3. 实测所有例子（gcc 13.3、GNU diffutils 3.10，三套选项 × -O0/-O2），输出存 `validation/`。
-4. 用户在对话里说“计划确认”后才建项目：`init_project(...)`、建目录、复制医生图、校标、字体和上一课脚本（见 E21）。
-5. 写 `scripts/plan_stage.py` → research（≥5 个来源）与 proposal，检查点 awaiting_human，停下等“提案通过”。
+4. 用户在对话里说“计划确认”后才建项目：`.venv/bin/python docs/whiteboard_new_lesson.py --pid c-xxx-cn --n 课号 --title 课名`（建目录、拷起步模板、换名、扫残留，见 E21）；用 `.venv/bin/python docs/whiteboard_gate.py record - plan "<用户原话>"` 记下口令。
+5. 写 `scripts/plan_stage.py` → research（≥5 个来源）与 proposal，检查点 awaiting_human，停下等“提案通过”；用户说了之后：`.venv/bin/python docs/whiteboard_gate.py approve <项目> proposal "<用户原话>"`。
 
 **产出**：计划文件；research_brief.json；proposal_packet.json；decision_log.json
 
@@ -27,9 +27,11 @@
 - **[E18]** 多文件类例子每个场景拷到独立临时目录，记录 gcc/ld 原文与退出码；只想演示某个错误时别漏掉 `#include` 那一行（会被无关报错掩盖）；链接错误里的 .text 偏移与临时文件名不上板。 〔第 29 课〕
 - **[E19]** 对比与怪数只引实测：怪数不念具体的数，板上注明别的机器可能不同；步数、次数对比如实说“倒着排一样多”；练习里“编译器一个字也不提醒、检查工具却能发现”的题很好；括号陷阱只放练习。 〔第 34、36、37、38、39 课〕
 - **[E20]** 研究与提案的数据要对上 schema：research_brief 的 sources 至少 5 条，reliability 只有 primary、secondary、anecdotal，数据点的 credibility 只有 primary_source、secondary_source、anecdotal；只看到搜索摘要的来源如实标，打不开原页（如 429）也如实写。 〔第 26、29、40 课〕
-- **[E21]** 建新课：开项目时一并 mkdir -p code validation scripts assets/images assets/captions review references artifacts（漏 assets/captions 会让字幕脚本报错）；复制上一课脚本后先 grep 并替换旧项目名与课号、删掉用不到的中间文件（如 _newB.py），再运行（复制 finish_compose.py 后先运行，改写了上一课的文件）。 〔拟做成脚本：docs/whiteboard_new_lesson.py（第二批 13）〕
 - **[E22]** 综合案例课没有新语法，重点放“办法”：错误例子选 diff 报告好读的（行位不变）；第一份考卷里不放会让 diff 行位错开的命令（如 list）；“拼”的那一层要有自己的零件（如 desk.c），才能单独测、单独出错。 〔第 41、42、43 课〕
 - **[E23]** 课的钩子要回到已发布课里留下的别扭；先自己写，再讲现成的函数，难的类型（如 const void *）只讲成固定模板。 〔第 21、34 课〕
 - **[E24]** 计划里的数字要当场数清（“九条命令”实为八句），对照 diff 与运行的真实输出再写旁白（初稿“两处不一样”实测是三行），写进提案调整并告诉用户。 —— 第 43 课 〔第 43 课〕
 - **[E25]** 音乐被拒（如 Pixabay 403）时不擅自换来源，问用户；本系列不加背景音乐，提案里要写明音乐计划。
 - **[E26]** 策划先读 backward-design（教学设计一页纸）；系列或复习课才用 spiral-series-check；这些 skill 不改变既有审批门。
+
+**已是模板或工具的默认做法**（知道即可，别改掉）：
+- **[E21]** 建新课（用户说“计划确认”之后）：.venv/bin/python docs/whiteboard_new_lesson.py --pid c-xxx-cn --n 课号 --title 课名——它建目录（含 assets/captions）、拷起步模板、从上一课复制本课专属脚本并换名、扫描残留的别课项目名和上一课的课号（第 41–43 课的 render_stills.py 一直指着第 30 课的项目），不会运行任何东西；复制的脚本里要改写的内容照扫描结果逐个改，再运行。 〔脚本：`docs/whiteboard_new_lesson.py + docs/whiteboard/starter/`〕
