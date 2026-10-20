@@ -8,7 +8,7 @@
 
 ```text
 OpenMontage（144）
-  127.0.0.1:17865
+  127.0.0.1:<回环端口>
       │ 144 上的 omrender-tunnel 反向 SSH
       ▼
 本机 127.0.0.1:22 / openmontage-render
@@ -20,9 +20,9 @@ openmontage-render-agent.service
 /srv/openmontage-render/runtime/om-20261007-remotion-v2
 ```
 
-- `17865` 是 144 的回环端口，仅供本机 CPU 渲染；现有 H3 API `17864` 不变。
+- `<回环端口>` 是 144 的回环端口，仅供本机 CPU 渲染；现有 H3 API `<H3端口>` 不变。
 - 本机只开放专用 `openmontage-render` 账号。它不能取得交互 shell、端口转发、TTY、代理转发或访问本机项目、模型、GPU、图库和生产输出目录。
-- 144 侧的 `omrender-tunnel` 只能建立 `127.0.0.1:17865` 这一条远程转发；不使用 `38.125.160.100`。
+- 144 侧的 `omrender-tunnel` 只能建立 `127.0.0.1:<回环端口>` 这一条远程转发；不使用 `<渲染机公网地址>`。
 - 输入通过安全 tar 上传到每个 job 的 `input`，输出从该 job 的 `output` 下载。所有路径由 agent 重写到 job 根目录内。
 
 ## 日常调用
@@ -94,11 +94,11 @@ ss -ltn 'sport = :22'
 144 执行：
 
 ```bash
-ss -ltn 'sport = :17865'
+ss -ltn 'sport = :<回环端口>'
 python3 tools/video/remote_cpu_render.py probe
 ```
 
-只重启本通道时依次重启 `openmontage-render-agent.service` 和 `openmontage-render-tunnel.service`；不要为此停止 H3、Qwen、LTX 或修改 17864。agent 重启会把当时的 `queued/running` job 标为 `failed: agent_restarted`，因此生产渲染前应确认没有活动 job。
+只重启本通道时依次重启 `openmontage-render-agent.service` 和 `openmontage-render-tunnel.service`；不要为此停止 H3、Qwen、LTX 或修改 <H3端口>。agent 重启会把当时的 `queued/running` job 标为 `failed: agent_restarted`，因此生产渲染前应确认没有活动 job。
 
 ## 验收记录
 
