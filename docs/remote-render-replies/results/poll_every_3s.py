@@ -2,7 +2,7 @@ import concurrent.futures,json,sys,time
 from pathlib import Path
 sys.path.insert(0,'/home/MyProject/OpenMontage/tools/video')
 from remote_cpu_render import RemoteRenderClient
-client=RemoteRenderClient(identity='/root/.ssh/openmontage_render_local',known_hosts='/root/.ssh/openmontage_render_known_hosts')
+client=RemoteRenderClient()  # settings come from OPENMONTAGE_RENDER_* (environment or the untracked .env)
 if len(sys.argv) != 3: raise SystemExit('Usage: poll_every_3s.py JOB_ID OUTPUT.jsonl')
 job=sys.argv[1]
 path=Path(sys.argv[2])

@@ -16,6 +16,24 @@ class RemoteRenderError(RuntimeError):
     pass
 
 
+_REPO_ENV = Path(__file__).resolve().parents[2] / ".env"
+
+
+def render_setting(name: str) -> str:
+    """Channel settings (port, key file paths) come from the environment, else from the repo's untracked .env.
+    The repository carries no built-in values for them."""
+    value = os.environ.get(name)
+    if not value and _REPO_ENV.is_file():
+        for line in _REPO_ENV.read_text(encoding="utf-8", errors="ignore").splitlines():
+            key, sep, rest = line.partition("=")
+            if sep and key.strip() == name:
+                value = rest.strip().strip("'\"")
+                break
+    if not value:
+        raise RemoteRenderError(f"{name} is not set (put it in the environment or in the repo's untracked .env)")
+    return value
+
+
 # Messages that mean "the connection hiccuped", not "the request is wrong".  Safe to retry for idempotent requests.
 TRANSIENT = ("connection reset", "connection refused", "connection closed", "timed out", "broken pipe", "kex_exchange",
              "no route to host", "temporarily unavailable", "ssh: connect")
@@ -23,10 +41,10 @@ IDEMPOTENT = {"probe", "status", "logs", "cancel", "cleanup"}
 
 
 class RemoteRenderClient:
-    def __init__(self, *, identity: str, known_hosts: str, port: int = 17865, host: str = "127.0.0.1") -> None:
-        self.identity = str(Path(identity).expanduser())
-        self.known_hosts = str(Path(known_hosts).expanduser())
-        self.port = str(port)
+    def __init__(self, *, identity: str | None = None, known_hosts: str | None = None, port: int | str | None = None, host: str = "127.0.0.1") -> None:
+        self.identity = str(Path(identity or render_setting("OPENMONTAGE_RENDER_IDENTITY")).expanduser())
+        self.known_hosts = str(Path(known_hosts or render_setting("OPENMONTAGE_RENDER_KNOWN_HOSTS")).expanduser())
+        self.port = str(port or render_setting("OPENMONTAGE_RENDER_PORT"))
         self.host = host
 
     def _base(self) -> list[str]:
@@ -179,9 +197,9 @@ class RemoteRenderClient:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--identity", default=os.environ.get("OPENMONTAGE_RENDER_IDENTITY", "/root/.ssh/openmontage_render_local"))
-    parser.add_argument("--known-hosts", default=os.environ.get("OPENMONTAGE_RENDER_KNOWN_HOSTS", "/root/.ssh/openmontage_render_known_hosts"))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("OPENMONTAGE_RENDER_PORT", "17865")))
+    parser.add_argument("--identity", default=None, help="default: OPENMONTAGE_RENDER_IDENTITY")
+    parser.add_argument("--known-hosts", default=None, help="default: OPENMONTAGE_RENDER_KNOWN_HOSTS")
+    parser.add_argument("--port", type=int, default=None, help="default: OPENMONTAGE_RENDER_PORT")
     sub = parser.add_subparsers(dest="operation", required=True)
     sub.add_parser("probe")
     for name in ("prepare", "status", "cancel", "cleanup", "logs"):
@@ -193,8 +211,8 @@ def main() -> int:
     p = sub.add_parser("submit"); p.add_argument("job_id"); p.add_argument("runtime_id")
     p = sub.add_parser("download"); p.add_argument("job_id"); p.add_argument("destination", type=Path)
     args = parser.parse_args()
-    client = RemoteRenderClient(identity=args.identity, known_hosts=args.known_hosts, port=args.port)
     try:
+        client = RemoteRenderClient(identity=args.identity, known_hosts=args.known_hosts, port=args.port)
         if args.operation == "probe": result = client.probe()
         elif args.operation == "prepare": result = client.prepare(args.job_id)
         elif args.operation == "upload": result = client.upload(args.job_id, args.source)

@@ -25,6 +25,10 @@ openmontage-render-agent.service
 - 144 侧的 `omrender-tunnel` 只能建立 `127.0.0.1:<回环端口>` 这一条远程转发；不使用 `<渲染机公网地址>`。
 - 输入通过安全 tar 上传到每个 job 的 `input`，输出从该 job 的 `output` 下载。所有路径由 agent 重写到 job 根目录内。
 
+## 配置（不在仓库里）
+
+回环端口、身份文件、known_hosts 文件的路径**没有内置默认值**，按环境变量读取：`OPENMONTAGE_RENDER_PORT`、`OPENMONTAGE_RENDER_IDENTITY`、`OPENMONTAGE_RENDER_KNOWN_HOSTS`。环境里没有时，客户端和渲染调度会读仓库根目录里不被 git 跟踪的 `.env`；两处都没有就报“未设置”，自动模式随即回退本机渲染并打印原因。新机器照此在本机的 `.env` 里填这三项即可，值不要写进仓库文档。
+
 ## 日常调用
 
 在 144 上先确认通道：
