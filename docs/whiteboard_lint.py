@@ -10,7 +10,7 @@ Checks (each one is a mistake we already paid for, see docs/whiteboard-course-pl
   ERROR  vertical memory arrow between two cells with less than 88 px gap (short hand-drawn stroke arrows are fine)
   ERROR  a non-circle item starts inside a quiz silence (question_end+0.3 .. answer_not_before) -> answer shown too early
   WARN   other non-ASCII in mono text; non-ASCII memory-cell names; lowercase c/o in hand text; file-name / call / long Latin word mixed with Chinese in a hand-font write
-  WARN   estimated text boxes that are visible at the same time and overlap
+  WARN   estimated text boxes that are visible at the same time and overlap (an ESTIMATE, only for `write` items: the measured check is docs/whiteboard_layout_check.py)
 """
 import json
 import re
@@ -105,7 +105,7 @@ def lint_props(props, quiz=None):
                 if a[4] < b[5] and b[4] < a[5]:  # visible at the same time
                     ox = min(a[2], b[2]) - max(a[0], b[0]); oy = min(a[3], b[3]) - max(a[1], b[1])
                     if ox > 12 and oy > 12:
-                        warns.append(f"{cid} @{base + max(a[4], b[4]):.1f}s: text boxes overlap ({ox:.0f}x{oy:.0f}px): {a[6]!r} / {b[6]!r}")
+                        warns.append(f"{cid} @{base + max(a[4], b[4]):.1f}s: text boxes overlap ({ox:.0f}x{oy:.0f}px): {a[6]!r} / {b[6]!r} (ESTIMATED from character counts; docs/whiteboard_layout_check.py measures the real boxes)")
         # quiz silence: nothing but countdown circles may start inside the silence
         for q in quiz or []:
             lo, hi = q["question_end"] + 0.3, q["answer_not_before"] - 0.05

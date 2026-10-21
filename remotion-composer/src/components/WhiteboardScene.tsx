@@ -137,7 +137,7 @@ const fadeAfter = (t: number, until?: number) =>
   until === undefined ? 1 : clamp01(1 - (t - until) / 0.4);
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
-function useWbFont() {
+export function useWbFont() {
   const [handle] = useState(() => delayRender("whiteboard-font"));
   useEffect(() => {
     let done = false;

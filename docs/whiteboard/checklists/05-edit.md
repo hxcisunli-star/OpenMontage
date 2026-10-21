@@ -6,8 +6,9 @@
 
 **本阶段做什么**：
 1. 改 `_body_boards.py` 等源文件，运行 `bash scripts/rebuild_edit.sh`（拼接 build_edit.py、跑 lint，并跑 last_item_check：每块最后一项要在淡出前 0.6 秒写完，首次不过是常态，把最后一项提前再跑）。
-2. 用 `docs/whiteboard_render.py projects/<课程> --contact` 看每块关键帧；出样片（`--sample 起 止`）。
-3. 写 edit 检查点 awaiting_human，停下等“样片通过，开始合成”；用户说了之后：`docs/whiteboard_gate.py approve <项目> edit "<用户原话>"`。
+2. 出样片之前量真实排版：`.venv/bin/python docs/whiteboard_layout_check.py projects/<课程> --stills 6`（本机几分钟；见 E67）：ERROR 必须改，WARN 对着标注图判断。
+3. 用 `docs/whiteboard_render.py projects/<课程> --contact` 看每块关键帧；出样片（`--sample 起 止`）。
+4. 写 edit 检查点 awaiting_human，停下等“样片通过，开始合成”；用户说了之后：`docs/whiteboard_gate.py approve <项目> edit "<用户原话>"`。
 
 **产出**：edit_decisions.json；render_props.json；样片
 
@@ -19,6 +20,7 @@
 - **[E42]** 板上元素里不能有 null 值（until=None 会被渲染器当 0，箭头和小格消失）；没有 until 就不写这个键。 〔脚本：`docs/whiteboard_lint.py`〕
 - **[E50]** 每块白板最后一项笔迹要在淡出前写完（余量 ≥0.6 秒）；剪辑阶段首次不过是常态，把最后一项提前再跑；结尾三句回顾提前触发，余量别只剩零点二秒。 —— 以这个脚本回测所有课：第 1–40 课里 30 课至少有一块板在淡出开始后才写完（20 课超过半秒，324 块里 51 块），抽看的 3 个淡出前一帧最后一行都只写了一半；第 41–43 课最小余量 +0.65、+0.82、+1.19 秒；逐课清单见 docs/whiteboard/old-lessons-last-item-report.zh-CN.md 〔共 11 课，首见第 12 课；脚本：`docs/whiteboard_last_item_check.py（起步模板的 rebuild_edit.sh 已并入，不合格即让构建失败）`〕
 - **[E51]** 渲染前先跑 docs/whiteboard_lint.py（build_edit.py 末尾已调用），再用 whiteboard_render.py --contact 看每块关键帧，之后才 --final；改一块只重渲一块。 —— 第 16 课渲完才发现方块字，整片重渲 〔第 16 课；脚本：`docs/whiteboard_lint.py`〕
+- **[E67]** 出样片之前量真实排版：`.venv/bin/python docs/whiteboard_layout_check.py projects/<课程> --stills 6`（本机、几分钟）。它在浏览器里量每个板书的真实盒子：叠字、文字被板边裁掉、压到字幕条或校徽、描边从中间穿过文字、内存格装不下自己的值、手写体或等宽体缺字（豆腐块）。ERROR 必须改，WARN 对着标注图判断；退出码 2 表示没量全，不算通过。whiteboard_lint 里的重叠警告只是估算。 —— 估算只认 write 一种板书、按字数算宽度（手写体实际比估的宽），代码板、内存格、图片、字幕条、校徽都不看；探针第一版也曾因字体没加载完而把手写字量窄，是靠把盒子画在真实静帧上才发现的。 〔脚本：`docs/whiteboard_layout_check.py`〕
 
 **要人判断**（逐条过一遍）：
 - **[E43]** 箭头：一摞卡等竖向连接用短的手绘 stroke 箭头，memory 竖箭头两格间隙要 ≥88 px（lint 会拦）；指向卡的箭头别穿过它的 next 格（让出发格在目标卡正上或正下）；纸条放在大病房左边、箭头水平指向目标床；自指回环线的起止点靠边，避开正中上方的名字。 〔第 18 课〕
@@ -28,6 +30,9 @@
 - **[E47]** 同类版面先用已有的辅助：括号串逐字写、固定间距；树用固定坐标表与 cardc/edge/stub/pathbox；一排开关用 switches/bitname/placenum/flash 与 Slot；数组类板用 Arr/Hand/Sorted 记录当前写入项。 〔第 18、36、37、39 课〕
 - **[E48]** 板标题只用中文，不带方括号等英文符号；代码放等宽字体。
 - **[E52]** 取单帧与取样帧：取帧时间用锚点时间 + 书写时长之后、板结束前 0.5 秒之前；关键帧总览是缩略图，疑似缺内容时先单取同一时刻的静帧核对；静帧时间点要小于成片总长；按帧号取样用 select='not(mod(n,120))'，不用 fps 滤镜；测远程静帧写 docs/whiteboard_render.py <项目> --remote-cpu --stills <秒...>（选项放在 --stills 之前）。 〔第 7、24、27、37 课〕
+- **[E68]** 真实排版检查按“有意”处理、所以不会报的：红“×”划掉某个值或整个框、画在文字上的短标记和整行划线、指向用的笔形指针、箭头尖落在标签上、别的条目画的强调框切到字（和故意圈词的框一模一样）；它也看不到动画过程中的瞬间重叠（只量“画完”的采样帧）。这些要靠出样片后看 --contact 的关键帧总览。
+- **[E71]** 白板课中间插图片序列片段（frame_seq）：块内事件时间从各自起点算，后一块用 Board.relist 以已画完的样子同序重列（笔画抖动取决于笔画序号）；白板块自带约 0.33 秒淡入，后一块要比片段提前 0.4 秒开始、叠在片段末尾（画面相同）；片段背景取前一块白板的末帧（去掉字幕与校标，笔先移出板外），结尾淡入后一块的参考图；接缝用真实合成的像素差量（字幕条与校标除外）；后一块的 cut 带 clip_sha，缓存才认得新片段；真实排版检查看不进片段里面，另看静帧与 HyperFrames check。 —— 本次 s4 的片段：第一接缝 0 像素不同，叠化区只有笔不同；没有叠化时后一块会在片段后淡入一次 〔拟做成脚本：项目里的 clip_bg_still.py、join_check.py、finish_edit.py 通用化成 docs/ 工具（第二次用图片序列片段时做）〕
 
 **已是模板或工具的默认做法**（知道即可，别改掉）：
 - **[E49]** 学校 logo 是白色线稿，放深蓝圆角底板，标题右移避让；代码块乱序书写时未写的行保留高度（模板已内置，不要改掉）。 〔脚本：`projects/<课程>/scripts/_build_tail.py 与 _body_helpers.py`〕
+- **[E72]** 非白板块不加载手写字体：夹在白板课里的图片序列块已内置 useWbFont()，字幕不会变方块（补丁已保留，缓存哈希 67f5d852… 变为 8e7636c3…，只影响以后重渲染旧课）。 〔脚本：`remotion-composer/src/Explainer.tsx（FrameSequenceScene 调用 useWbFont）`〕

@@ -4,7 +4,7 @@
 # 晋升规则：停在“清单”级、却出现在 ≥3 课的笔记里（见 stats），就该做成检查或默认。
 # from：来源编号（P6-n＝手册 §6 踩坑行，Hn-k＝交接文档归档里第 n 课的笔记子句，Ln-k＝手册逐课“教训”）；seen_extra：来源行里点名、但没有编号的课。
 version: 1
-updated: "2026-10-19"
+updated: "2026-10-21"
 
 stages:
   any:
@@ -59,6 +59,7 @@ stages:
     gate: 样片通过，开始合成
     steps:
       - 改 `_body_boards.py` 等源文件，运行 `bash scripts/rebuild_edit.sh`（拼接 build_edit.py、跑 lint，并跑 last_item_check：每块最后一项要在淡出前 0.6 秒写完，首次不过是常态，把最后一项提前再跑）。
+      - 出样片之前量真实排版：`.venv/bin/python docs/whiteboard_layout_check.py projects/<课程> --stills 6`（本机几分钟；见 E67）：ERROR 必须改，WARN 对着标注图判断。
       - 用 `docs/whiteboard_render.py projects/<课程> --contact` 看每块关键帧；出样片（`--sample 起 止`）。
       - 写 edit 检查点 awaiting_human，停下等“样片通过，开始合成”；用户说了之后：`docs/whiteboard_gate.py approve <项目> edit "<用户原话>"`。
     outputs: edit_decisions.json；render_props.json；样片
@@ -482,6 +483,64 @@ entries:
     level: 清单
     rule: 写练习前读 exercise-design；写简介与练习前后各跑一次 lesson-fact-check。
     from: [Hskill-3]
+  - id: E67
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_layout_check.py
+    rule: 出样片之前量真实排版：`.venv/bin/python docs/whiteboard_layout_check.py projects/<课程> --stills 6`（本机、几分钟）。它在浏览器里量每个板书的真实盒子：叠字、文字被板边裁掉、压到字幕条或校徽、描边从中间穿过文字、内存格装不下自己的值、手写体或等宽体缺字（豆腐块）。ERROR 必须改，WARN 对着标注图判断；退出码 2 表示没量全，不算通过。whiteboard_lint 里的重叠警告只是估算。
+    why: 估算只认 write 一种板书、按字数算宽度（手写体实际比估的宽），代码板、内存格、图片、字幕条、校徽都不看；探针第一版也曾因字体没加载完而把手写字量窄，是靠把盒子画在真实静帧上才发现的。
+    from: [Hlayout-1]
+  - id: E68
+    stage: edit
+    level: 清单
+    rule: 真实排版检查按“有意”处理、所以不会报的：红“×”划掉某个值或整个框、画在文字上的短标记和整行划线、指向用的笔形指针、箭头尖落在标签上、别的条目画的强调框切到字（和故意圈词的框一模一样）；它也看不到动画过程中的瞬间重叠（只量“画完”的采样帧）。这些要靠出样片后看 --contact 的关键帧总览。
+    from: [Hlayout-2]
+
+  - id: E69
+    stage: plan
+    level: 清单
+    rule: "提案里写的“错误一定导致某现象”（尤其“漏掉某一条就会……”），提案通过前真实运行一遍并存 validation：漏掉一条之后，信息可能还在别的条里；预测题、错误例子、结尾邀请的答案都要有实测文件。"
+    why: "试验品的提案把“漏贴助手的回答就不认得名字”用在错误一、预测题二、结尾邀请三处，已批准后实测才发现不成立（名字在用户第一句里），三处都改了"
+    from: [Hexp-1]
+  - id: E70
+    stage: publish
+    level: 检查
+    by: docs/whiteboard_gate.py
+    rule: "用户明令“试验品、不属于课程”的项目：项目目录放 EXPERIMENT.md（gate status 不把它数成课、不当最近发布）；不往 docs/whiteboard_cover_maker.py 的 LESSONS 加行、不跑 docs/whiteboard_release_pack.py（它会清空重建课程成品文件夹）；封面徽章、标题、简介首行、练习、文件名都标注；已批准的成片不动；成品放 projects/试验品_技术测试/。"
+    why: "第一个试验品一通过发布门，旧版 status 就写“已发布 44 课”（回测 t_gate_experiment 复现并拦住）"
+    from: [Hexp-2]
+  - id: E71
+    stage: edit
+    level: 清单
+    rule: "白板课中间插图片序列片段（frame_seq）：块内事件时间从各自起点算，后一块用 Board.relist 以已画完的样子同序重列（笔画抖动取决于笔画序号）；白板块自带约 0.33 秒淡入，后一块要比片段提前 0.4 秒开始、叠在片段末尾（画面相同）；片段背景取前一块白板的末帧（去掉字幕与校标，笔先移出板外），结尾淡入后一块的参考图；接缝用真实合成的像素差量（字幕条与校标除外）；后一块的 cut 带 clip_sha，缓存才认得新片段；真实排版检查看不进片段里面，另看静帧与 HyperFrames check。"
+    why: "本次 s4 的片段：第一接缝 0 像素不同，叠化区只有笔不同；没有叠化时后一块会在片段后淡入一次"
+    todo: "项目里的 clip_bg_still.py、join_check.py、finish_edit.py 通用化成 docs/ 工具（第二次用图片序列片段时做）"
+    from: [Hexp-3, Hexp-4, Hexp-5, Hexp-6, Hexp-8]
+  - id: E72
+    stage: edit
+    level: 默认
+    by: remotion-composer/src/Explainer.tsx（FrameSequenceScene 调用 useWbFont）
+    rule: "非白板块不加载手写字体：夹在白板课里的图片序列块已内置 useWbFont()，字幕不会变方块（补丁已保留，缓存哈希 67f5d852… 变为 8e7636c3…，只影响以后重渲染旧课）。"
+    from: [Hexp-7]
+  - id: E73
+    stage: script
+    level: 检查
+    by: docs/whiteboard_script_lint.py、docs/whiteboard_callbacks.py、docs/whiteboard_new_lesson.py
+    rule: "新系列：难词表与课号按系列分开（wordlist.yaml 的 series_terms，项目名 agent- 开头为智能体篇）；回扣工具把后一个系列里的裸“第N课”当成 C 篇课号，课号没登记时不报前向引用。"
+    from: [Hexp-9]
+  - id: E74
+    stage: script
+    level: 清单
+    rule: "复制来的 build_script、finish_assets 等脚本，运行前 grep 写死的数字、日期、读音清单（响度、样音批准日期）和写已批准文件的语句（提案、提案检查点、脚本检查点），改成读实测；新课脚本不得再写已批准阶段的文件。"
+    why: "本次逮到过：复制来的 build_script 会覆盖已批准的提案与提案检查点，finish_assets 带着第 43 课的响度数字与样音日期"
+    todo: "whiteboard_new_lesson.py 扫描复制来的脚本里的写死数字与写已批准文件的语句"
+    from: [Hexp-10, Hexp-11]
+  - id: E75
+    stage: publish
+    level: 清单
+    rule: "板上写“回答太长、末尾有表情没画”这类标注，要对每一处所引的那一遍实跑逐条核对（同一例子两遍实跑可能不一样）；简介或旁白引官方文档的计费或保存说法，只写到页面写的那个用法。"
+    why: "K8 答案旁的小注只对两遍实跑中的一遍成立；OpenAI 页面只对 previous_response_id 串联写了计费，视频旁白说得更宽（用户选保留，简介已写窄）"
+    from: [Hexp-12, Hexp-13]
 
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
 narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7]

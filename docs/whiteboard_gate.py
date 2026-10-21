@@ -73,6 +73,11 @@ def pending(cp, stage):
     return s in ("awaiting", "done_unapproved")
 
 
+def _is_experiment(pdir, name):
+    """A project folder that holds an EXPERIMENT.md is a technical test, not a lesson: it is listed apart and never counted as a published lesson."""
+    return (Path(pdir) / name / "EXPERIMENT.md").exists()
+
+
 def cmd_status(args):
     pdir = Path(args.projects)
     from whiteboard_lessons import lesson_table
@@ -84,24 +89,28 @@ def cmd_status(args):
             continue
         done = stage_state(cps["publish"], "publish") == "approved"
         rows.append((d.name, cps, done))
+    exp = {r[0] for r in rows if _is_experiment(pdir, r[0])}
+    lessons = [r for r in rows if r[0] not in exp]
     active = [r for r in rows if not r[2]]
     if args.all:
         for name, cps, done in rows:
             n, t = table.get(name, (None, name))
-            print(f"{'第%s课' % n if n else '-':>6} {t}  {name}  {'发布已通过' if done else '进行中'}")
-        print(f"共 {len(rows)} 个项目，{len(active)} 个进行中")
+            print(f"{'试验品' if name in exp else '第%s课' % n if n else '-':>6} {t}  {name}  {'发布已通过' if done else '进行中'}")
+        print(f"共 {len(rows)} 个项目（其中试验品 {len(exp)} 个，不属于课程），{len(active)} 个进行中")
         return 0
     if not active:
-        last = max(rows, key=lambda r: (r[1]["publish"] or {}).get("timestamp", "")) if rows else None
+        last = max(lessons, key=lambda r: (r[1]["publish"] or {}).get("timestamp", "")) if lessons else None
         print("没有进行中的课程；下一课由用户另定（用户说“继续策划下一课”或给题目）。")
         if last:
             n, t = table.get(last[0], (None, last[0]))
             print(f"最近发布：{'第%s课' % n if n else ''}《{t}》（{last[0]}）{(last[1]['publish'] or {}).get('timestamp', '')[:19]}")
-        print(f"已发布 {len(rows)} 课。")
+        print(f"已发布 {len(lessons)} 课。")
+        if exp:
+            print(f"另有试验品 {len(exp)} 个（技术测试，不属于课程，不计入课数）：{'、'.join(sorted(exp))}")
         return 0
     for name, cps, _ in active:
         n, t = table.get(name, (None, name))
-        print(f"进行中：{'第%s课' % n if n else ''}《{t}》（{name}）")
+        print(f"进行中：{'试验品（不属于课程）' if name in exp else '第%s课' % n if n else ''}《{t}》（{name}）")
         nxt = None
         for s in STAGE_ORDER:
             state = stage_state(cps[s], s)

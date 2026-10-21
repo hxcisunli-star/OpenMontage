@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from whiteboard_lessons import lesson_table  # noqa: E402
+from whiteboard_lessons import lesson_table, series_of  # noqa: E402
 
 STARTER = ROOT / "docs/whiteboard/starter/scripts"
 SPECIFIC = ["plan_stage.py", "build_script.py", "build_scene_plan.py", "_body_boards.py", "_build_tail.py", "sample_voice.py", "finish_assets.py", "publish_prep.py",
@@ -39,7 +39,10 @@ def cn(n):
     return D[n // 10] + "十" + (D[n % 10] if n % 10 else "")
 
 
-def patch_build_script(text, n):
+def patch_build_script(text, n, series="c"):
+    # the C series keeps the top-level `terms:`; lesson numbers count from 1 inside each series, so every other series has its own list under `series_terms:`
+    terms = '["terms"]' if series == "c" else f'.get("series_terms", {{}}).get("{series}", {{}})'
+    default_from = 11 if series == "c" else 1
     forb = re.compile(r"^FORB = \[.*?\]\s*$", re.M | re.S)
     jarg = re.compile(r"^JARGON = \[.*?\]\s*$", re.M | re.S)
     if not (forb.search(text) and jarg.search(text)):
@@ -47,8 +50,8 @@ def patch_build_script(text, n):
     block = (f"LESSON = {n}\n"
              "NEW_TERMS = []   # 本课要教的新词：写在这里就不算难词（旁白里点名一次并配大白话）；复盘时把本课号加进 docs/whiteboard/wordlist.yaml 的 allow_in\n"
              "import yaml as _yaml\n"
-             "_WL = _yaml.safe_load((ROOT / \"docs/whiteboard/wordlist.yaml\").read_text(encoding=\"utf-8\"))[\"terms\"]\n"
-             "FORB = [w for w, s in _WL.items() if LESSON >= s.get(\"from\", 11) and LESSON not in (s.get(\"allow_in\") or []) and w not in NEW_TERMS]  # 难词与禁词只存一份：docs/whiteboard/wordlist.yaml")
+             f"_WL = _yaml.safe_load((ROOT / \"docs/whiteboard/wordlist.yaml\").read_text(encoding=\"utf-8\")){terms}\n"
+             f"FORB = [w for w, s in _WL.items() if LESSON >= s.get(\"from\", {default_from}) and LESSON not in (s.get(\"allow_in\") or []) and w not in NEW_TERMS]  # 难词与禁词只存一份：docs/whiteboard/wordlist.yaml")
     text = forb.sub(lambda m: block, text, count=1)
     text = jarg.sub(lambda m: "JARGON = []   # 并入上面的 FORB（单一词表）", text, count=1)
     return text, True
@@ -72,18 +75,20 @@ def main():
     ap.add_argument("--projects-dir", default=str(ROOT / "projects"))
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
-    if not re.fullmatch(r"c-[a-z0-9]+(-[a-z0-9]+)*-cn", a.pid):
-        sys.exit("--pid must look like c-xxx-cn (kebab-case)")
+    if not re.fullmatch(r"(c|agent)-[a-z0-9]+(-[a-z0-9]+)*-cn", a.pid):
+        sys.exit("--pid must look like c-xxx-cn (C series) or agent-xxx-cn (agent series), kebab-case")
+    series = series_of(a.pid)
     table = lesson_table()
-    src = a.src or max(table, key=lambda p: table[p][0])
+    same = {p: v for p, v in table.items() if series_of(p) == series}   # lesson numbers count inside a series
+    src = a.src or max(same or table, key=lambda p: (same or table)[p][0])   # a new series has no lesson yet: it starts from the latest C lesson's scripts
     pdir = Path(a.projects_dir)
     srcdir, dst = pdir / src, pdir / a.pid
     if not (srcdir / "scripts").is_dir():
         sys.exit(f"source lesson {srcdir} has no scripts/")
     if dst.exists():
         sys.exit(f"{dst} already exists - refusing to touch it")
-    if a.pid in table or any(v[0] == a.n for v in table.values()):
-        print(f"note: docs/whiteboard_cover_maker.py already has a row for {a.pid} or lesson {a.n}")
+    if a.pid in table or any(v[0] == a.n for p, v in table.items() if series_of(p) == series):
+        print(f"note: docs/whiteboard_cover_maker.py already has a row for {a.pid} or lesson {a.n} of the {series} series")
     src_n = table.get(src, (None,))[0]
     plan = [f"project {a.pid} (lesson {a.n}, {a.title!r}) from {src} (lesson {src_n})", f"dirs: {DIRS}", f"starter scripts: {sorted(p.name for p in STARTER.iterdir())}",
             f"lesson-specific scripts: {[f for f in SPECIFIC if (srcdir / 'scripts' / f).exists()]}"]
@@ -116,7 +121,7 @@ def main():
         if src_n is not None:
             text = re.sub(rf"\b(Lesson|lesson) {src_n}\b", rf"\1 {a.n}", text)
         if f == "build_script.py":
-            text, ok = patch_build_script(text, a.n)
+            text, ok = patch_build_script(text, a.n, series)
             notes.append(("build_script.py wordlist", ok))
         if f == "publish_prep.py":
             text, ok = patch_publish_prep(text)

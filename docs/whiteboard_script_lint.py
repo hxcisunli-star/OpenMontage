@@ -18,20 +18,29 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from whiteboard_lessons import number_of  # noqa: E402
+from whiteboard_lessons import load_terms as _load_terms, number_of, series_of  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SPC, QUIZ_SIL, GAP = 0.238, 3.0, 0.7
 AVG_MAX, SENT_MAX, SECTION_MAX, CUE_GAP_MAX = 24, 50, 600, 10
 RANGE = (360, 480)
-STRICT_FROM = 11
+STRICT_FROM = 11                       # C series: the plain-language rules came in with lesson 11
+SERIES_STRICT_FROM = {"c": 11, "agent": 1}   # the agent series is new, so its rules are in force from its first lesson
 
 
-def load_terms():
-    return yaml.safe_load((ROOT / "docs/whiteboard/wordlist.yaml").read_text(encoding="utf-8"))["terms"]
+def load_terms(series="c"):
+    return _load_terms(series)
 
 
-def lint(script, lesson, allow=(), target=None):
+def lesson_from_scripts(proj):
+    """A project that has no row in the cover table yet (it gets one at the publish stage) carries its number in scripts/build_script.py as `LESSON = N`."""
+    f = Path(proj) / "scripts" / "build_script.py"
+    m = re.search(r"^LESSON = (\d+)", f.read_text(encoding="utf-8"), re.M) if f.exists() else None
+    return int(m.group(1)) if m else None
+
+
+def lint(script, lesson, allow=(), target=None, series="c"):
+    strict_from = SERIES_STRICT_FROM.get(series, STRICT_FROM)
     secs = script["sections"]
     meta = script.get("metadata", {})
     text = "".join(s["text"] for s in secs)
@@ -39,8 +48,8 @@ def lint(script, lesson, allow=(), target=None):
     sents = [x for x in re.split(r"[。？！]", text) if x.strip()]
     lens = [len(x) for x in sents]
     info.update(characters=len(text), sentences=len(sents), avg_sentence=round(statistics.mean(lens), 1), max_sentence=max(lens))
-    if lesson is not None and lesson < STRICT_FROM:
-        info["note"] = f"lesson {lesson} < {STRICT_FROM}: the rules were not in force yet, nothing checked"
+    if lesson is not None and lesson < strict_from:
+        info["note"] = f"lesson {lesson} < {strict_from}: the rules were not in force yet, nothing checked"
         return errors, warns, info
     ascii_words = sorted(set(re.findall(r"[A-Za-z]+", text)))
     digits = re.findall(r"[0-9]", text)
@@ -48,9 +57,9 @@ def lint(script, lesson, allow=(), target=None):
         errors.append(f"English letters in the narration: {ascii_words[:8]}")
     if digits:
         errors.append(f"{len(digits)} Arabic digit(s) in the narration (say the number in Chinese characters)")
-    for term, spec in load_terms().items():
+    for term, spec in load_terms(series).items():
         n = lesson if lesson is not None else 999
-        if n >= spec.get("from", STRICT_FROM) and n not in (spec.get("allow_in") or []) and term not in allow and term in text:
+        if n >= spec.get("from", strict_from) and n not in (spec.get("allow_in") or []) and term not in allow and term in text:
             where = next((s["id"] for s in secs if term in s["text"]), "?")
             errors.append(f"hard word “{term}” x{text.count(term)} (first in {where}); say it plainly, or --allow it as this lesson's new term")
     if info["avg_sentence"] > AVG_MAX:
@@ -95,8 +104,9 @@ def main():
     args = ap.parse_args()
     proj = Path(args.proj)
     script = json.loads((proj / "artifacts/script.json").read_text(encoding="utf-8"))
-    lesson = args.lesson or number_of(proj.name)
-    errors, warns, info = lint(script, lesson, [w for w in args.allow.split(",") if w], args.target)
+    series = series_of(proj.name)
+    lesson = args.lesson or number_of(proj.name) or lesson_from_scripts(proj)
+    errors, warns, info = lint(script, lesson, [w for w in args.allow.split(",") if w], args.target, series)
     if args.json:
         print(json.dumps({"errors": errors, "warnings": warns, "info": info}, ensure_ascii=False, indent=1))
     else:
@@ -104,7 +114,7 @@ def main():
             print("WARN ", w)
         for e in errors:
             print("ERROR", e)
-        print(f"script lint (lesson {lesson}): {len(errors)} error(s), {len(warns)} warning(s)  {info}")
+        print(f"script lint ({series} series, lesson {lesson}): {len(errors)} error(s), {len(warns)} warning(s)  {info}")
     return 1 if errors else 0
 
 

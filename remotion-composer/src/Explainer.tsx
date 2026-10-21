@@ -30,7 +30,7 @@ import type { TerminalStep } from "./components/TerminalScene";
 import { ScreenshotScene } from "./components/ScreenshotScene";
 import type { ScreenshotStep } from "./components/ScreenshotScene";
 import { ProviderChip } from "./components/ProviderChip";
-import { WhiteboardScene } from "./components/WhiteboardScene";
+import { WhiteboardScene, useWbFont } from "./components/WhiteboardScene";
 import { LogoBadge } from "./components/LogoBadge";
 import type { WhiteboardData } from "./components/WhiteboardScene";
 import { resolveAsset } from "./lib/resolveAsset";
@@ -261,6 +261,7 @@ interface Cut {
   particleCount?: number;
   particleIntensity?: number;
   vignette?: boolean;
+  frame_seq?: { src: string[] }; // a pre-rendered picture sequence (one file per frame): no video decoding, so it also renders on the remote machine
   lightingFrom?: string;
   lightingTo?: string;
   // Terminal scene props (type: "terminal_scene")
@@ -484,6 +485,18 @@ const VideoScene: React.FC<{
         muted
       />
       <Vignette />
+    </AbsoluteFill>
+  );
+};
+
+// Plays a picture sequence by frame number (frame 0 of the cut = first picture).  Captions, logo and progress bar are global layers, so they stay on top.
+const FrameSequenceScene: React.FC<{ frames: string[] }> = ({ frames }) => {
+  useWbFont(); // the captions are set in the hand font, which only whiteboard cuts load: without it they turn into squares over this cut
+  const frame = useCurrentFrame();
+  const i = Math.min(frames.length - 1, Math.max(0, frame));
+  return (
+    <AbsoluteFill>
+      <Img src={resolveAsset(frames[i])} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
     </AbsoluteFill>
   );
 };
@@ -757,6 +770,10 @@ const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme 
         sceneDurationSeconds={cut.out_seconds - cut.in_seconds}
       />
     );
+  }
+
+  if (cut.frame_seq && cut.frame_seq.src && cut.frame_seq.src.length > 0) {
+    return <FrameSequenceScene frames={cut.frame_seq.src} />;
   }
 
   // --- Media types (image / video fallback) ---
