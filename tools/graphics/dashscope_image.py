@@ -40,7 +40,9 @@ class DashscopeImage(BaseTool):
     dependencies = []
     install_instructions = (
         "Set DASHSCOPE_API_KEY to your Alibaba Cloud DashScope API key.\n"
-        "  Get one at https://dashscope.aliyun.com/"
+        "  Get one at https://dashscope.aliyun.com/\n"
+        "Optional: set DASHSCOPE_IMAGE_BASE_URL to a dedicated https://*.aliyuncs.com\n"
+        "  gateway (scheme + host only) to route image requests there."
     )
     fallback = "grok_image"
     fallback_tools = ["grok_image", "openai_image", "flux_image", "recraft_image"]
@@ -69,6 +71,7 @@ class DashscopeImage(BaseTool):
             "model": {
                 "type": "string",
                 "enum": [
+                    "qwen-image-3.0-pro",
                     "qwen-image-2.0-pro",
                     "qwen-image-max",
                     "wan2.7-image",
@@ -96,6 +99,14 @@ class DashscopeImage(BaseTool):
             },
             "watermark": {"type": "boolean", "default": False},
             "seed": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+            "reference_images": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Optional local image paths sent as reference images "
+                    "(character consistency); only for models that accept image input."
+                ),
+            },
             "output_path": {"type": "string"},
         },
     }
@@ -124,10 +135,28 @@ class DashscopeImage(BaseTool):
         "Inspect generated image for relevance and quality"
     ]
 
-    ENDPOINT = (
-        "https://dashscope.aliyuncs.com/api/v1/services/aigc/"
-        "multimodal-generation/generation"
-    )
+    _PATH = "/api/v1/services/aigc/multimodal-generation/generation"
+    ENDPOINT = "https://dashscope.aliyuncs.com" + _PATH
+
+    def _endpoint(self) -> str:
+        """Default endpoint, or DASHSCOPE_IMAGE_BASE_URL when set.
+
+        The bearer key is sent to this host, so only https URLs under
+        aliyuncs.com are accepted.
+        """
+        base = os.environ.get("DASHSCOPE_IMAGE_BASE_URL", "").strip().rstrip("/")
+        if not base:
+            return self.ENDPOINT
+        from urllib.parse import urlparse
+
+        parsed = urlparse(base)
+        host = parsed.hostname or ""
+        if parsed.scheme != "https" or not (host == "aliyuncs.com" or host.endswith(".aliyuncs.com")):
+            raise ValueError(
+                "DASHSCOPE_IMAGE_BASE_URL must be an https URL under aliyuncs.com "
+                "(scheme and host only)."
+            )
+        return f"{parsed.scheme}://{parsed.netloc}{self._PATH}"
 
     def get_status(self) -> ToolStatus:
         if os.environ.get("DASHSCOPE_API_KEY"):
@@ -154,7 +183,7 @@ class DashscopeImage(BaseTool):
         try:
             payload = self._build_payload(inputs)
             response = requests.post(
-                self.ENDPOINT,
+                self._endpoint(),
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -253,18 +282,32 @@ class DashscopeImage(BaseTool):
         if inputs.get("seed") is not None:
             parameters["seed"] = int(inputs["seed"])
 
+        content: list[dict[str, Any]] = []
+        for ref in inputs.get("reference_images") or []:
+            content.append({"image": self._image_data_uri(ref)})
+        content.append({"text": inputs["prompt"]})
+
         return {
             "model": inputs.get("model", "qwen-image-2.0-pro"),
             "input": {
                 "messages": [
                     {
                         "role": "user",
-                        "content": [{"text": inputs["prompt"]}],
+                        "content": content,
                     }
                 ]
             },
             "parameters": parameters,
         }
+
+    @staticmethod
+    def _image_data_uri(path: str) -> str:
+        import base64
+        import mimetypes
+
+        mime = mimetypes.guess_type(path)[0] or "image/png"
+        data = base64.b64encode(Path(path).read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{data}"
 
     @staticmethod
     def _safe_error(exc: Exception) -> str:

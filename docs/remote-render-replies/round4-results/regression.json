@@ -1,0 +1,8 @@
+{
+  "command": "python3 -m unittest discover -s remote_render -p 'test*.py'",
+  "exit_code": 0,
+  "tests": 15,
+  "reported_seconds": 0.215,
+  "agent_sha256": "d12471fdfe9f891d65e5fd3539a1b5217c66d36cbf45fbaa22fec729c449e822",
+  "evidence": "Completed immediately before this deployment; copied from session tool result"
+}

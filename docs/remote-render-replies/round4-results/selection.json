@@ -1,0 +1,31 @@
+{
+  "workers": 65,
+  "jobs": 1,
+  "tabs": 2,
+  "selected_case": "client-w65-j1",
+  "fastest_seconds": 126.845,
+  "reason": "Within 3% of fastest quality-passing actual-client candidate with overall CPU >=85%; prefer fewer jobs",
+  "candidates": [
+    {
+      "name": "client-w65-j1",
+      "seconds": 127.929,
+      "jobs": 1,
+      "workers": 65,
+      "pass": true
+    },
+    {
+      "name": "client-w65-j4",
+      "seconds": 126.845,
+      "jobs": 4,
+      "workers": 65,
+      "pass": true
+    },
+    {
+      "name": "client-w65-j5",
+      "seconds": 127.669,
+      "jobs": 5,
+      "workers": 65,
+      "pass": true
+    }
+  ]
+}

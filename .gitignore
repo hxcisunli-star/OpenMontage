@@ -104,3 +104,6 @@ venv/
 
 # Local Wan / diffusers GPU environment
 .venv-wan/
+
+# Local GPU server API docs (internal addresses and paths; keep out of the open-source repo)
+apidocs/
