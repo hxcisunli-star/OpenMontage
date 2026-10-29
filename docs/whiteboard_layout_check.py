@@ -105,21 +105,36 @@ def run_probe(tmp, pub, groups, step, total, tag="p", concurrency=2):
     """One node process per group, run in parallel; returns the merged probe output (frames, errors, bad lines).  Every range gets ONE extra visited frame at
     its end that nobody asked for: the console line of the LAST frame of a call is lost about one time in five (measured: 17 of 307 sample frames, every one the
     last of its range), so the last wanted frame is never the last visited one."""
-    procs = []
-    for i, g in enumerate(groups):
+    def launch(i, g):
         ranges = [[lo, min(total - 1, hi + step)] for lo, hi in g]
         job = {"propsPath": str(tmp / "props.json"), "publicDir": str(pub), "out": str(tmp / f"layout_{tag}{i}.json"), "ranges": ranges, "step": step, "mode": "range",
                "concurrency": concurrency, "timeoutMs": 900000}
         (tmp / f"job_{tag}{i}.json").write_text(json.dumps(job), encoding="utf-8")
+        (tmp / f"layout_{tag}{i}.json").unlink(missing_ok=True)
         log = open(tmp / f"probe_{tag}{i}.log", "w")
-        procs.append((subprocess.Popen(["node", str(COMPOSER / "probe" / "layout_probe.mjs"), str(tmp / f"job_{tag}{i}.json")], cwd=COMPOSER, stdout=log, stderr=subprocess.STDOUT), log, i))
+        return subprocess.Popen(["node", str(COMPOSER / "probe" / "layout_probe.mjs"), str(tmp / f"job_{tag}{i}.json")], cwd=COMPOSER, stdout=log, stderr=subprocess.STDOUT), log, i
+
+    # The first process builds the bundle (webpack cache); the others start only when it says "bundle ok".  Three processes that rebuild the cache at the same moment after the probe's source
+    # changed used to die at start (measured: the first three-process run after every edit of probe/index.tsx failed, the next one passed).
+    procs = []
+    for i, g in enumerate(groups):
+        procs.append(launch(i, g))
+        if i == 0 and len(groups) > 1:
+            t0 = time.time()
+            while time.time() - t0 < 180 and procs[0][0].poll() is None and "bundle ok" not in (tmp / f"probe_{tag}0.log").read_text(errors="replace"):
+                time.sleep(0.5)
     merged = {"frames": {}, "errors": [], "bad": [], "meta": {"calls": 0, "visited": 0, "workers": len(groups)}}
     failed = []
     for p, log, i in procs:
         rc = p.wait(); log.close()
         out = tmp / f"layout_{tag}{i}.json"
         if rc != 0 or not out.exists():
-            failed.append((i, (tmp / f"probe_{tag}{i}.log").read_text(errors="replace")[-1500:]))
+            # a probe process now and then dies right after it starts (nothing in its log after the font line; 3 of 7 runs of one check on a loaded 4-core machine): run that group once more
+            # on its own before giving up - the check is a quality gate, it must not be flaky
+            p2, log2, _ = launch(i, groups[i])
+            rc = p2.wait(); log2.close()
+        if rc != 0 or not out.exists():
+            failed.append((i, f"exit code {rc}\n" + (tmp / f"probe_{tag}{i}.log").read_text(errors="replace")[-1500:]))
             continue
         d = json.loads(out.read_text(encoding="utf-8"))
         merged["frames"].update(d["frames"])

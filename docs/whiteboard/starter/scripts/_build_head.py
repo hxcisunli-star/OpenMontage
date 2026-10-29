@@ -4,6 +4,7 @@ All times come from assets/audio/narration_timeline.json (real TTS durations) an
 estimated caption timing in assets/captions/captions.json (phrase anchoring via Finder).
 One whiteboard cut per script section (the board is cleared between sections).
 """
+import copy
 import json
 import re
 import sys
@@ -18,6 +19,8 @@ ART = PROJ / "artifacts"
 AUD = PROJ / "assets" / "audio"
 IMG = PROJ / "assets" / "images"
 CAP = PROJ / "assets" / "captions" / "captions.json"
+sys.path.insert(0, str(ROOT / "docs"))
+import whiteboard_v2_kit as V2   # noqa: E402  style-guide building blocks of the new series: sticky notes, bubbles, bars, blocks, characters, flying copies (see docs/whiteboard_v2_kit.py)
 
 caps = json.loads(CAP.read_text(encoding="utf-8"))
 tl = json.loads((AUD / "narration_timeline.json").read_text(encoding="utf-8"))
@@ -100,17 +103,70 @@ def est_w(text, size):
 
 # ----------------------------------------------------------------- board builder
 class Board:
-    def __init__(self, cid, cin, cout):
+    def __init__(self, cid, cin, cout, fade_out=0.4):
         self.cid, self.cin, self.cout = cid, cin, cout
+        self.fade_out = fade_out   # seconds of fade at the end of the cut; s4's first board hands over to the clip without a fade (a small positive value: Remotion's interpolate wants a rising input range)
         self.items, self.keys = [], []
+        self.cam = []   # board camera keys (relative times), see camera()
+        self.static = False   # only set explicitly (never by default): while True, everything added is "already drawn" (at = -10) and the pen is not moved
 
     def r(self, t):
+        if self.static:
+            return -10.0
         return round(max(t - self.cin, 0.3), 2)
 
     def key(self, t, x, y):
+        if self.static:
+            return
         self.keys.append((self.r(t), round(x), round(y)))
 
-    def write(self, text, x, y, at, size=60, dur=None, color=None, align="left", until=None, font=None):
+    def pen_off(self, t):
+        """The pen walks off the board to the right (x beyond the clipped board edge), so the last picture of the cut has no pen in it."""
+        self.keys.append((self.r(t), 2050, 600))
+
+    def pen_in(self):
+        """The pen starts off the board and glides in to the first thing written (a cut that continues a picture)."""
+        self.keys.append((0.0, 2050, 520))
+
+    def _moves(self, keys):
+        """Times of `move` keys are absolute like every other time of a build; the board stores them relative to the cut.  In static mode (already drawn) the keys collapse into ONE key that
+        holds the final pose."""
+        if self.static:
+            last = {}
+            for k in sorted(keys, key=lambda k: k["at"]):
+                last.update({f: v for f, v in k.items() if f != "at"})
+            return [{**last, "at": -10.0}]
+        return [{**k, "at": self.r(k["at"])} for k in keys]
+
+    def _opt(self, kw):
+        """Optional fields of the composer (layer, rot, origin, move, fill, shadow, box, d, radius, border ...): handed on to the item as they are; only `move` needs its times converted."""
+        out = dict(kw)
+        if out.get("move"):
+            out["move"] = self._moves(out["move"])
+        return out
+
+    def camera(self, keys):
+        """Board camera: keys [{at, scale, cx, cy}] with absolute times; scale >= 1, (cx, cy) the point the view is centred on (canvas px)."""
+        self.cam = [{**k, "at": self.r(k["at"])} for k in keys]
+
+    def relist(self, other):
+        """Copy every item of another board as ALREADY DRAWN, in the same order: strokes get their hand wobble from their index in the stroke list, so a verbatim copy looks exactly like the
+        original.  Item times are relative to the cut start, so `until` is shifted by the difference of the two starts; an item that had faded out stays in the list (with a past `until`)
+        so that the indexes of all later strokes do not move.  No pen keys are added."""
+        shift = other.cin - self.cin
+        for it in copy.deepcopy(other.items):
+            if it["kind"] in ("code", "memory"):
+                raise SystemExit("relist: code and memory items are not supported")
+            it["at"] = -10.0
+            if it.get("until") is not None:
+                it["until"] = round(it["until"] + shift, 2)
+            if it.get("move"):   # a copied item that moved keeps its pose at the end of its move: the keys land in the past of the new cut
+                it["move"] = [{**k, "at": round(k["at"] + shift, 2)} for k in it["move"]]
+            self.items.append(it)
+        if other.cam and not self.cam:   # the camera of the board it continues
+            self.cam = [{**k, "at": round(k["at"] + shift, 2)} for k in other.cam]
+
+    def write(self, text, x, y, at, size=60, dur=None, color=None, align="left", until=None, font=None, **kw):
         chars = len(text.replace("\n", ""))
         d = dur if dur is not None else max(0.6, chars * 0.11)
         it = {"kind": "write", "text": text, "x": x, "y": y, "at": self.r(at), "dur": round(d, 2), "size": size, "align": align}
@@ -120,6 +176,7 @@ class Board:
             it["until"] = self.r(until)
         if font:
             it["font"] = font
+        it.update(self._opt(kw))
         self.items.append(it)
         w = est_w(text, size) * (1.1 if font == "mono" else 1.0)
         x0 = x - w / 2 if align == "center" else x
@@ -127,7 +184,7 @@ class Board:
         self.key(at + d, x0 + w, y + size * 0.8)
 
     def stroke(self, shape, at, dur=0.7, color=None, width=6, until=None, **kw):
-        it = {"kind": "stroke", "shape": shape, "at": self.r(at), "dur": dur, "width": width, **kw}
+        it = {"kind": "stroke", "shape": shape, "at": self.r(at), "dur": dur, "width": width, **self._opt(kw)}
         if color:
             it["color"] = color
         if until is not None:
@@ -141,8 +198,9 @@ class Board:
             self.key(at, kw["cx"] - kw["r"], kw["cy"]); self.key(at + dur, kw["cx"], kw["cy"] - kw["r"])
         elif shape == "underline":
             self.key(at, kw["x"], kw["y"]); self.key(at + dur, kw["x"] + kw["w"], kw["y"])
+        # shape "path" (filled blocks, notes, bubbles, bars): no pen keys, they appear rather than being drawn; the writes on them move the pen
 
-    def image(self, name, cx, top, h, at, dur=1.0, reveal="down", until=None):
+    def image(self, name, cx, top, h, at, dur=1.0, reveal="down", until=None, pen=True, **kw):
         path = IMG / f"{name}.png"
         im = Image.open(path)
         w = round(im.width * h / im.height)
@@ -151,14 +209,19 @@ class Board:
               "at": self.r(at), "dur": dur, "reveal": reveal}
         if until is not None:
             it["until"] = self.r(until)
+        it.update(self._opt(kw))
         self.items.append(it)
-        self.key(at, cx, top); self.key(at + dur, cx, top + h)
+        if pen:
+            self.key(at, cx, top); self.key(at + dur, cx, top + h)
 
-    def code(self, lines, x, y, line_ats, highlights, size=33, line_dur=0.9):
+    def code(self, lines, x, y, line_ats, highlights, size=33, line_dur=0.9, lang=None):
         lat = [self.r(t) for t in line_ats]
         hl = [{**h, "at": self.r(h["at"])} for h in highlights]
-        self.items.append({"kind": "code", "lines": lines, "x": x, "y": y, "at": min(lat), "lineAts": lat,
-                           "lineDur": line_dur, "size": size, "highlights": hl})
+        it = {"kind": "code", "lines": lines, "x": x, "y": y, "at": min(lat), "lineAts": lat,
+              "lineDur": line_dur, "size": size, "highlights": hl}
+        if lang:   # colour the code by token kind: "c" or "py" (composer item field `lang`)
+            it["lang"] = lang
+        self.items.append(it)
         lh = size * 1.5
         for i, t in sorted(enumerate(line_ats), key=lambda p: p[1]):
             self.key(t, x, y + i * lh + size)
@@ -202,7 +265,22 @@ class Board:
                 at = round(last + 0.02, 2)
             out.append({"at": at, "x": x, "y": y})
             last = at
-        return {"items": self.items, "pointer": out, "inkColor": INK, "accentColor": RED, "fadeOutSeconds": 0.4}
+        d = {"items": self.items, "pointer": out, "inkColor": INK, "accentColor": RED, "fadeOutSeconds": self.fade_out}
+        if self.cam:
+            d["camera"] = self.cam
+        return d
+
+
+class Clip:
+    """A cut that is not a board: a pre-rendered picture sequence (one PNG per frame, played by the composer's frame_seq cut)."""
+    def __init__(self, cid, cin, cout, frames):
+        self.cid, self.cin, self.cout, self.frames = cid, cin, cout, frames
+
+
+FPS = 30
+def g(t):
+    """Snap a time to the 1/30 s frame grid."""
+    return round(t * FPS) / FPS
 
 
 def A(sid, phrase, after=None, end=False):

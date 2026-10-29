@@ -214,6 +214,14 @@ def cmd_verify(args):
     total = tl.get("total_seconds")
     tail_ok = lambda s: s["end"] >= dur - 0.3 and (total is None or s["start"] >= total - 1.0)  # noqa: E731
     unexpected = [s for i, s in enumerate(sil) if i not in used and not tail_ok(s)]
+    allowed = []   # a measured silence the user accepted on purpose (--allow-silence START END REASON): it stays in the report with its reason, it does not silently disappear
+    for a_start, a_end, why in args.allow_silence:
+        a_start, a_end = float(a_start), float(a_end)
+        hit = next((i for i, s in enumerate(unexpected) if abs(s["start"] - a_start) <= 0.3 and abs(s["end"] - a_end) <= 0.3 and s["duration"] <= 2.5), None)
+        if hit is None:
+            print(f"verify: FAILED - --allow-silence {a_start}-{a_end} matches no measured unexpected silence of at most 2.5 s (measured: {[(s['start'], s['end'], s['duration']) for s in unexpected]})")
+            return 1
+        allowed.append({**unexpected.pop(hit), "reason": why})
     sheets = None
     if not args.no_sheets:
         print("4/5 contact sheets", flush=True)
@@ -235,7 +243,7 @@ def cmd_verify(args):
         "frame_count_matches_duration": bool(v and v["nb_frames"] and abs(v["nb_frames"] - round(v["fps"] * dur)) <= 2),
     }
     out = {"project": proj.name, "measured_at": datetime.now(timezone.utc).isoformat(), "tool": "docs/whiteboard_verify.py", "final": str(final.relative_to(proj)) if final.is_relative_to(proj) else str(final),
-           "md5": md5(final), "probe": pr, "loudness": loud, "silences": sil, "quiz": quiz_ok, "unexpected_silences": unexpected, "black_frames": black, "freeze": freeze,
+           "md5": md5(final), "probe": pr, "loudness": loud, "silences": sil, "quiz": quiz_ok, "unexpected_silences": unexpected, "allowed_silences": allowed, "black_frames": black, "freeze": freeze,
            "sheets": sheets, "log_backup": backup, "render": {"actual_backend": backend, "remote_timing": timing, "requested_backend": rr.get("backend"), "elapsed_seconds": rr.get("elapsed_seconds")},
            "checks": checks, "pass": all(checks.values()), "human_still_must": ["open renders/review_dense/sheet_*.png and renders/review_cues/sheet.png and look at every frame", "no speech recognition: subtitles timing is an estimate"]}
     outp = proj / "validation/compose-measured.json"
@@ -244,6 +252,8 @@ def cmd_verify(args):
     print(f"{proj.name}: {dur:.3f}s {v.get('width')}x{v.get('height')} {v.get('fps'):.0f}fps {v.get('nb_frames')} frames, {pr['size_bytes'] / 1e6:.1f} MB, md5 {out['md5']}")
     print(f"  loudness I {loud['I']} LUFS, LRA {loud['LRA']}, peak {loud['peak_dbfs']} dBFS; black {black}; frozen stretches {len(freeze)} {[(f['start'], f['end']) for f in freeze]}")
     print("  silences >1.3s:", [(s["start"], s["end"]) for s in sil], "| unexpected:", [(s["start"], s["end"]) for s in unexpected])
+    for s in allowed:
+        print(f"  ALLOWED silence {s['start']}-{s['end']} ({s['duration']} s): {s['reason']}")
     print(f"  backend {backend}" + (f" | {timing}" if timing else "") + (f" | logs backed up to {backup}" if backup else ""))
     for k, ok in checks.items():
         print(f"  [{'OK' if ok else 'FAIL'}] {k}")
@@ -346,7 +356,10 @@ def cmd_local_ref(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    v = sub.add_parser("verify"); v.add_argument("proj"); v.add_argument("--final", default="renders/final.mp4"); v.add_argument("--no-sheets", action="store_true"); v.add_argument("--no-backup", action="store_true")
+    v = sub.add_parser("verify"); v.add_argument("proj"); v.add_argument("--final", default="renders/final.mp4"); v.add_argument("--no-sheets", action="store_true")
+    v.add_argument("--allow-silence", nargs=3, action="append", default=[], metavar=("START", "END", "REASON"),
+                   help="accept ONE measured unexpected silence (within 0.3 s of START/END, at most 2.5 s long) after the user decided to keep it; the reason is written into the report; repeatable")
+    v.add_argument("--no-backup",action="store_true")
     v.add_argument("--render-log", help="stdout log of the render job (what nohup wrote); tells the real backend and keeps the `remote timing:` line")
     sub.add_parser("probe")
     c = sub.add_parser("compare"); c.add_argument("a"); c.add_argument("b")

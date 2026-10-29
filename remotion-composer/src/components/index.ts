@@ -19,4 +19,4 @@ export type { ParticleType } from "./ParticleOverlay";
 export type { CameraMotion, AnimeSceneProps } from "./AnimeScene";
 export type { TerminalStep } from "./TerminalScene";
 export type { ScreenshotStep, Region, Point } from "./ScreenshotScene";
-export type { WhiteboardData, WbItem, WbArrayOp, WbPointerKey } from "./WhiteboardScene";
+export type { WhiteboardData, WbItem, WbArrayOp, WbPointerKey, WbKey, WbMotion, WbCamKey, WbStrokeShape, WbCodeLang } from "./WhiteboardScene";

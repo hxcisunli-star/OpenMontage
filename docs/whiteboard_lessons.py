@@ -46,3 +46,27 @@ def load_terms(series="c"):
     if series == "c":
         return data["terms"]
     return (data.get("series_terms") or {}).get(series, {})
+
+
+def series_config(series="c"):
+    """One series' entry of docs/whiteboard/series.yaml with defaults filled in (name, pack_dir, bare_lesson_refs, cast_dir, cast_assets, logo, cover_cast, template_lesson, forbid_terms)."""
+    import yaml
+    data = yaml.safe_load((ROOT / "docs" / "whiteboard" / "series.yaml").read_text(encoding="utf-8")) or {}
+    cfg = {"name": None, "pack_dir": None, "bare_lesson_refs": "self", "cast_dir": None, "cast_assets": [], "logo": "schoollogo.png", "cover_cast": None, "template_lesson": None,
+           "forbid_terms": []}
+    cfg.update(data.get(series) or {})
+    if cfg["pack_dir"] is None and cfg["name"]:
+        cfg["pack_dir"] = f"{cfg['name']}_成品"
+    return cfg
+
+
+def lesson_refs_to(project):
+    """Which series a bare "第N课" in this project's narration means: 'c' or the project's own series.  The experiment lesson agent-messages-cn (EXPERIMENT.md in its folder) was
+    written before the new series cut its ties to the C course and still quotes C lessons, so it keeps resolving to the C series; every other agent lesson means its own series."""
+    series = series_of(project)
+    cfg = series_config(series)
+    p = Path(project)
+    legacy = series != "c" and ((p / "EXPERIMENT.md").exists() or (ROOT / "projects" / p.name / "EXPERIMENT.md").exists())
+    if legacy:
+        return "c"
+    return "c" if cfg["bare_lesson_refs"] == "c" else series

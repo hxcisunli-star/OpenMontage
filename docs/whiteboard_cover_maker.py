@@ -1,6 +1,8 @@
-"""Unified 16:9 covers (1920x1080) for the six C-lesson videos.
+"""Unified 16:9 covers (1920x1080) for the whiteboard lesson videos.
 
-Run: PYTHONPATH=. .venv/bin/python docs/whiteboard_cover_maker.py
+Run: PYTHONPATH=. .venv/bin/python docs/whiteboard_cover_maker.py [lesson numbers of the C series]
+A cover takes its cast, school logo and series tag from docs/whiteboard/series.yaml: the C series keeps the doctor and the tag "C语言白板课"; a series with a cast_dir (the agent series: teacher +
+AI partner) draws its `cover_cast` pictures and uses its name as the tag - and refuses to make a cover while the series has no name (the user chooses it; no placeholder).
 Latin letters / digits / symbols always use a mono font (ZCOOL draws 0, o, c and
 capitals as squares, see playbook 2.6).
 """
@@ -8,6 +10,9 @@ import random
 import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from whiteboard_lessons import series_config, series_of  # noqa: E402
 
 ROOT = Path("projects")
 ZCOOL = str("remotion-composer/public/fonts/ZCOOLKuaiLe-Regular.ttf")
@@ -109,7 +114,21 @@ def wobble_line(d, x1, x2, y, color, w, rnd):
     d.line(pts, fill=color, width=w, joint="curve")
 
 
+def cover_assets(proj):
+    """(logo path, series tag, [(picture, height, right margin, bottom margin)], maximum text width) of this project's series."""
+    series = series_of(proj)
+    cfg = series_config(series)
+    if not cfg["cast_dir"]:   # the C series: the doctor, the school logo of lesson 6, the tag from the config
+        return LOGO, cfg["name"] or "C语言白板课", [(DOCTOR, 900, 150, 70)], 1130
+    if not cfg["name"]:
+        raise SystemExit(f"the {series} series has no name yet: set `name:` in docs/whiteboard/series.yaml (the user chooses it) before making covers")
+    cd = Path(cfg["cast_dir"])
+    cast = [(cd / c["file"], c["h"], c["right"], c["bottom"]) for c in (cfg["cover_cast"] or [])]
+    return cd / cfg["logo"], cfg["name"], cast, cfg.get("cover_text_width", 1130)
+
+
 def make(proj, no, title, sub, code):
+    LOGO_, tag, cast, text_w = cover_assets(proj)
     rnd = random.Random(no)
     W, H = 1920, 1080
     img = Image.new("RGB", (W, H), (200, 210, 226))
@@ -123,14 +142,13 @@ def make(proj, no, title, sub, code):
         d.line((30, gy, W - 30, gy), fill=(238, 238, 234), width=1)
 
     # logo top-left
-    logo = Image.open(LOGO).convert("RGBA")
+    logo = Image.open(LOGO_).convert("RGBA")
     lw = 330
     logo = logo.resize((lw, int(logo.height * lw / logo.width)), Image.LANCZOS)
     d.rounded_rectangle((70, 52, 70 + lw + 40, 52 + logo.height + 40), 14, fill=(22, 36, 82))
     img.paste(logo, (90, 72), logo)
 
     # series tag top-right
-    tag = "C语言白板课"
     tw = width_mixed(d, tag, 44)
     draw_mixed(d, (W - 90 - tw, 72), tag, 44, BLUE)
 
@@ -142,7 +160,7 @@ def make(proj, no, title, sub, code):
 
     # title (shrink to fit left area)
     size = 190
-    while width_mixed(d, title, size) > 1130:
+    while width_mixed(d, title, size) > text_w:
         size -= 6
     tx, ty = 110, 400
     draw_mixed(d, (tx, ty), title, size, INK)
@@ -151,7 +169,7 @@ def make(proj, no, title, sub, code):
 
     # subtitle
     sub_size = 60
-    while width_mixed(d, sub, sub_size) > 1130:
+    while width_mixed(d, sub, sub_size) > text_w:
         sub_size -= 2
     draw_mixed(d, (tx, ul_y + 40), sub, sub_size, (70, 84, 118))
 
@@ -163,11 +181,11 @@ def make(proj, no, title, sub, code):
                         outline=(150, 164, 196), width=4)
     d.text((tx + 40, cy + 26), code, font=cf, fill=INK)
 
-    # doctor right
-    doc = Image.open(DOCTOR).convert("RGBA")
-    dh = 900
-    doc = doc.resize((int(doc.width * dh / doc.height), dh), Image.LANCZOS)
-    img.paste(doc, (W - 90 - doc.width - 60, H - 70 - dh), doc)
+    # the cast on the right (the doctor, or the teacher with the AI partner), drawn in the order of the list
+    for pic, dh, right, bottom in cast:
+        doc = Image.open(pic).convert("RGBA")
+        doc = doc.resize((int(doc.width * dh / doc.height), dh), Image.LANCZOS)
+        img.paste(doc, (W - right - doc.width, H - bottom - dh), doc)
 
     out = ROOT / proj / "exports/thumbnails/cover.png"
     out.parent.mkdir(parents=True, exist_ok=True)

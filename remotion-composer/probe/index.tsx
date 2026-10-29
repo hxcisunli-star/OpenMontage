@@ -49,7 +49,28 @@ function fontClass(ff: string): "hand" | "mono" | "other" {
 }
 
 interface TextOut { text: string; font: string; size: number; lines: number; box: Box; rects: Box[]; opacity: number; reveal: number }
-interface ShapeOut { kind: string; box: Box; pts?: [number, number][]; sub?: number[]; closed?: boolean; filled?: boolean; stroked?: boolean; width?: number; opacity: number; reveal: number; bg?: string; fill?: string }
+interface ShapeOut { kind: string; box: Box; pts?: [number, number][]; sub?: number[]; closed?: boolean; filled?: boolean; stroked?: boolean; width?: number; opacity: number; reveal: number; bg?: string; fill?: string; alpha?: string; fillAlpha?: number }
+
+// Which cells of a picture are opaque: a 32x32 grid over the picture's box as a string of "0"/"1" (row by row).  A character picture's box holds a lot of transparent corners, so the layout
+// check asks the grid, not the box, whether a text is really covered.  Omitted when the browser will not let us read the pixels.
+const ALPHA_GRID = 32;
+function alphaGrid(img: HTMLImageElement): string | undefined {
+  try {
+    if (!img.complete || !img.naturalWidth) return undefined;
+    const c = document.createElement("canvas");
+    c.width = ALPHA_GRID;
+    c.height = ALPHA_GRID;
+    const g = c.getContext("2d");
+    if (!g) return undefined;
+    g.drawImage(img, 0, 0, ALPHA_GRID, ALPHA_GRID);
+    const d = g.getImageData(0, 0, ALPHA_GRID, ALPHA_GRID).data;
+    let out = "";
+    for (let i = 0; i < ALPHA_GRID * ALPHA_GRID; i++) out += d[i * 4 + 3] > 40 ? "1" : "0";
+    return out;
+  } catch {
+    return undefined;
+  }
+}
 
 function collectText(root: Element, texts: TextOut[]) {
   const isSvg = (e: Element) => e instanceof SVGElement;
@@ -133,7 +154,7 @@ function collectShapes(root: Element, shapes: ShapeOut[]) {
       let reveal = 1;
       if (el.getAttribute("pathLength") === "1" && /^1(px)?$/.test((cs.strokeDasharray || "").trim())) reveal = Math.max(0, Math.min(1, 1 - parseFloat(cs.strokeDashoffset || "0")));
       const closed = tag === "rect" || tag === "circle" || tag === "ellipse" || tag === "polygon" || (tag === "path" && /z\s*$/i.test(el.getAttribute("d") ?? ""));
-      const s: ShapeOut = { kind: tag, box: boxOf(rc), closed, filled, stroked, width: parseFloat(cs.strokeWidth || "0"), opacity, reveal, fill: cs.fill };
+      const s: ShapeOut = { kind: tag, box: boxOf(rc), closed, filled, stroked, width: parseFloat(cs.strokeWidth || "0"), opacity, reveal, fill: cs.fill, fillAlpha: parseFloat(cs.fillOpacity || "1") };
       if (tag === "path" || tag === "line" || tag === "polyline") {
         const pp = pathPoints(el, reveal);
         s.pts = pp.pts;
@@ -142,7 +163,7 @@ function collectShapes(root: Element, shapes: ShapeOut[]) {
       shapes.push(s);
     } else if (el instanceof HTMLImageElement) {
       const rc = el.getBoundingClientRect();
-      if (rc.width > 0 && rc.height > 0) shapes.push({ kind: "image", box: boxOf(rc), closed: true, filled: true, opacity, reveal: revealOf(el) });
+      if (rc.width > 0 && rc.height > 0) shapes.push({ kind: "image", box: boxOf(rc), closed: true, filled: true, opacity, reveal: revealOf(el), alpha: alphaGrid(el) });
     } else if (el instanceof HTMLElement) {
       const bw = parseFloat(cs.borderTopWidth || "0") * (cs.borderTopStyle === "none" ? 0 : 1);
       // A background only counts when it is actually visible (decorative particle layers carry almost transparent colours).
@@ -151,7 +172,7 @@ function collectShapes(root: Element, shapes: ShapeOut[]) {
       const hasBg = alpha >= 0.15;
       if (hasBg || bw > 0) {
         const rc = el.getBoundingClientRect();
-        if (rc.width > 0 && rc.height > 0) shapes.push({ kind: "panel", box: boxOf(rc), closed: true, filled: hasBg, stroked: bw > 0, opacity, reveal: revealOf(el), bg: cs.backgroundColor } as ShapeOut);
+        if (rc.width > 0 && rc.height > 0) shapes.push({ kind: "panel", box: boxOf(rc), closed: true, filled: hasBg, stroked: bw > 0, opacity, reveal: revealOf(el), bg: cs.backgroundColor, fillAlpha: alpha } as ShapeOut);
       }
     }
   }
@@ -162,9 +183,18 @@ function unionBox(rects: Box[]): Box | null {
   return [Math.min(...rects.map((b) => b[0])), Math.min(...rects.map((b) => b[1])), Math.max(...rects.map((b) => b[2])), Math.max(...rects.map((b) => b[3]))];
 }
 
+// The board is the element with overflow: hidden that holds the layers: the svg's parent, or its grandparent when a camera wrapper sits in between.
+function boardOf(svg: Element): HTMLElement | null {
+  for (let e: Element | null = svg.parentElement, i = 0; e && i < 2; e = e.parentElement, i++) {
+    if (getComputedStyle(e).overflow === "hidden") return e as HTMLElement;
+  }
+  return null;
+}
+
+// The first matching svg in document order is the bottom layer (the layers after it are html, svg-top and html-top).
 function findBoardSvg(): SVGSVGElement | null {
   for (const s of Array.from(document.querySelectorAll("svg"))) {
-    if (s.getAttribute("viewBox") === "0 0 1920 1080" && s.nextElementSibling instanceof HTMLDivElement && s.parentElement && getComputedStyle(s.parentElement).overflow === "hidden") return s as SVGSVGElement;
+    if (s.getAttribute("viewBox") === "0 0 1920 1080" && s.nextElementSibling instanceof HTMLDivElement && boardOf(s)) return s as SVGSVGElement;
   }
   return null;
 }
@@ -180,8 +210,13 @@ function outline(el: Element, depth: number, out: string[]) {
 function measure(frame: number, dump: boolean) {
   const svg = findBoardSvg();
   if (!svg) return { frame, scene: "other" };
-  const board = svg.parentElement as HTMLElement;
+  const board = boardOf(svg) as HTMLElement;
   const overlay = svg.nextElementSibling as HTMLElement;
+  // layers after the html layer: the optional top layers (stroke svg first, then writes and character images)
+  const zoomEl = svg.parentElement!.hasAttribute("data-wb-zoom") ? svg.parentElement! : null;
+  const after = Array.from(svg.parentElement!.children).slice(Array.from(svg.parentElement!.children).indexOf(overlay) + 1);
+  const topSvg = after.find((e) => e instanceof SVGSVGElement) ?? null;
+  const topHtml = after.find((e) => e instanceof HTMLDivElement) ?? null;
   const items: unknown[] = [];
   const addItem = (layer: string, idx: number, el: Element) => {
     const texts: TextOut[] = [];
@@ -192,6 +227,8 @@ function measure(frame: number, dump: boolean) {
   };
   Array.from(svg.children).forEach((c, i) => addItem("svg", i, c));
   Array.from(overlay.children).forEach((c, i) => addItem("html", i, c));
+  if (topSvg) Array.from(topSvg.children).forEach((c, i) => addItem("svg-top", i, c));
+  if (topHtml) Array.from(topHtml.children).forEach((c, i) => addItem("html-top", i, c));
   // Every layer that is not an ancestor of the board (captions, logo badge, progress bar ...).
   const chain = new Set<Element>();
   for (let e: Element | null = board; e; e = e.parentElement) chain.add(e);
@@ -209,6 +246,7 @@ function measure(frame: number, dump: boolean) {
   const out: Record<string, unknown> = {
     frame, scene: "whiteboard", viewport: { w: window.innerWidth, h: window.innerHeight },
     board: boxOf(board.getBoundingClientRect()), boardOpacity: r1(effOpacity(board) * 1000) / 1000, items, overlays,
+    zoom: zoomEl ? parseFloat(zoomEl.getAttribute("data-wb-zoom") ?? "1") : 1,   // camera zoom: >1 means content is cropped on purpose
   };
   if (dump) { const lines: string[] = []; outline(document.body, 0, lines); out.dump = lines; }
   return out;
@@ -235,7 +273,7 @@ function layoutSignature(): number {
   if (!svg) return 0;
   let sum = 0;
   const texts: TextOut[] = [];
-  collectText(svg.parentElement as Element, texts);
+  collectText(boardOf(svg) as Element, texts);
   for (const t of texts) sum += (t.box[2] - t.box[0]) * 7 + (t.box[3] - t.box[1]);
   return Math.round(sum);
 }

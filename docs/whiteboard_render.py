@@ -127,8 +127,14 @@ def media_hashes(node, pub, cache, out):
         for v in node:
             media_hashes(v, pub, cache, out)
     elif isinstance(node, str):
+        if not node or len(node.encode("utf-8")) > 255:   # an SVG path `d` or a long text is not a file name (a name > 255 bytes makes is_symlink() raise ENAMETOOLONG)
+            return
         f = pub / node
-        if node and not f.is_symlink() and f.is_file():
+        try:
+            is_media = not f.is_symlink() and f.is_file()
+        except OSError:
+            is_media = False
+        if is_media:
             if node not in cache:
                 cache[node] = sha(f.read_bytes())
             out[node] = cache[node]
@@ -143,6 +149,11 @@ def make_chunks(props, pub, comp_hash):
     for i, cut in enumerate(cuts):
         a = 0 if i == 0 else round(cut["in_seconds"] * FPS)
         b = (round(cuts[i + 1]["in_seconds"] * FPS) - 1) if i + 1 < len(cuts) else total - 1
+        if cut.get("type") == "video_clip":   # a finished mp4 (docs/whiteboard_h3_clip.py fit) instead of a Remotion render: its fingerprint is the file's hash and the cut's range
+            clip = Path(cut["video_clip"])
+            chunks.append({"id": cut["id"], "from": a, "to": b, "clip": str(clip),
+                           "fp": jhash({"tool": TOOL_VERSION, "clip": sha(clip.read_bytes()), "range": [a, b]})[:12]})
+            continue
         t0, t1 = a / FPS - 1.0, (b + 1) / FPS + 1.0
         pg = [p for p in pages if p[0]["startMs"] / 1000 < t1 and p[-1]["endMs"] / 1000 > t0]
         ov = [o for o in props.get("overlays", []) if o.get("in_seconds", 0) < t1 and o.get("out_seconds", 1e9) > t0]
@@ -152,6 +163,20 @@ def make_chunks(props, pub, comp_hash):
                     "pages": pg, "overlays": ov, "media": media})[:12]
         chunks.append({"id": cut["id"], "from": a, "to": b, "fp": fp})
     return chunks, total
+
+
+def install_clip(c):
+    """A video_clip chunk is the clip file itself: it must have EXACTLY the cut's frames (the ffmpeg join is by frame count)."""
+    want = c["to"] - c["from"] + 1
+    n = ffprobe_frames(c["clip"])
+    if n != want:
+        raise SystemExit(f"video_clip {c['id']}: the clip has {n} frames, the cut needs {want}: .venv/bin/python docs/whiteboard_h3_clip.py fit <raw.mp4> {c['clip']} --frames {want}")
+    shutil.copy2(c["clip"], c["path"])
+
+
+def clip_cuts_in(props, t0, t1):
+    """ids of the video_clip cuts that overlap [t0, t1) seconds (Remotion cannot draw them: stills and samples must stay out of them)."""
+    return [c["id"] for c in props["cuts"] if c.get("type") == "video_clip" and c["in_seconds"] < t1 and c["out_seconds"] > t0]
 
 
 def ffprobe_frames(path):
@@ -171,7 +196,9 @@ def stream_sig(path):
                         "stream=codec_name,profile,level,pix_fmt,color_range,color_space,width,height,r_frame_rate", "-of", "json", str(path)],
                        capture_output=True, text=True)
     try:
-        return json.dumps(json.loads(r.stdout)["streams"][0], sort_keys=True)
+        st = json.loads(r.stdout)["streams"][0]
+        st.pop("side_data_list", None)   # an (empty) CPB-properties entry that Remotion's encoder writes and a plain ffmpeg encode does not: it has no say in whether `-c copy` joins are valid
+        return json.dumps(st, sort_keys=True)
     except (ValueError, KeyError, IndexError):
         return "unknown"
 
@@ -625,6 +652,11 @@ def cmd_final(proj, args):
     todo = []
     for c in chunks:
         c["path"] = cdir / f"{c['id']}-{c['fp']}.mp4"
+        if c.get("clip"):   # not rendered: copied from the clip file when it is not in the cache yet
+            if not c["path"].exists():
+                install_clip(c)
+            c["stale"] = False
+            continue
         c["stale"] = c["id"] in force or not c["path"].exists()
         if c["stale"]:
             todo.append(c)
@@ -757,6 +789,9 @@ def cmd_stills(proj, args, times=None, outdir=None, names=None):
     pub = stage(proj, props, ".still-public")
     pp = proj / "renders" / ".still_props.json"; pp.write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
     times = times if times is not None else [float(t) for t in args.stills]
+    for t in times:
+        if clip_cuts_in(props, t, t + 1e-6):
+            raise SystemExit(f"still at {t}s falls in the video_clip cut {clip_cuts_in(props, t, t + 1e-6)}: Remotion cannot draw it (it is a finished mp4)")
     outdir = outdir or proj / "renders" / "stills"
     outdir.mkdir(parents=True, exist_ok=True)
     stills = []
@@ -780,6 +815,8 @@ def cmd_sample(proj, args):
     props, narr = load_props(proj)
     pub = stage(proj, props, ".chunk-public")
     pp = proj / "renders" / ".chunk_props.json"; pp.write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
+    if clip_cuts_in(props, a, b):
+        raise SystemExit(f"the sample {a}-{b}s overlaps the video_clip cut {clip_cuts_in(props, a, b)}: samples are drawn by Remotion; render the whole lesson with --final (clips are joined as files)")
     fa, fb = round(a * FPS), round(b * FPS) - 1
     backend = choose_backend(args)
     set_min_part(args, backend)
@@ -837,6 +874,12 @@ def key_times(cut, quiz):
             ev.append((min(ats), max(ats) + it.get("lineDur", 0.8)))
         else:
             ev.append((it["at"], it["at"] + float(it.get("dur", 0.8) or 0.8)))
+        mv = [k["at"] for k in it.get("move") or [] if isinstance(k.get("at"), (int, float))]
+        if mv:  # an item that moves is sampled where its move ends, not only where it was drawn
+            ev.append((min(mv), max(mv)))
+    cam = [k["at"] for k in cut["whiteboard"].get("camera") or [] if isinstance(k.get("at"), (int, float))]
+    if cam:  # the camera ends its move at the last key
+        ev.append((min(cam), max(cam)))
     ev.sort()
     times, i = [], 0
     while i < len(ev):

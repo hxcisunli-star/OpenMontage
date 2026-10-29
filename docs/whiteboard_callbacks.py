@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from whiteboard_lessons import number_of, project_of, series_of  # noqa: E402
+from whiteboard_lessons import lesson_refs_to, number_of, project_of, series_of  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DIGITS = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
@@ -62,7 +62,8 @@ def main():
     args = ap.parse_args()
     proj = Path(args.proj)
     me = args.lesson or number_of(proj.name)
-    cross = series_of(proj.name) != "c"   # a bare "第N课" in a later series means the C course; lesson numbers of two series are not comparable, so no forward-reference check
+    target = lesson_refs_to(proj)         # which series a bare "第N课" means: the project's own (new series), or the C course (the C series, and the frozen experiment lesson that quotes it)
+    cross = target != series_of(proj.name)   # lesson numbers of two series are not comparable, so a reference into the other series gets no forward-reference check
     secs = load_sections(proj.name) if (ROOT / "projects" / proj.name).exists() else json.loads((proj / "artifacts/script.json").read_text(encoding="utf-8"))["sections"]
     cache, out, flagged = {}, [], 0
     for sec in secs:
@@ -74,7 +75,7 @@ def main():
                 problems = []
                 if me is not None and n >= me and not cross:
                     problems.append(f"引用的是第 {n} 课，本课是第 {me} 课：如果是预告，确认那一课真的这样安排；否则课号写错了")
-                proj_n = project_of(n)
+                proj_n = project_of(n, target)
                 if proj_n is None:
                     problems.append(f"找不到第 {n} 课的项目")
                 else:
@@ -100,7 +101,7 @@ def main():
                 flagged += bool(problems)
                 out.append("\n".join(lines))
     where = f"第 {me} 课" if me is not None and not cross else "智能体篇" if cross else "课号未登记"
-    note = "旁白里的“第N课”按 C 篇的课号查（后一个系列里没有别的写法）。" if cross else ""
+    note = "旁白里的“第N课”按 C 篇的课号查（这是写在“与 C 课脱钩”之前的试验课）。" if cross else ("旁白里的“第N课”指本系列自己的课；本系列与 C 课没有任何联系，找不到的课号就是写错了或在回扣 C 课。" if series_of(proj.name) != "c" else "")
     head = f"# 回扣核对：{proj.name}（{where}）\n\n{note}旁白里共 {len(out)} 处“第N课”，其中 {flagged} 处有提醒（⚠）。逐处对着原话看：课号对不对、说法有没有被改写成原课没说过的话。\n"
     text = head + "\n" + "\n\n".join(out) + "\n"
     if args.out:

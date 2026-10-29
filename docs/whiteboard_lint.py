@@ -11,6 +11,11 @@ Checks (each one is a mistake we already paid for, see docs/whiteboard-course-pl
   ERROR  a non-circle item starts inside a quiz silence (question_end+0.3 .. answer_not_before) -> answer shown too early
   WARN   other non-ASCII in mono text; non-ASCII memory-cell names; lowercase c/o in hand text; file-name / call / long Latin word mixed with Chinese in a hand-font write
   WARN   estimated text boxes that are visible at the same time and overlap (an ESTIMATE, only for `write` items: the measured check is docs/whiteboard_layout_check.py)
+New optional fields (layer / move / rot / origin / fill / path / camera, see WhiteboardScene.tsx):
+  ERROR  code `lang` other than "c" / "py"; layer other than "top"; a `move` key without a numeric `at`; a `path` stroke without a `d` string; a fill or fillOpacity that is not a colour string / a number
+         in 0..1; a camera key with scale < 1 (the board edge would show) or without a numeric `at`
+  WARN   a `path` stroke with a fill but no `box` (the tools cannot place it); a camera centre outside the canvas
+  WARN   text lying on a filled block whose contrast with the fill is too low (WCAG 4.5, 3.0 for text of 40 px and up; hex colours only; the topmost fill that is on the board at the same time counts)
 """
 import json
 import re
@@ -21,6 +26,116 @@ CJK = re.compile(r"[\u2e80-\u9fff\uff00-\uffef\u3000-\u303f]")
 MONO_SAFE = "\u2192\u2018\u2019\u201c\u201d\u2026\u00b7\u00d7\u2190\u2191\u2193"  # glyphs the mono font really has (seen rendered)
 MIN_VERTICAL_GAP = 88
 MIXED_LATIN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z0-9]+|[A-Za-z_][A-Za-z0-9_]*\(|[A-Za-z]{5,}")  # name.ext, call(, or a long Latin word
+
+
+HEX = re.compile(r"^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$")
+
+
+def _rgb(h):
+    h = h.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _lum(c):
+    f = lambda v: v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (f(x / 255) for x in c)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    hi, lo = sorted((_lum(a), _lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def fill_box(it):
+    """Bounding box of a filled stroke item (None when the tools cannot tell)."""
+    sh = it.get("shape")
+    try:
+        if sh == "rect":
+            return (it["x"], it["y"], it["x"] + it["w"], it["y"] + it["h"])
+        if sh == "circle":
+            return (it["cx"] - it["r"], it["cy"] - it["r"], it["cx"] + it["r"], it["cy"] + it["r"])
+        if sh == "path" and it.get("box"):
+            return tuple(it["box"])
+    except (KeyError, TypeError):
+        return None
+    return None
+
+
+def check_new_fields(cid, it, where, errors, warns):
+    kind = it.get("kind")
+    if kind == "code" and "lang" in it and it["lang"] not in ("c", "py"):
+        errors.append(f"{where(it)}: code `lang` must be \"c\" or \"py\" (got {it['lang']!r})")
+    if "layer" in it and it["layer"] != "top":
+        errors.append(f"{where(it)}: layer must be \"top\" (got {it['layer']!r})")
+    for k in it.get("move") or []:
+        if not isinstance(k, dict) or not isinstance(k.get("at"), (int, float)):
+            errors.append(f"{where(it)}: a `move` key needs a numeric `at`: {k!r}")
+    if kind == "stroke":
+        if it.get("shape") == "path":
+            if not isinstance(it.get("d"), str) or not it.get("d").strip():
+                errors.append(f"{where(it)}: a `path` stroke needs a `d` string")
+            elif it.get("fill") and not it.get("box"):
+                warns.append(f"{where(it)}: a filled `path` stroke without `box` (the tools cannot place it for the contrast and layout checks)")
+        if "fill" in it and not isinstance(it["fill"], str):
+            errors.append(f"{where(it)}: fill must be a colour string")
+        fo = it.get("fillOpacity")
+        if fo is not None and not (isinstance(fo, (int, float)) and 0 <= fo <= 1):
+            errors.append(f"{where(it)}: fillOpacity must be a number in 0..1 (got {fo!r})")
+
+
+def check_camera(cid, wb, errors, warns):
+    for k in wb.get("camera") or []:
+        if not isinstance(k, dict) or not isinstance(k.get("at"), (int, float)):
+            errors.append(f"{cid}: a camera key needs a numeric `at`: {k!r}")
+            continue
+        if k.get("scale") is not None and k["scale"] < 1:
+            errors.append(f"{cid}: camera scale {k['scale']} < 1 would show the edge of the board")
+        if (k.get("cx") is not None and not 0 <= k["cx"] <= 1920) or (k.get("cy") is not None and not 0 <= k["cy"] <= 1080):
+            warns.append(f"{cid}: camera centre ({k.get('cx')}, {k.get('cy')}) is outside the canvas")
+
+
+def _span(it):
+    """(from, until) in cut seconds during which an item is on the board; a missing until means 'to the end', at < 0 means 'from the start'."""
+    at = it.get("at", 0)
+    return (-1e9 if at is None or at < 0 else float(at), float(it["until"]) if it.get("until") is not None else 1e9)
+
+
+def _overlap(a, b):
+    return min(a[1], b[1]) - max(a[0], b[0])
+
+
+def check_contrast(cid, wb, base, warns):
+    """Text whose estimated box lies on a filled block: ink on the (blended) fill must stay readable."""
+    board = wb.get("boardColor") or "#FBFBF8"
+    ink = wb.get("inkColor") or "#111827"
+    if not HEX.match(board):
+        return
+    fills = []
+    for it in wb.get("items", []):
+        if it.get("kind") == "stroke" and it.get("fill") and HEX.match(it["fill"]) and fill_box(it):
+            b = _rgb(board); f = _rgb(it["fill"]); a = float(it.get("fillOpacity", 1))
+            fills.append((fill_box(it), tuple(round(a * f[i] + (1 - a) * b[i]) for i in range(3)), _span(it)))
+    for it in wb.get("items", []):
+        if it.get("kind") != "write" or not fills:
+            continue
+        text = it.get("text", "")
+        size = float(it.get("size", 60)); mono = it.get("font") == "mono"
+        w = est_w(text, size, mono)
+        x0 = it["x"] - w / 2 if it.get("align") == "center" else it["x"]
+        cx, cy = x0 + w / 2, it["y"] + size * 0.6
+        col = it.get("color") or ink
+        if not HEX.match(col):
+            continue
+        for (bx0, by0, bx1, by1), blended, fspan in reversed(fills):   # the topmost fill under the text counts (a note lying on a big block)
+            if bx0 <= cx <= bx1 and by0 <= cy <= by1 and _overlap(fspan, _span(it)) > 0.3:   # ... that is there at the same time as the text
+                ratio = contrast(_rgb(col), blended)
+                need = 3.0 if size >= 40 else 4.5
+                if ratio < need:
+                    warns.append(f"{cid} @{base + float(it.get('at', 0) or 0):.1f}s: text {text[:20]!r} ({col}) on a fill of {'#%02X%02X%02X' % blended} has contrast {ratio:.1f} (< {need})")
+                break
 
 
 def est_w(text, size, mono=False):
@@ -54,9 +169,12 @@ def lint_props(props, quiz=None):
                     walk_null(v, f"{path}[{i}]")
 
         walk_null(wb, "whiteboard")
+        check_camera(cid, wb, errors, warns)
+        check_contrast(cid, wb, base, warns)
         boxes = []  # (x0, y0, x1, y1, t0, t1, label)
         for it in wb.get("items", []):
             kind = it.get("kind")
+            check_new_fields(cid, it, where, errors, warns)
             if kind == "write":
                 text = it.get("text", "")
                 mono = it.get("font") == "mono"
@@ -77,7 +195,8 @@ def lint_props(props, quiz=None):
                 w = est_w(text, size, mono) * (1.1 if mono else 1.0)
                 x0 = it["x"] - w / 2 if it.get("align") == "center" else it["x"]
                 t1 = it.get("until", 1e9) if it.get("until") is not None else 1e9
-                boxes.append((x0, it["y"], x0 + w, it["y"] + size * 1.15, it["at"], t1, text))
+                if not it.get("move"):   # an item that moves has no fixed place to estimate: the measured layout check sees where it really is
+                    boxes.append((x0, it["y"], x0 + w, it["y"] + size * 1.15, it["at"], t1, text))
             elif kind == "code":
                 for ln in it.get("lines", []):
                     if CJK.search(ln):

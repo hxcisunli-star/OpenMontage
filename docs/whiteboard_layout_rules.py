@@ -7,7 +7,8 @@ Output = findings [{severity, rule, cut, t0, t1, n, msg, frame, boxes}], merged 
 What a box means: a text rect is the glyph advance box of ONE line (Range.getClientRects).  It includes the line's leading, so it is shrunk by 10 % top and
 bottom before two texts are compared ("ink box").  Strokes are compared as points sampled along the drawn part of the path, never as bounding boxes (a
 diagonal arrow's bounding box is a big empty rectangle).  Rules (ERROR stops the render, WARN only reports):
-  text-overlap    two texts of DIFFERENT board items overlap (ERROR when the overlap is >= 40 % of the smaller text)
+  text-overlap    two texts of DIFFERENT board items overlap (ERROR when the overlap is >= 40 % of the smaller text; only WARN when both are the same text, e.g. a note copy
+                  sliding off its original)
   stroke-on-text  an open stroke (line, arrow shaft) runs through the middle of a text.  On purpose, so not reported: the pointer pen, arrows that start or
                   end on a label, underlines, short marks drawn on a text (the red cross-out of a value), crossed pairs (an X) and the emphasis frames other items
                   draw round a word.  Only finished strokes count.
@@ -16,6 +17,12 @@ diagonal arrow's bounding box is a big empty rectangle).  Rules (ERROR stops the
   cross-out exists before the second one)
   off-board       text sticks out of the board rectangle (the board clips it: ERROR), or its ink sits closer than 8 px to the edge (WARN)
   under-overlay   text lies under the caption pill or the school logo (WARN; ERROR at >= 40 %)
+  under-character text lies under a picture drawn in the top layer (a character standing in front of the board text).  The probe reports a 32x32 grid of the picture's opaque cells,
+                  so the share of the text that is REALLY covered is measured (WARN from 3 %, ERROR from 15 %); without a grid the picture's box is used (an upper bound: WARN only).
+                  The same grid measures how much of a filled note / bubble / block a character stands on (WARN from 10 %, ERROR from 25 %)
+  (hidden)        two texts whose overlap lies completely inside an opaque filled shape of a layer in front of the lower text (a note copy sliding off its original) are not counted
+                  in text-overlap
+  (camera) while the board camera is zoomed in (the probe reports `zoom` > 1) content leaves the view on purpose, so `off-board` is not checked then
   wrap            a line broke where the source text has no line break (ERROR)
   glyph           a character that no font in the chain can draw (tofu, ERROR) or only the fallback font has (WARN)  -- from the props, no browser
 """
@@ -25,6 +32,9 @@ SOLID = 0.99           # two texts only count as overlapping when both are fully
 INK_PAD = 0.10         # share of the line height cut off top and bottom
 TOL = 3.0              # px of overlap that is never reported
 EDGE = 8.0             # px (ink box): closer than this to the board edge is a WARN; clipped text is an ERROR
+CHAR_WARN, CHAR_ERROR = 0.03, 0.15   # share of a text's ink box covered by the opaque cells of a top-layer picture
+BLOCK_WARN, BLOCK_ERROR = 0.10, 0.25  # the same for a filled note / bubble / block
+ALPHA_GRID = 32
 PEN_FILL = "rgb(245, 201, 166)"  # the pointer pen's circle in WhiteboardScene.Pointer: it points at things on purpose
 
 
@@ -43,6 +53,36 @@ def area(r):
 
 def inside(r, big, pad=0.0):
     return r[0] >= big[0] - pad and r[1] >= big[1] - pad and r[2] <= big[2] + pad and r[3] <= big[3] + pad
+
+
+LAYER_RANK = {"svg": 0, "html": 1, "svg-top": 2, "html-top": 3}   # back to front, as WhiteboardScene stacks them
+
+
+def covers_of(p):
+    """[(layer rank, box)] of the opaque filled shapes (fill alpha >= 0.95; not pictures: they have transparent corners): what hides the text of a layer behind it."""
+    out = []
+    for it in p.get("items", []):
+        for s in it.get("shapes", []):
+            if s.get("filled") and s["kind"] != "image" and s["opacity"] >= 0.99 and s.get("fillAlpha", 1) >= 0.95:   # a translucent block (the 45 % highlighter) hides nothing
+                out.append((LAYER_RANK.get(it["layer"], 1), s["box"]))
+    return out
+
+
+def covered_share(alpha, box, rect, nx=24, ny=6):
+    """Share of `rect` (a text's ink box) that lies on opaque cells of a picture: `alpha` = 32x32 string of 0/1 over `box`, sampled on an nx x ny grid of points."""
+    bw, bh = box[2] - box[0], box[3] - box[1]
+    if bw <= 0 or bh <= 0 or len(alpha) != ALPHA_GRID * ALPHA_GRID:
+        return None
+    hit = 0
+    for i in range(nx):
+        for j in range(ny):
+            x = rect[0] + (rect[2] - rect[0]) * (i + 0.5) / nx
+            y = rect[1] + (rect[3] - rect[1]) * (j + 0.5) / ny
+            if box[0] <= x < box[2] and box[1] <= y < box[3]:
+                cx = min(ALPHA_GRID - 1, int((x - box[0]) / bw * ALPHA_GRID))
+                cy = min(ALPHA_GRID - 1, int((y - box[1]) / bh * ALPHA_GRID))
+                hit += alpha[cy * ALPHA_GRID + cx] == "1"
+    return hit / (nx * ny)
 
 
 def visible_texts(p):
@@ -93,10 +133,14 @@ def frame_findings(p):
     board = p["board"]
     texts = visible_texts(p)
     shapes = visible_shapes(p)
+    cov = covers_of(p)
 
     # -- off-board and wrap: per text ------------------------------------------------------------------------------------------------------------------
+    zoomed = float(p.get("zoom", 1) or 1) > 1.001
     for k, t in texts:
         for r in t["rects"]:
+            if zoomed:
+                break
             worst = max(board[0] - r[0], board[1] - r[1], r[2] - board[2], r[3] - board[3])
             if worst > TOL:
                 out.append(("off-board", "ERROR", ("off", t["text"]), f"text {t['text'][:30]!r} sticks out of the board by {worst:.0f}px (the board clips it)", [r]))
@@ -125,12 +169,18 @@ def frame_findings(p):
                         ratio = ox * oy / max(1.0, min(area(ink(ra)), area(ink(rb))))
                         if best is None or ratio > best[0]:
                             best = (ratio, ox, oy, ra, rb)
+            if best:
+                ia, ib = ink(best[3]), ink(best[4])
+                region = [max(ia[0], ib[0]), max(ia[1], ib[1]), min(ia[2], ib[2]), min(ia[3], ib[3])]
+                lo = min(LAYER_RANK.get(ka[0], 1), LAYER_RANK.get(kb[0], 1))
+                if any(r > lo and inside(region, box, 1.0) for r, box in cov):
+                    continue   # the overlap lies under an opaque block that is in front of the lower text: nobody sees the two words together (a note copy sliding off its original)
             if best and best[0] >= 0.05:
                 pair = tuple(sorted([a["text"], b["text"]]))
                 if a["text"] == b["text"] and best[0] >= 0.9:
                     out.append(("text-overlap", "WARN", ("tt",) + pair, f"{a['text'][:24]!r} is written twice at the same place (stacked, so it only looks bolder)", [best[3], best[4]]))
                     continue
-                sev = "ERROR" if best[0] >= 0.40 else "WARN"
+                sev = "ERROR" if best[0] >= 0.40 and a["text"] != b["text"] else "WARN"   # the same text twice, shifted (a note copy sliding off its original) is not two words colliding
                 out.append(("text-overlap", sev, ("tt",) + pair, f"{a['text'][:24]!r} / {b['text'][:24]!r} overlap {best[1]:.0f}x{best[2]:.0f}px ({best[0] * 100:.0f}% of the smaller)", [best[3], best[4]]))
 
     # -- strokes vs text ----------------------------------------------------------------------------------------------------------------------------------
@@ -203,6 +253,46 @@ def frame_findings(p):
                     # both stroke findings must be seen in two neighbouring samples: a value that flies across a memory board is only there for a moment, and the
                     # first arm of a cross-out is drawn before the second one exists
                     out.append(("frame-fit" if closed else "stroke-on-text", "WARN", ("st", s["kind"], tuple(round(v / 10) for v in s["box"]), t["text"]), hit, [r, s["box"]], True))
+
+    # -- text under a top-layer picture (a character in front of the board) ---------------------------------------------------------------------------------
+    for it in p.get("items", []):
+        if it.get("layer") != "html-top":
+            continue
+        for s in it.get("shapes", []):
+            if s["kind"] != "image" or s["opacity"] < MIN_OPACITY:
+                continue
+            for kt, t in texts:
+                for r in t["rects"]:
+                    ox, oy = inter(ink(r), s["box"])
+                    if ox > TOL and oy > TOL:
+                        real = covered_share(s["alpha"], s["box"], ink(r)) if s.get("alpha") else None
+                        if real is not None:
+                            if real >= CHAR_WARN:
+                                out.append(("under-character", "ERROR" if real >= CHAR_ERROR else "WARN", ("uc", t["text"], tuple(round(v / 10) for v in s["box"])),
+                                            f"text {t['text'][:24]!r} is covered by a character picture ({real * 100:.0f}% of it is under opaque pixels)", [r, s["box"]]))
+                                break
+                            continue
+                        ratio = ox * oy / max(1.0, area(ink(r)))
+                        if ratio >= 0.05:
+                            out.append(("under-character", "WARN", ("uc", t["text"], tuple(round(v / 10) for v in s["box"])),
+                                        f"text {t['text'][:24]!r} lies under a character picture ({ratio * 100:.0f}% of it, from the picture's box)", [r, s["box"]]))
+                            break
+
+    # -- a character standing on a filled note / bubble / block ----------------------------------------------------------------------------------------------
+    pics = [s for it in p.get("items", []) if it.get("layer") == "html-top" for s in it.get("shapes", []) if s["kind"] == "image" and s["opacity"] >= MIN_OPACITY and s.get("alpha")]
+    if pics:
+        for it in p.get("items", []):
+            if it.get("layer") == "html-top":
+                continue
+            for sh in it.get("shapes", []):
+                if not sh.get("filled") or sh["kind"] == "image" or sh["opacity"] < MIN_OPACITY or is_pen(sh) or area(sh["box"]) > 0.25 * 1920 * 1080:
+                    continue
+                for pic in pics:
+                    share = covered_share(pic["alpha"], pic["box"], sh["box"], nx=24, ny=12)
+                    if share is not None and share >= BLOCK_WARN:
+                        out.append(("under-character", "ERROR" if share >= BLOCK_ERROR else "WARN", ("ucb", tuple(round(v / 10) for v in sh["box"])),
+                                    f"a filled note/block at ({sh['box'][0]:.0f},{sh['box'][1]:.0f}) is {share * 100:.0f}% covered by a character picture", [sh["box"], pic["box"]]))
+                        break
 
     # -- caption pill / logo ------------------------------------------------------------------------------------------------------------------------------
     for o in p.get("overlays", []):

@@ -68,12 +68,12 @@ def split_clauses(text):
 
 def load_h():
     items = {}
-    rx = re.compile(r"^做下一课要注意（(?:来自第 (\d+) 课|(教学设计 skill|真实排版检查|技术试验)[^）]*)）：(.*)$")
+    rx = re.compile(r"^做下一课要注意（(?:来自第 (\d+) 课|(教学设计 skill|真实排版检查|技术试验|视觉升级)[^）]*)）：(.*)$")
     for l in HANDOFF.read_text(encoding="utf-8").split("\n"):
         m = rx.match(l)
         if not m:
             continue
-        tag = m.group(1) or {"教学设计 skill": "skill", "真实排版检查": "layout", "技术试验": "exp"}[m.group(2)]  # Hskill-n = design skills, Hlayout-n = measured layout check, Hexp-n = the 2026-10 technical experiment
+        tag = m.group(1) or {"教学设计 skill": "skill", "真实排版检查": "layout", "技术试验": "exp", "视觉升级": "vu"}[m.group(2)]  # Hskill-n = design skills, Hlayout-n = measured layout check, Hexp-n = the 2026-10 technical experiment, Hvu-n = the 2026-10 colour/animation upgrade and the new series
         k0 = sum(1 for i in items if i.startswith(f"H{tag}-"))
         for k, c in enumerate(split_clauses(m.group(3)), start=k0 + 1):
             items[f"H{tag}-{k}"] = c

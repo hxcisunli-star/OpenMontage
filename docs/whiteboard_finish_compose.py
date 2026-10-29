@@ -64,7 +64,8 @@ def main():
     sil = m["silences"]
     quiz = m["quiz"]
     qset = {(q["silence"]["start"], q["silence"]["end"]) for q in quiz if q["silence"]}
-    tail = [s for s in sil if (s["start"], s["end"]) not in qset]
+    allowed_keys = {(s["start"], s["end"]) for s in (m.get("allowed_silences") or [])}
+    tail = [s for s in sil if (s["start"], s["end"]) not in qset and (s["start"], s["end"]) not in allowed_keys]
     qtxt = "、".join(f"{q['silence']['start']:.2f}–{q['silence']['end']:.2f}" for q in quiz if q["silence"])
     tail_txt = f"，加结尾约 {sum(s['duration'] for s in tail):.1f} 秒收尾静音（{tail[0]['start']:.2f}–{tail[0]['end']:.2f}）" if tail else ""
     freeze_txt = "、".join(f"{f['start']:.2f}–{f['end']:.2f}" for f in m["freeze"] if f["end"])
@@ -84,6 +85,8 @@ def main():
         lref_txt = f"；{'、'.join(lref['boards'])} 用 --local 重渲（{lref['seconds']} 秒；先备份远程分块，比较前把两边时间戳统一成 N/30）：{'；'.join(parts)}；远程分块已还原（逐文件 md5 {'一致' if lref['restored_md5_ok'] else '不一致'}）"
     else:
         lref_txt = "；本机局部对照（K3、K6）没有做（validation/local-ref.json 不存在）"
+    allowed_sil = m.get("allowed_silences") or []   # a silence the user accepted on purpose (whiteboard_verify.py --allow-silence); it is reported, never hidden
+    allowed_note = "；经用户接受的停顿：" + "；".join(f"{s['start']:.2f}–{s['end']:.2f}（{s['duration']:.2f} 秒）{s['reason']}" for s in allowed_sil) if allowed_sil else ""
     check_ok = all(m["checks"].values())
 
     review = {"version": "1.0", "output_path": "renders/final.mp4", "status": "pass" if check_ok else "fail", "checks": {
@@ -96,12 +99,12 @@ def main():
                                          [f"注意：last_item_check 最小余量只有 {min_margin:.2f} 秒（低于 0.6 秒）"] if min_margin is not None else [])},
         "audio_spotcheck": {"narration_present": True, "music_present": False, "unexpected_silence": bool(m["unexpected_silences"]), "clipping_detected": bool(loud["peak_dbfs"] is not None and loud["peak_dbfs"] > -0.1),
                             "mix_intelligible": bool(notes.get("mix_intelligible", True)),
-                            "issues": [f"响度 {loud['I']} LUFS，LRA {loud['LRA']} LU，峰值 {loud['peak_dbfs']} dBFS（ebur128）；超过 1.3 秒的静音：问答停顿 {qtxt}{tail_txt}；未做语音重合度比对"]},
+                            "issues": [f"响度 {loud['I']} LUFS，LRA {loud['LRA']} LU，峰值 {loud['peak_dbfs']} dBFS（ebur128）；超过 1.3 秒的静音：问答停顿 {qtxt}{tail_txt}{allowed_note}；未做语音重合度比对"]},
         "promise_preservation": {"delivery_promise_honored": True, "renderer_family_used": ed.get("renderer_family", "explainer-teacher"), "render_runtime_used": runtime, "runtime_swap_detected": runtime != prop_rt,
                                  "runtime_swap_check": "ok — proposal and edit agree" if runtime == prop_rt else f"MISMATCH proposal {prop_rt} vs edit {runtime}", "silent_downgrade_detected": False, "issues": []},
         "subtitle_check": {"subtitles_expected": True, "subtitles_present": True, "coverage_ratio": 1.0, "timing_drift_detected": False, "issues": ["抽样帧字幕与旁白对应；覆盖率为抽样比例", "字幕逐字时间是估计的，未用语音识别核对"]},
         "transcript_comparison": {"transcript_matches_script": None, "word_accuracy": None, "issues": ["本机无语音识别，未做转写核对"]}},
-        "issues_found": ["字幕时间是估计的，未做转写核对", "整条配音的读音和问答停顿节奏由用户在素材阶段试听确认"] +
+        "issues_found": ["字幕时间是估计的，未做转写核对", "整条配音的读音和问答停顿节奏由用户在素材阶段试听确认"] + ([f"核对工具原本判为意外静音的停顿，用户已决定保留{allowed_note}"] if allowed_sil else []) +
                         ([f"freezedetect（-50 dB、8 秒）报出 {len(m['freeze'])} 段近似静止：{freeze_txt}；{notes.get('freeze_explanation', '（未写说明）')}"] if m["freeze"] else []) +
                         list(notes.get("extra_issues", [])) + ["画面细节待用户观看确认"],
         "recommended_action": "present_to_user"}
@@ -114,7 +117,7 @@ def main():
           "verification_notes": [
               f"ffprobe：{v['width']}x{v['height']}、{v['fps']:.0f}fps、{v['codec']} + {a['codec']}、视频 {v['duration']:.3f} 秒（{frames} 帧）、音频 {a['duration']:.3f} 秒、{size / 1e6:.1f} MB（md5 {md5}）",
               f"响度 {loud['I']} LUFS，LRA {loud['LRA']} LU，峰值 {loud['peak_dbfs']} dBFS；blackdetect {m['black_frames']} 处黑帧；freezedetect：-50 dB、8 秒下有 {len(m['freeze'])} 段近似静止（见 warnings）",
-              f"超过 1.3 秒的静音：问答停顿 {qtxt}（与时间线答案最早时间 {'、'.join(str(q['answer_not_before']) for q in quiz)} 一致）{tail_txt}",
+              f"超过 1.3 秒的静音：问答停顿 {qtxt}（与时间线答案最早时间 {'、'.join(str(q['answer_not_before']) for q in quiz)} 一致）{tail_txt}{allowed_note}",
               f"每 4 秒一帧（{sheets.get('dense_frames')} 帧）加问答时刻与结尾（{sheets.get('cue_frames')} 帧）逐张目测：{notes['visual_summary']}",
               f"渲染前 docs/whiteboard_lint.py：{notes.get('lint', '（未写）')}；渲染前先 probe 渲染机（{notes.get('probe', '（未写）')}）；渲染后端 {backend}（{n_cuts} 块，整课 {secs} 秒"
               + (f"；{timing}" if timing else "") + f"）；{'渲完立即备份了 render.log（' + m['log_backup'] + '）' if m.get('log_backup') else 'render.log 没有备份'}",

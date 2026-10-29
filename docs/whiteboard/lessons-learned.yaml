@@ -4,7 +4,7 @@
 # 晋升规则：停在“清单”级、却出现在 ≥3 课的笔记里（见 stats），就该做成检查或默认。
 # from：来源编号（P6-n＝手册 §6 踩坑行，Hn-k＝交接文档归档里第 n 课的笔记子句，Ln-k＝手册逐课“教训”）；seen_extra：来源行里点名、但没有编号的课。
 version: 1
-updated: "2026-10-21"
+updated: "2026-10-29"
 
 stages:
   any:
@@ -526,7 +526,7 @@ entries:
     stage: script
     level: 检查
     by: docs/whiteboard_script_lint.py、docs/whiteboard_callbacks.py、docs/whiteboard_new_lesson.py
-    rule: "新系列：难词表与课号按系列分开（wordlist.yaml 的 series_terms，项目名 agent- 开头为智能体篇）；回扣工具把后一个系列里的裸“第N课”当成 C 篇课号，课号没登记时不报前向引用。"
+    rule: "新系列：难词表与课号按系列分开（wordlist.yaml 的 series_terms，项目名 agent- 开头为智能体篇）。（旧版本里的“回扣工具把后一个系列的裸‘第N课’当成 C 篇课号”只对写在脱钩之前的试验课成立，见 E81。）"
     from: [Hexp-9]
   - id: E74
     stage: script
@@ -542,5 +542,157 @@ entries:
     why: "K8 答案旁的小注只对两遍实跑中的一遍成立；OpenAI 页面只对 previous_response_id 串联写了计费，视频旁白说得更宽（用户选保留，简介已写窄）"
     from: [Hexp-12, Hexp-13]
 
+  # ---- 视觉升级与新系列（2026-10-21，试验品 agent-messages-v2-cn 试点通过后沉淀）
+  - id: E76
+    stage: scene
+    level: 检查
+    by: docs/whiteboard_scene_plan_check.py
+    rule: "新系列的场景计划：每个场景的 movement 以“呈现手段：手段一、手段二；…”开头，手段取自 docs/whiteboard/series.yaml 的 devices（便条飞行、聊天气泡、柱状图、插画卡片、圈注与荧光笔、镜头推近、角色表演、色块与分区、代码与结果面板、纯板书）；按教学内容选最合适的手段（概念比喻→插画与角色、流程传递→便条飞行、数据对比→柱状图、真实界面→气泡、定义→便利贴、预测题→彩色题卡）；整课只有纯板书、或总共不足 4 种手段，检查会警告。运行：.venv/bin/python docs/whiteboard_scene_plan_check.py projects/<课程>。"
+    why: "试验课整篇只画方框，用户评价“表达手段过于单一”，并要求彩色插画、会动的图解、真实界面与图表、色彩与版面语汇四类手段都具备、按内容选"
+    from: [Hvu-1]
+  - id: E77
+    stage: edit
+    level: 默认
+    by: remotion-composer/src/components/WhiteboardScene.tsx、docs/whiteboard_v2_kit.py、起步模板 docs/whiteboard/starter/scripts/_build_head.py 的 Board
+    rule: "合成器的可选字段（都不写就和以前画得一模一样）：layer:\"top\"（顶层笔画盖在图片与文字上；顶层手写与图片，图片最后画，角色站最前）、笔画的 fill/fillOpacity/shadow/width:0 与新形状 path（自带路径，box 只供工具用）、手写/图片/笔画的 move 关键帧（dx/dy/scale/sy/rot，缺的字段沿用上一个键，帧间缓动）+ 静态 rot + origin（一组里各部分用同样的键与同一原点）、图片的 radius/border/shadow、板级 camera（缩放≥1，网格一起缩放）。便条、气泡、柱子、方块、角色、飞行副本用 docs/whiteboard_v2_kit.py（slip/sticky/bubble/bar/block/char/fly/highlight）。飞行的便条副本：放顶层、字瞬间出现（instant）、起飞前 0.1 秒才出现，否则起飞瞬间两份字叠在一起（普通层）或原件的字被盖掉而副本的字还没写出（顶层但逐字写）。镜头只推近、不平移：平移会把标题推到固定的校徽下面；推近后左右的内容要还在画面里。"
+    why: "试点 s4 的便条飞行与镜头各返工两次，都是起飞/平移的静帧才看出来；Board 的新参数有回测（t_board_v2），试点项目的 Board 与起步模板是同一份代码"
+    from: [Hvu-2, Hvu-3]
+  - id: E78
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_baseline_stills.py（慢回测 t_composer_baseline_slow）
+    rule: "改合成器（remotion-composer/src）前后各渲一套固定样本静帧并逐字节比较：.venv/bin/python docs/whiteboard_baseline_stills.py render <标签>，再 compare ref <标签>（参考集 projects/_baseline/ref：5 课 226 张，含每块首帧末帧、笔迹/图片/数组交换/内存复制进行到一半的帧）。先确认未改的代码连渲两遍逐字节相同；故意改变旧课画法就先用旧代码渲新参考集并写明。新字段必须可选，默认路径不加任何节点或属性（连“无变换的包装层”也不加）；新字段样例的静帧远程通道（不加 --allow-drift）要与本机逐字节相同。"
+    why: "226 张静帧在合成器改动前后逐字节相同；样例 15 帧本机与远程逐字节相同；合成器缓存哈希只变一次（88799d85bb9b…）"
+    from: [Hvu-4]
+  - id: E79
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_layout_check.py（remotion-composer/probe 与 docs/whiteboard_layout_rules.py 的 under-character 规则）
+    rule: "角色不得盖住内容：探针给每张图输出 32×32 的不透明网格，规则按真实不透明像素量被盖的比例——文字 ≥3% 警告、≥15% 报错；便条、气泡、方块被盖 ≥10% 警告、≥25% 报错。便条要落在角色身旁，不是身后。under-character 的任何警告都要看全尺寸帧再下结论，不再当作“外框含透明角”的误报略过。内容完全相同的两项重叠（便条副本滑出原件）只报警告；重叠区完全落在更靠前一层的不透明块里不算撞字；镜头放大时不查出界。"
+    why: "试点 s6：机器人站在落地的便条前面遮住了内容，上一轮把两条警告当误报放过，用户在对照视频里发现；新规则在未修的版本上报 5 个 ERROR，修后 0。探针改动后：三个进程同时重建打包缓存会互踩（每次改了 probe/index.tsx 之后的第一次三进程运行都失败），现在先起第一个进程、等它 bundle ok 再起其余，启动即死的进程自动再试一次；半透明的块（荧光笔 45%）不算遮挡"
+    from: [Hvu-5]
+  - id: E80
+    stage: assets
+    level: 默认
+    by: docs/whiteboard_pose_tool.py、projects/_cast/<系列>/、docs/whiteboard/series.yaml 的 cast_dir
+    rule: "新系列的角色素材在本机素材库 projects/_cast/agent/（老师三个姿势、AI 小搭档四个姿势、校徽、原始图、生成记录、提示词、README）；建课脚手架按 series.yaml 的 cast_dir 拷进新课（不再拷医生）。新姿势用 .venv/bin/python docs/whiteboard_pose_tool.py pose agent <名字> --ref <原图> --prompt-file <提示词>：远程渲染机 Qwen 图生图（参考图 + “外貌与服装不变，只改姿势”）、纯绿底、1536 档 40 步，再按“绿色占优”抠色（保白衣服白鞋、去地面阴影）；角色自己带绿色就改品红底 --bg magenta。请求号先落盘再提交；每张图最多 3 次、失败留 _v1；图里不放文字（字由合成器写）；改完用测得的排版检查看遮挡。插画卡片用 scene 子命令（文生图 16:9，裁成窄条，图片的 radius/border/shadow 做卡片）。"
+    why: "试点实测：改姿势开始运行→完成 56–62 秒、插画 45 秒，8 张图都一次成功；远程队列一次只做一个任务，后提交的排队"
+    from: [Hvu-6]
+  - id: E81
+    stage: script
+    level: 检查
+    by: docs/whiteboard_script_lint.py、docs/whiteboard_callbacks.py、docs/whiteboard/series.yaml
+    rule: "新系列与 C 课没有任何联系：旁白里不得出现 C 课的身份词（series.yaml 的 forbid_terms：C语言、医生、病历、病房、门诊、克隆门、结构体），不回扣、不用 C 课的比喻；旁白里的“第N课”指本系列自己的课（回扣工具按系列解析，找不到的课号会标出来）。试验课 agent-messages-cn（项目里有 EXPERIMENT.md）写在脱钩之前，仍按 C 课解析、不受禁用词约束。"
+    why: "试验课用“第二课的克隆门”“结构体数组”回扣 C 课，用户明确：以后的课程与 C 语言课没有任何联系，教师不再是医生"
+    from: [Hvu-7]
+  - id: E82
+    stage: publish
+    level: 检查
+    by: docs/whiteboard_cover_maker.py、docs/whiteboard_release_pack.py、docs/whiteboard/series.yaml
+    rule: "封面与成品包按系列取名与角色：C 篇仍是医生与“C语言白板课”（封面逐字节不变，回测核对）；新系列用老师加 AI 小搭档、系列名作右上角标识、成品文件夹叫“<系列名>_成品”。系列名由用户定，没定时封面与成品包明确报错，不用占位；每个系列的成品包只清空重建自己的文件夹。建课脚手架会提醒系列名还没定。"
+    from: [Hvu-8]
+  - id: E83
+    stage: assets
+    level: 清单
+    rule: "图生视频片段（远程渲染机的 H3）评估后不采用（第二轮 A/B，用户把去留交给我：片头与比喻片段都放弃），工具保留休眠、不进手段清单；以后做非技术学科、需要真实世界比喻镜头时再评估。用法：docs/whiteboard_h3_clip.py clip 提交（请求号先落盘；断线时用同一请求号重提，run_job 自动重试三次，不换新请求号），fit 转成课程格式（1920×1080、30 帧/秒、无音频、与渲染块相同的 H.264 High 4.0、yuvj420p、全幅、bt470bg，时间基准 1/90000，帧数精确）。渲染机播不了视频文件，但成片本来就是各块 mp4 用 ffmpeg 拼接、封面也是渲染后拼上，所以片段当“整块 mp4”拼进去，不走图片序列：whiteboard_render.py 的 video_clip 块（cut 写 type: video_clip 与 video_clip: 路径，帧数要与该块相等），片头用 whiteboard_prepend_cover.py --sting。限制：服务没有透明通道，只能整屏插入；片段播放时没有校徽与字幕（它们是渲染时叠的），所以插在有旁白的段落里要把校徽与字幕另外烧进片段，或只用在片头；插在板书中间要把那一块切成前、片段、后三块，后一块里之前画过的都当“已画好”。首帧用彩色平涂合成图，提示词写明“镜头静止、风格与轮廓不变、不出现文字与新角色”；先看片段是否真的比静帧加运动关键帧多带来东西。"
+    why: "实测：4 秒请求 107 帧、196.8 秒出；5 秒比喻片段 124 帧、212.3 秒出（提交一次断线，同请求号重提成功）；1344×768、24 帧/秒，平涂、轮廓、配色、角色外貌基本保持，会指向、挥手、便条落下；编码略糊、瞳孔在动作中偏糊。原来写的“只能走 frame_seq、没有包装工具”已不对，第二轮改成整块 mp4 拼接并写了工具。裁定理由：片头放弃——4.5 秒无声片头加 2 秒封面使开头 6.5 秒没有教学内容，与“每课 2 秒封面”相悖，封面已带两个角色；比喻片段放弃——整屏硬切、片段里没有校徽与字幕，板上计数条更精确，每个约 200 秒生成，且试做的内容（旧便条被挤出）与那句旁白（越摞越贵、怎么办以后再讲）对不上"
+    from: [Hvu-9, Hvu-18, Hvu-19, Hvu-20, Hvu-21, Hvu-23]
+
+  - id: E84
+    stage: assets
+    level: 检查
+    by: docs/whiteboard_new_lesson.py
+    rule: "从试验课（项目里有 EXPERIMENT.md）复制来的脚本，凡带着“试验品/技术测试/不属于课程”标注的（publish_prep.py 的标题、简介、标签与断言，make_exercises.py、run_exercises.sh），建课时在文件开头加闸门（NEW-LESSON GUARD），不改写就跑不起来；模板里遗留的图片序列片段（K4b、frame_seq、HyperFrames）和 doctor_* 图名只列出来，要重写。新系列的第一课不得带着试验品标注发布。"
+    why: "审查建课脚手架时发现：智能体篇默认从试验课起步，复制来的 publish_prep.py 会把新课的标题、简介、标签都写成“试验品·技术测试·非课程”"
+    from: [Hvu-10]
+
+  - id: E85
+    stage: edit
+    level: 清单
+    by: docs/whiteboard_sfx.py
+    rule: "音效默认只开答案揭晓叮声（--cues light，第二轮裁定；pop 与 whoosh 默认关，--cues all 打开；背景音乐仍不加）。一条命令 docs/whiteboard_sfx.py apply <项目>（build 之后、渲染之前，样片与成片都带）：混音、核对静默与响度、把 render_props.json 的旁白指向 narration_sfx.wav（原路径记在 audio.narration.src_plain，apply --undo 撤销，audio 不进板书块指纹）。底层 cues/mix/check 从板书数据推提示点——便条、气泡、方块出现 pop，飞行起点前 15 毫秒 whoosh-short，答案揭晓后 0.3 秒 chime，项目可带可选字段 sfx 点名素材（合成器忽略它）；电平相对旁白语音 RMS（pop 与 whoosh −18 dB，chime −16 dB）；先混进旁白再渲染（合成器只放一条旁白轨），换音轨出有/无两版不用重渲；素材在 docs/whiteboard/sfx/（Pixabay 许可，CREDITS.md）。硬规则：问答静默（题目读完到 answer_not_before 的 3 秒）里不得有任何提示点，跨进去的截断淡出；混音后峰值要不高于 −1 dBFS（AAC 会过冲），落在旁白峰值上的提示点自动退让；80 毫秒内同名的提示点合并，否则叠成双倍音量；超出本块结束时间的项目（为插片段截短的板书）不发声；混完用 check 核对静默段与整体响度和无音效版一致。"
+    why: "试点实测：58 个提示点，三段静默混前后完全一致、整体响度 −16.3 LUFS 不变；第一版峰值到 −0.2 dBFS（旁白本身 −1.5），有两个提示点落在旁白峰值上；261.15 秒有两个同刻的 pop；为插片段截短的 s7 里被截掉项目的 whoosh 仍会在片段播放时响。默认只开叮声的理由：旁白是主通道、板上有字，没有信息量的声音（每张便条一个 pop）是多余材料（多媒体学习的一致性原则），叮声标出“静默结束、现在公布答案”；我听不了，所以取保守默认，全量版成片留给用户听"
+    from: [Hvu-13, Hvu-14, Hvu-15, Hvu-24]
+  - id: E86
+    stage: edit
+    level: 检查
+    by: remotion-composer/src/components/WhiteboardScene.tsx、docs/whiteboard_lint.py
+    rule: "代码上色：code 项可选 lang（\"c\" 或 \"py\"），合成器内置分词器（不装库）按关键字、类型、数字、字符串、注释、预处理、函数名上色，配色 kw=#9D174D、type=#0B5CAD、num=#92400E、str=#166534、com=#5B6472、pre=#6D28D9、fn=#0A645D（纸面底色上对比度最低 5.77、45% 荧光笔上最低 4.79）；不写 lang 时输出与以前逐字节相同（改合成器前后比较基线静帧，E78）；Board.code(…, lang=) 起步模板与试点都带；lint 校验 lang 取值，对比度检查按时间判断：只有同时在场（重叠超过 0.3 秒）的最上层色块才算盖住文字。运行结果面板用 kit 的 result_panel（行可标 cmd/good/bad 三种颜色）。"
+    why: "代码多的课单色等宽字难读；第一版 lint 的对比度检查不看时间，把已经消失的色块也算成遮挡，误报"
+    from: [Hvu-11, Hvu-12]
+  - id: E87
+    stage: edit
+    level: 清单
+    by: docs/whiteboard_v2_kit.py
+    rule: "第二轮 kit 手段（只用现有字段，不动合成器）：char(…, idle=True) 呼吸摆动；quiz_card 加 ring 预测题卡与三段圆弧倒计时（最后一段在答案揭晓前 0.4 秒消失）；split_panels 加 mark_ok/mark_bad 对错分屏与对勾红叉；result_panel 运行结果面板；token_meter 词元计数条（历史越摞越高、红色上限线、最旧便条滑出）；lanes 加 lane_msg 时序图；curve 曲线图（不进手段清单：试点没用到、没在课里验证过，首次使用必须过排版检查并看全尺寸帧）。用法与参数见 kit 文件里各函数的说明与风格指南第 7 节；手段清单见 series.yaml。做完先跑测得的排版检查，警告看全尺寸帧。计数条越线的部分会顶到上方标题，底边要留余量；浅色面板上的灰字用 PANEL[\"title\"] 色。"
+    why: "第二试点 s1–s8 里用过除曲线图外的各项（结果面板、时序图、题卡与圆环在 s2，红叉与哎呀、对错分屏、计数条在 s7，题卡与圆环在 s8，微动在多个场景）；曲线图只有 kit 函数和回测，试点没有场景用到，没在课里验证过。计数条第一版越线处压到标题（底边改到 760），浅色面板上的灰便条字看不清（改用面板标题色）"
+    from: [Hvu-16, Hvu-17, Hvu-25]
+
+  - id: E88
+    stage: script
+    level: 清单
+    rule: "审稿类每类上限一轮：事实核对（两路）、红队、读者测试各一轮；之后只复核改过的句子，不再整稿重来。读者测试的残留疑问若与上一轮相同，说明已改不动，写进取舍交给用户，不开新一轮。"
+    why: "试验课脚本阶段事实核对 2 轮、红队 2 轮、读者测试 3 轮，第二三轮大多重复第一轮已改完的意见；脚本阶段 2.3 小时、其中一次白等约 48 分钟"
+    from: [Hexp-14]
+  - id: E89
+    stage: plan
+    level: 清单
+    rule: "开题时问用户走哪条道并写进提案：标准道（模板加确定性例子，每类审稿一轮）还是试验道（真调模型、新系列、新图，允许多花时间）。新系列首课默认试验道，要先把零件（构建脚本、板书助手、生图脚本、姿势度量）沉淀成系列模板，第二课复用。"
+    why: "本课口令内生产 4.70 小时再加剪辑与合成，上一支试验全程生产 2.51 小时，C 课按用户说法约 40 多分钟；差别主要在新系列首课与真调模型的演示程序（项目前约 4 小时）"
+    from: [Hexp-15]
+  - id: E90
+    stage: any
+    level: 清单
+    rule: "派 Codex 子智能体后 60 秒内读每路 events.jsonl：末行是 turn.failed 或有 error 就立刻补发，退出码 0 不等于成功；等待按进程结束、工作区先建 out/；大模型档（astra 加 max）一波不超过约 6 路，板书代码与返工默认 sol，astra 只做美术设计和裁定；Codex 超时上限 55 分钟，astra 一路 33 到 55 分钟会被截断。"
+    why: "剪辑阶段 8 路 astra 并发有 2 路启动一分钟就被中转站限流，我只看文件有没有出现，把它们当成还在写，白等约 55 分钟；sol 补发 16 分钟交付，astra 平均 37 分钟"
+    from: [Hexp-16]
+  - id: E91
+    stage: assets
+    level: 清单
+    rule: "姿势图审：每张图逐条胳膊追到肩膀、数手指，需要水平翻转的图翻转前后各看一遍；放进板里的实渲帧里人物要看全尺寸；指向类姿势优先直接生成最终朝向，不靠事后翻转。"
+    why: "老师指板姿势生成时是跨身体指向另一边，翻转后举起的和垂着的胳膊挤在同一侧肩膀，素材阶段只看了指向哪边和几根手指，到成片才被用户发现；重画一次并重做全部关键帧、样片和排版检查，多花约 40 分钟"
+    from: [Hexp-17]
+  - id: E92
+    stage: scene
+    level: 清单
+    rule: "角色按需出场：旁白讲到它或它有动作才在场，其余时间只留老师；进场从老师身边走出来，离场向老师那边退着淡出；站位按时间量出板上的空位再定（docs 里没有现成工具，本课的小工具在项目 scripts/board_free_space.py）；数步子的段落板上往往没有空地，用原地蹦，不要承诺沿着步数条走。场景计划里写出每个角色的在场区间和依据。"
+    why: "搭档原来 99% 的时间（428.8 秒）站在老师旁边，约 74% 只是站着挥手、听、思考，旁白只有约 22% 的句子讲它；用户说像摆设。改后约 49%（209.8 秒、9 段），调度表在项目 assets/image_specs/ROBOT_CHOREO.md"
+    from: [Hexp-18]
+  - id: E93
+    stage: compose
+    level: 清单
+    by: tools/video/remote_cpu_render.py
+    rule: "渲染机连接停顿时客户端没有活性超时，样片、关键帧、整片都会无声卡住：启动渲染后 120 秒内必须在日志里看到 remote: queued，没有就按进程号停掉改 --local；等待循环不要写成有上限就返回；渲染前先 probe，但 probe 通了不等于上传提交一定通。渲染机侧的回执在 docs/remote-render-replies/2026-10-28-connection-stalls.md（直连 SSH 上传停顿，已改走代理，数天稳定性未验证）。"
+    why: "本课卡过 29、15、6 分钟；用户说远程渲染机非常快，实际样片 80 秒、整片 213 秒，慢的是卡住后的等待和本机回退（本机一段 68 秒样片要 9 分 36 秒）"
+    todo: 客户端加活性超时（提交前 5 秒 probe，不通直接回退本机；提交后 60 秒没有 queued 或作业开始后 120 秒状态没进展就取消并回退），改 docs/whiteboard_render.py 前要用户同意
+    from: [Hexp-19]
+  - id: E94
+    stage: compose
+    level: 检查
+    by: docs/whiteboard_verify.py、docs/whiteboard_finish_compose.py
+    rule: "成片核对里“意外静音”不过时不许手改测量结果：先把实测数字和位置告诉用户，用户决定保留才用 whiteboard_verify.py verify --allow-silence 起 止 原因 登记那一段（起止要与实测相差不超过 0.3 秒、不超过 2.5 秒，对不上就报错）；原因和用户的决定写进成片核对报告，检查点脚本把它从“结尾静音”里排除；其余检查照旧。"
+    why: "金句后一段 1.295 秒的停顿比门槛 1.3 秒只差 0.005 秒，停顿在已批准的配音里；没有登记例外的办法就写不出合成检查点。我加例外功能时第一次漏了把它从结尾静音里排除，报告把结尾静音写成 2.8 秒，发现后已修"
+    from: [Hexp-20]
+  - id: E95
+    stage: compose
+    level: 检查
+    by: docs/whiteboard_render.py
+    rule: "渲染规划（--plan、--final）对板上每个字符串查是不是媒体文件名；超过 255 字节的串（SVG 路径、长文字）不是文件名，要跳过并容错 OSError。出样片和关键帧不走这段，所以整片规划才会崩，整片渲染前先跑一次 --plan。"
+    why: "第 6 块的长虚线路径串让 media_hashes 抛 File name too long，--plan 和 --final 都崩；样片和关键帧都正常，所以到整片才发现"
+    from: [Hexp-21]
+  - id: E96
+    stage: publish
+    level: 清单
+    rule: "简介里的实测数字从归档的原始记录读出并用断言核对旁白；断言要带“不能为空”的检查（例如先断言匹配到了东西），名单和归档里的真实名称对不上时断言会空过。引来源原话要重新打开原页逐字核对，只用页面写到的范围。"
+    why: "整理文件夹的重要文件，我写成“合同.docx”，真实是“合同_final.docx”，按我的名单“想删重要文件 0 回”会变成空检查；断言先拦到了另一处名字不对，顺着查出来"
+    from: [Hexp-22]
+  - id: E97
+    stage: publish
+    level: 清单
+    by: docs/whiteboard_timeline.py
+    rule: "发布后跑 python3 docs/whiteboard_timeline.py projects/<项目>（项目前的工作用 --since 补），把每道口令的“生产”和“等用户”小时数写进复盘的数字存档；不要拿口令间隔当生产时间。"
+    why: "上一支试验的口令间隔 5.4 小时里等用户占 3.20 小时，生产只有 2.51 小时；本课口令内生产 4.70 小时、等用户 1.13 小时"
+    from: [Hexp-23]
+
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
-narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7]
+narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7, Hvu-22, Hexp-24, Hexp-25]

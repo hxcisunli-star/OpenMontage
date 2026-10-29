@@ -3,6 +3,7 @@ Run:  .venv/bin/python docs/whiteboard_script_lint.py projects/<lesson> [--lesso
 Checks on artifacts/script.json (rules apply from lesson 11, when the plain-language assertions started):
   ERROR  English letters or Arabic digits in the narration (numbers are spoken in Chinese characters; commands and file names live on the board only)
   ERROR  a hard word from docs/whiteboard/wordlist.yaml (from >= its lesson, not allowed for this lesson); --allow lists this lesson's NEW terms (then say each once, with a plain sentence)
+  ERROR  a series' forbidden term (docs/whiteboard/series.yaml forbid_terms: the new series has no link to the C course, so no C-course words, metaphors or callbacks)
   ERROR  average sentence > 24 characters or longest sentence > 50 (split at full stops, do not change the word count)
   ERROR  a section longer than 600 characters, or two neighbouring picture cues more than 10 s apart
   ERROR  a quiz question text that is not in the narration exactly once
@@ -18,7 +19,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from whiteboard_lessons import load_terms as _load_terms, number_of, series_of  # noqa: E402
+from whiteboard_lessons import lesson_refs_to, load_terms as _load_terms, number_of, series_config, series_of  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SPC, QUIZ_SIL, GAP = 0.238, 3.0, 0.7
@@ -39,7 +40,7 @@ def lesson_from_scripts(proj):
     return int(m.group(1)) if m else None
 
 
-def lint(script, lesson, allow=(), target=None, series="c"):
+def lint(script, lesson, allow=(), target=None, series="c", forbid_terms=None):
     strict_from = SERIES_STRICT_FROM.get(series, STRICT_FROM)
     secs = script["sections"]
     meta = script.get("metadata", {})
@@ -62,6 +63,10 @@ def lint(script, lesson, allow=(), target=None, series="c"):
         if n >= spec.get("from", strict_from) and n not in (spec.get("allow_in") or []) and term not in allow and term in text:
             where = next((s["id"] for s in secs if term in s["text"]), "?")
             errors.append(f"hard word “{term}” x{text.count(term)} (first in {where}); say it plainly, or --allow it as this lesson's new term")
+    for term in (series_config(series)["forbid_terms"] if forbid_terms is None else forbid_terms):
+        if term in text:
+            where = next((s["id"] for s in secs if term in s["text"]), "?")
+            errors.append(f"“{term}” x{text.count(term)} (first in {where}) is a C-course word: this series has no link to the C course (series.yaml forbid_terms) - no callbacks, no C-course metaphors")
     if info["avg_sentence"] > AVG_MAX:
         errors.append(f"average sentence {info['avg_sentence']} > {AVG_MAX}")
     if info["max_sentence"] > SENT_MAX:
@@ -106,7 +111,8 @@ def main():
     script = json.loads((proj / "artifacts/script.json").read_text(encoding="utf-8"))
     series = series_of(proj.name)
     lesson = args.lesson or number_of(proj.name) or lesson_from_scripts(proj)
-    errors, warns, info = lint(script, lesson, [w for w in args.allow.split(",") if w], args.target, series)
+    legacy = series != "c" and lesson_refs_to(proj) == "c"   # the experiment lesson (EXPERIMENT.md) quotes the C course and is frozen: its C words are not errors
+    errors, warns, info = lint(script, lesson, [w for w in args.allow.split(",") if w], args.target, series, forbid_terms=[] if legacy else None)
     if args.json:
         print(json.dumps({"errors": errors, "warnings": warns, "info": info}, ensure_ascii=False, indent=1))
     else:

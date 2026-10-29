@@ -1,6 +1,6 @@
 ---
 name: whiteboard-lesson
-description: 做“老师边讲边画”C 语言白板教学视频（animated-explainer 管道、explainer-teacher 模板、Remotion、DashScope Cherry 配音）时先读：用户说“继续策划下一课／策划第 N 课／计划确认／提案通过／脚本通过／场景计划通过／样音通过／素材通过／样片通过／成片通过／发布通过／提交”，或要写旁白、板书、场景计划、剪辑、渲染、核对、缩略图、封面、课后练习时使用。给出口令规则、每个阶段要先读的清单与 skill、发布后的复盘步骤。只用于本项目的白板课，不是通用做视频流程。
+description: 做“老师边讲边画”白板教学视频（C 篇，以及 2026-10-21 起与 C 课无关的新系列“智能体篇”；animated-explainer 管道、explainer-teacher 模板、Remotion、DashScope Cherry 配音）时先读：用户说“继续策划下一课／策划第 N 课／计划确认／提案通过／脚本通过／场景计划通过／样音通过／素材通过／样片通过／成片通过／发布通过／提交”，或要写旁白、板书、场景计划、剪辑、渲染、核对、缩略图、封面、课后练习时使用。给出口令规则、每个阶段要先读的清单与 skill、发布后的复盘步骤。只用于本项目的白板课，不是通用做视频流程。
 ---
 
 # 白板课制作入口
@@ -11,6 +11,8 @@ description: 做“老师边讲边画”C 语言白板教学视频（animated-ex
 3. 提交只在用户说“提交”时做，提交后自动推 fork；中文、精简，只讲需要用户决定的事。
 4. 改脚本和运行脚本分成两条命令；只用 `.venv/bin/python`；Bash 沙箱失败时带 dangerouslyDisableSandbox 重试并说明。
 5. 所有输出、diff、提醒都来自真实运行；没做的检查要明说；已批准的内容有错先问用户，不静默改。
+
+**系列**：项目名 `agent-…-cn` 是新系列（与 C 课没有任何联系：老师加 AI 小搭档、彩色画面、旁白不得回扣 C 课），其余是 C 篇（医生）。配置在 `docs/whiteboard/series.yaml`，新系列风格指南在 `docs/whiteboard/style-guide-agent.zh-CN.md`（第 7 节是第二轮手段与裁定：代码上色、题卡与圆环、对错分屏、计数条、时序图、角色微动；音效默认只开答案叮声，build 之后、渲染之前跑 `.venv/bin/python docs/whiteboard_sfx.py apply projects/<课>`；H3 片段评估后不采用），经验见登记表 E76–E87；系列名还没定，封面与成品包在定之前明确报错。
 
 ## 现在到哪一步？
 先跑 `.venv/bin/python docs/whiteboard_gate.py status`（从各课检查点算出现在哪课、哪一门、等什么口令；用户说了口令后用 `approve` 记录，样音通过与计划确认用 `record`）。没有进行中的课程时，下一课由用户另定（用户说“继续策划下一课”或给题目）。现状与 43 课一览：`docs/whiteboard-course-handoff.zh-CN.md`。每个阶段的脚本命令都在该阶段清单里（建课 `docs/whiteboard_new_lesson.py`、脚本检查 `docs/whiteboard_script_lint.py`、成片核对 `docs/whiteboard_verify.py` 等）。

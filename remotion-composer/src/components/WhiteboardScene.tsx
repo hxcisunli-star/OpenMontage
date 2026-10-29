@@ -24,12 +24,46 @@ export const WB_FONT_FILE = "fonts/ZCOOLKuaiLe-Regular.ttf";
 const WB_FONT = "WBHand";
 const MONO = "'JetBrains Mono','Fira Code','DejaVu Sans Mono',monospace";
 
+export type WbCodeLang = "c" | "py";
+
 export type WbStrokeShape =
   | { shape: "rect"; x: number; y: number; w: number; h: number }
   | { shape: "line"; x1: number; y1: number; x2: number; y2: number }
   | { shape: "arrow"; x1: number; y1: number; x2: number; y2: number }
   | { shape: "circle"; cx: number; cy: number; r: number }
-  | { shape: "underline"; x: number; y: number; w: number };
+  | { shape: "underline"; x: number; y: number; w: number }
+  // a ready-made SVG path (rounded boxes, speech-bubble tails, icons); drawn exactly as given, without the hand wobble.
+  // `box` is a hint for the tools (lint, default transform origin) and is not used for drawing.
+  | { shape: "path"; d: string; box?: [number, number, number, number] };
+
+/**
+ * Optional motion shared by stroke / image / write items.  Every key moves the item relative to where it is drawn: `dx`/`dy` in px, `scale`, `rot` in degrees
+ * (about `origin`, in canvas px); `sy` stretches vertically on top of `scale` (a bar growing from its base line).  A field a key leaves out keeps the value of the key before it; between two keys the move is eased, before the first and after
+ * the last key it holds.  `rot` is a static tilt added to the keys.  Parts of one group (a sticky note = a filled path + a write) must carry the SAME keys and origin.
+ * `layer: "top"` draws the item above the text layer (see the layer order in WhiteboardScene).
+ */
+export interface WbKey {
+  at: number;
+  dx?: number;
+  dy?: number;
+  scale?: number;
+  sy?: number;
+  rot?: number;
+}
+export interface WbMotion {
+  move?: WbKey[];
+  rot?: number;
+  origin?: [number, number];
+  layer?: "top";
+}
+
+/** Board camera: where the view is centred (canvas px) and how far it is zoomed in (>= 1).  Held before the first and after the last key, eased in between. */
+export interface WbCamKey {
+  at: number;
+  scale?: number;
+  cx?: number;
+  cy?: number;
+}
 
 export type WbArrayOp =
   | { type: "compare"; at: number; i: number; j: number; dur?: number }
@@ -66,7 +100,7 @@ export interface WbMemArrow {
 
 export type WbItem =
   | { kind: "memory"; cells: WbMemCell[]; arrows?: WbMemArrow[] }
-  | {
+  | ({
       kind: "write";
       text: string;
       x: number;
@@ -78,9 +112,20 @@ export type WbItem =
       align?: "left" | "center";
       until?: number; // fade out at this time (seconds)
       font?: "hand" | "mono";
-    }
-  | ({ kind: "stroke"; at: number; dur?: number; color?: string; width?: number; until?: number } & WbStrokeShape)
-  | {
+    } & WbMotion)
+  | ({
+      kind: "stroke";
+      at: number;
+      dur?: number;
+      color?: string;
+      width?: number; // 0 = no outline (a plain filled block)
+      until?: number;
+      fill?: string; // fills the shape; fades in while the outline is drawn
+      fillOpacity?: number;
+      shadow?: boolean; // soft drop shadow (sticky notes, cards)
+    } & WbMotion &
+      WbStrokeShape)
+  | ({
       kind: "image";
       src: string; // key must be "src" so video_compose stages the file
       x: number;
@@ -91,7 +136,10 @@ export type WbItem =
       dur?: number;
       reveal?: "down" | "wipe" | "fade";
       until?: number;
-    }
+      radius?: number; // rounded corners (picture cards): px
+      border?: { width: number; color?: string };
+      shadow?: boolean;
+    } & WbMotion)
   | {
       kind: "array";
       values: number[];
@@ -104,6 +152,7 @@ export type WbItem =
     }
   | {
       kind: "code";
+      lang?: WbCodeLang; // colour the code by token kind ("c" or "py"); without it the lines stay one colour, exactly as before
       lines: string[];
       x: number;
       y: number;
@@ -128,6 +177,7 @@ export interface WhiteboardData {
   inkColor?: string;
   accentColor?: string;
   fadeOutSeconds?: number;
+  camera?: WbCamKey[];
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -136,6 +186,121 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const fadeAfter = (t: number, until?: number) =>
   until === undefined ? 1 : clamp01(1 - (t - until) / 0.4);
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+// ---- optional motion (WbMotion) and board camera (WbCamKey) --------------------------------------------------------------------------------
+// Items without these fields never reach any of this code: no wrapper element, no transform, so a board without them renders exactly as before.
+type Pose = { dx: number; dy: number; scale: number; sy: number; rot: number };
+
+function poseAt(keys: WbKey[], t: number): Pose {
+  const cur: Pose = { dx: 0, dy: 0, scale: 1, sy: 1, rot: 0 };
+  const ks = [...keys]
+    .sort((a, b) => a.at - b.at)
+    .map((k) => {
+      cur.dx = k.dx ?? cur.dx;
+      cur.dy = k.dy ?? cur.dy;
+      cur.scale = k.scale ?? cur.scale;
+      cur.sy = k.sy ?? cur.sy;
+      cur.rot = k.rot ?? cur.rot;
+      return { at: k.at, ...cur };
+    });
+  if (t <= ks[0].at) return ks[0];
+  const last = ks[ks.length - 1];
+  if (t >= last.at) return last;
+  const i = ks.findIndex((k) => k.at > t);
+  const a = ks[i - 1];
+  const b = ks[i];
+  const e = easeInOut(clamp01((t - a.at) / (b.at - a.at)));
+  return {
+    dx: a.dx + (b.dx - a.dx) * e,
+    dy: a.dy + (b.dy - a.dy) * e,
+    scale: a.scale + (b.scale - a.scale) * e,
+    sy: a.sy + (b.sy - a.sy) * e,
+    rot: a.rot + (b.rot - a.rot) * e,
+  };
+}
+
+const hasMotion = (m: WbMotion) => !!(m.move && m.move.length) || !!m.rot;
+
+function motionPose(m: WbMotion, t: number): Pose {
+  const p = m.move && m.move.length ? poseAt(m.move, t) : { dx: 0, dy: 0, scale: 1, sy: 1, rot: 0 };
+  return { ...p, rot: p.rot + (m.rot ?? 0) };
+}
+
+// `origin` (canvas px) is shared by every part of a group, so all parts turn and scale about the same point.
+const MovingDiv: React.FC<{ m: WbMotion; origin: [number, number]; children: React.ReactNode }> = ({ m, origin, children }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const p = motionPose(m, frame / fps);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: 1920,
+        height: 1080,
+        transformOrigin: `${origin[0]}px ${origin[1]}px`,
+        transform: `translate(${p.dx}px, ${p.dy}px) rotate(${p.rot}deg) scale(${p.scale}, ${p.scale * p.sy})`,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+const MovingG: React.FC<{ m: WbMotion; origin: [number, number]; children: React.ReactNode }> = ({ m, origin, children }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const p = motionPose(m, frame / fps);
+  const [ox, oy] = origin;
+  return (
+    <g transform={`translate(${p.dx} ${p.dy}) translate(${ox} ${oy}) rotate(${p.rot}) scale(${p.scale} ${p.scale * p.sy}) translate(${-ox} ${-oy})`}>{children}</g>
+  );
+};
+
+function camAt(keys: WbCamKey[], t: number): { scale: number; tx: number; ty: number } {
+  const cur = { scale: 1, cx: 960, cy: 540 };
+  const ks = [...keys]
+    .sort((a, b) => a.at - b.at)
+    .map((k) => {
+      cur.scale = k.scale ?? cur.scale;
+      cur.cx = k.cx ?? cur.cx;
+      cur.cy = k.cy ?? cur.cy;
+      return { at: k.at, ...cur };
+    });
+  let c = ks[0];
+  const last = ks[ks.length - 1];
+  if (t >= last.at) c = last;
+  else if (t > ks[0].at) {
+    const i = ks.findIndex((k) => k.at > t);
+    const a = ks[i - 1];
+    const b = ks[i];
+    const e = easeInOut(clamp01((t - a.at) / (b.at - a.at)));
+    c = { at: t, scale: a.scale + (b.scale - a.scale) * e, cx: a.cx + (b.cx - a.cx) * e, cy: a.cy + (b.cy - a.cy) * e };
+  }
+  const scale = Math.max(1, c.scale);
+  // the view never leaves the canvas: the zoomed layers always cover it
+  const tx = Math.min(0, Math.max(1920 * (1 - scale), 960 - scale * c.cx));
+  const ty = Math.min(0, Math.max(1080 * (1 - scale), 540 - scale * c.cy));
+  return { scale, tx, ty };
+}
+
+// where an item's own geometry is centred, used as the transform origin when the data gives none
+function strokeCenter(s: WbStrokeShape): [number, number] {
+  switch (s.shape) {
+    case "rect":
+      return [s.x + s.w / 2, s.y + s.h / 2];
+    case "line":
+    case "arrow":
+      return [(s.x1 + s.x2) / 2, (s.y1 + s.y2) / 2];
+    case "circle":
+      return [s.cx, s.cy];
+    case "underline":
+      return [s.x + s.w / 2, s.y];
+    case "path":
+      return s.box ? [(s.box[0] + s.box[2]) / 2, (s.box[1] + s.box[3]) / 2] : [960, 540];
+  }
+}
 
 export function useWbFont() {
   const [handle] = useState(() => delayRender("whiteboard-font"));
@@ -181,6 +346,8 @@ function wobblyLine(x1: number, y1: number, x2: number, y2: number, seed: number
 
 function shapePath(s: WbStrokeShape, seed: number): string {
   switch (s.shape) {
+    case "path":
+      return s.d;
     case "rect": {
       const { x, y, w, h } = s;
       return (
@@ -291,14 +458,15 @@ const StrokeItem: React.FC<{
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+  const d = shapePath(item, index * 17 + 3);
+  const progress = easeInOut(p);
   return (
-    <g opacity={fadeAfter(frame / fps, item.until)}>
-      <Ink
-        d={shapePath(item, index * 17 + 3)}
-        progress={easeInOut(p)}
-        color={item.color ?? ink}
-        width={item.width ?? 6}
-      />
+    <g
+      opacity={fadeAfter(frame / fps, item.until)}
+      {...(item.shadow ? { style: { filter: "drop-shadow(3px 5px 4px rgba(15,23,42,0.28))" } } : {})}
+    >
+      {item.fill && progress > 0 && <path d={d} fill={item.fill} fillOpacity={(item.fillOpacity ?? 1) * progress} stroke="none" />}
+      <Ink d={d} progress={progress} color={item.color ?? ink} width={item.width ?? 6} />
     </g>
   );
 };
@@ -583,6 +751,54 @@ const MemoryBoard: React.FC<{
   );
 };
 
+// ---- code colouring (item `lang`): a small tokenizer, no library.  Every colour keeps >= 4.5:1 on the board colour AND on the 45 % highlighter (docs/whiteboard_lint.py CODE_COLORS is the same list).
+const CODE_COLORS = { kw: "#9D174D", type: "#0B5CAD", num: "#92400E", str: "#166534", com: "#5B6472", pre: "#6D28D9", fn: "#0A645D" };
+const C_KW = new Set(["if", "else", "for", "while", "do", "return", "break", "continue", "switch", "case", "default", "struct", "union", "enum", "typedef", "static", "const", "extern", "sizeof", "goto", "NULL"]);
+const C_TYPES = new Set(["int", "char", "float", "double", "void", "long", "short", "unsigned", "signed", "size_t", "FILE", "bool"]);
+const PY_KW = new Set(["def", "class", "import", "from", "as", "if", "elif", "else", "for", "while", "in", "not", "and", "or", "is", "return", "with", "try", "except", "finally", "raise", "pass", "break", "continue", "lambda", "None", "True", "False"]);
+
+const CODE_RE: Record<WbCodeLang, RegExp> = {
+  c: /\/\/.*|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?|[A-Za-z_]\w*|\s+|./y,
+  py: /#.*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?|[A-Za-z_]\w*|\s+|./y,
+};
+
+type CodeTok = { t: string; c?: string };
+function tokenizeCode(line: string, lang: WbCodeLang): CodeTok[] {
+  const out: CodeTok[] = [];
+  const push = (t: string, c?: string) => {
+    if (!t) return;
+    const last = out[out.length - 1];
+    if (last && last.c === c) last.t += t;
+    else out.push({ t, c });
+  };
+  let rest = line;
+  const kws = lang === "c" ? C_KW : PY_KW;
+  if (lang === "c") {
+    const m = /^(\s*)(#\s*\w+)(\s*<[^>]*>)?/.exec(line); // #include <stdio.h> / #define
+    if (m) {
+      push(m[1]);
+      push(m[2], CODE_COLORS.pre);
+      if (m[3]) push(m[3], CODE_COLORS.str);
+      rest = line.slice(m[0].length);
+    }
+  }
+  const re = new RegExp(CODE_RE[lang]);   // sticky: every match starts exactly where the last one ended
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(rest)) !== null) {
+    const w = m[0];
+    if (/^(\/\/|\/\*|#)/.test(w) && w.length > 1) push(w, CODE_COLORS.com);
+    else if (w[0] === '"' || w[0] === "'") push(w, CODE_COLORS.str);
+    else if (/^(0[xX]|\d)/.test(w)) push(w, CODE_COLORS.num);
+    else if (/^[A-Za-z_]/.test(w)) {
+      if (kws.has(w)) push(w, CODE_COLORS.kw);
+      else if (lang === "c" && C_TYPES.has(w)) push(w, CODE_COLORS.type);
+      else if (/^\s*\(/.test(rest.slice(re.lastIndex))) push(w, CODE_COLORS.fn);
+      else push(w);
+    } else push(w);
+  }
+  return out;
+}
+
 const CodeBoard: React.FC<{
   item: Extract<WbItem, { kind: "code" }>;
   ink: string;
@@ -631,7 +847,13 @@ const CodeBoard: React.FC<{
               clipPath: `inset(-10% ${(1 - p) * 100}% -10% 0)`,
             }}
           >
-            {line}
+            {item.lang
+              ? tokenizeCode(line, item.lang).map((tk, j) => (
+                  <span key={j} style={tk.c ? { color: tk.c } : undefined}>
+                    {tk.t}
+                  </span>
+                ))
+              : line}
           </div>
         );
       })}
@@ -639,7 +861,7 @@ const CodeBoard: React.FC<{
   );
 };
 
-const ImageItem: React.FC<{ item: Extract<WbItem, { kind: "image" }> }> = ({ item }) => {
+const ImageItem: React.FC<{ item: Extract<WbItem, { kind: "image" }>; ink: string }> = ({ item, ink }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const dur = item.dur ?? 1.2;
@@ -667,6 +889,9 @@ const ImageItem: React.FC<{ item: Extract<WbItem, { kind: "image" }> }> = ({ ite
         objectFit: "contain",
         clipPath: clip,
         opacity: (reveal === "fade" ? p : 1) * fade,
+        ...(item.radius !== undefined ? { borderRadius: item.radius } : {}),
+        ...(item.border ? { border: `${item.border.width}px solid ${item.border.color ?? ink}`, boxSizing: "border-box" as const } : {}),
+        ...(item.shadow ? { filter: "drop-shadow(3px 5px 6px rgba(15,23,42,0.28))" } : {}),
       }}
     />
   );
@@ -726,6 +951,84 @@ export const WhiteboardScene: React.FC<{ data: WhiteboardData }> = ({ data }) =>
   const images = data.items.filter((i) => i.kind === "image") as Extract<WbItem, { kind: "image" }>[];
   const memories = data.items.filter((i) => i.kind === "memory") as Extract<WbItem, { kind: "memory" }>[];
 
+  // Layer order, back to front: [svg] strokes, arrays, memory boards, pen < [html] images, writes, code < [svg-top] strokes with layer "top"
+  // < [html-top] writes, then images with layer "top" (a character stands in front of everything).  The two top layers exist only when an item asks for them.
+  // A stroke's hand wobble is seeded from its index in the FULL stroke list, whichever layer it is drawn in, so moving a stroke to the top layer never changes its look.
+  const isTop = (it: { layer?: string }) => it.layer === "top";
+  const strokeEntries = strokes.map((s, i) => ({ s, i }));
+  const strokesTop = strokeEntries.filter((e) => isTop(e.s));
+  const writesTop = writes.filter(isTop);
+  const imagesTop = images.filter(isTop);
+
+  const strokeNode = ({ s, i }: { s: (typeof strokes)[number]; i: number }) => {
+    const node = <StrokeItem key={`s${i}`} item={s} index={i} ink={ink} />;
+    return hasMotion(s) ? (
+      <MovingG key={`s${i}`} m={s} origin={s.origin ?? strokeCenter(s)}>
+        {node}
+      </MovingG>
+    ) : (
+      node
+    );
+  };
+  const imageNode = (im: (typeof images)[number], i: number) => {
+    const node = <ImageItem key={`im${i}`} item={im} ink={ink} />;
+    return hasMotion(im) ? (
+      <MovingDiv key={`im${i}`} m={im} origin={im.origin ?? [im.x + im.w / 2, im.y + im.h / 2]}>
+        {node}
+      </MovingDiv>
+    ) : (
+      node
+    );
+  };
+  const writeNode = (w: (typeof writes)[number], i: number) => {
+    const node = <Handwriting key={`w${i}`} item={w} ink={ink} />;
+    return hasMotion(w) ? (
+      <MovingDiv key={`w${i}`} m={w} origin={w.origin ?? [w.x, w.y]}>
+        {node}
+      </MovingDiv>
+    ) : (
+      node
+    );
+  };
+
+  const layers = (off: number) => (
+    <>
+      <svg width={1920} height={1080} viewBox="0 0 1920 1080" style={{ position: "absolute", left: off, top: off }}>
+        {strokeEntries.filter((e) => !isTop(e.s)).map(strokeNode)}
+        {arrays.map((a, i) => (
+          <ArrayBoard key={`a${i}`} item={a} index={i} ink={ink} accent={accent} />
+        ))}
+        {memories.map((m, i) => (
+          <MemoryBoard key={`m${i}`} item={m} index={i} ink={ink} accent={accent} />
+        ))}
+        <Pointer keys={data.pointer ?? []} />
+      </svg>
+      <div style={{ position: "absolute", left: off, top: off, width: 1920, height: 1080 }}>
+        {images.map((im, i) => (isTop(im) ? null : imageNode(im, i)))}
+        {writes.map((w, i) => (isTop(w) ? null : writeNode(w, i)))}
+        {codes.map((c, i) => (
+          <CodeBoard key={`c${i}`} item={c} ink={ink} />
+        ))}
+      </div>
+      {strokesTop.length > 0 && (
+        <svg width={1920} height={1080} viewBox="0 0 1920 1080" style={{ position: "absolute", left: off, top: off }}>
+          {strokesTop.map(strokeNode)}
+        </svg>
+      )}
+      {(writesTop.length > 0 || imagesTop.length > 0) && (
+        <div style={{ position: "absolute", left: off, top: off, width: 1920, height: 1080 }}>
+          {writes.map((w, i) => (isTop(w) ? writeNode(w, i) : null))}
+          {images.map((im, i) => (isTop(im) ? imageNode(im, i) : null))}
+        </div>
+      )}
+    </>
+  );
+
+  // Camera: the layers (and the grid, so it zooms with them) sit in one wrapper that is scaled and shifted; without camera keys nothing here is added.
+  const cam = data.camera && data.camera.length ? camAt(data.camera, frame / fps) : null;
+  const GRID =
+    "linear-gradient(rgba(148,163,184,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.16) 1px, transparent 1px)";
+
   return (
     <AbsoluteFill style={{ background: "#CBD5E1", opacity: enter * exit }}>
       <AbsoluteFill
@@ -739,40 +1042,31 @@ export const WhiteboardScene: React.FC<{ data: WhiteboardData }> = ({ data }) =>
           borderRadius: 18,
           background: board,
           boxShadow: "0 0 0 10px #94A3B8, 0 12px 40px rgba(15,23,42,0.35)",
-          backgroundImage:
-            "linear-gradient(rgba(148,163,184,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.16) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
+          ...(cam ? {} : { backgroundImage: GRID, backgroundSize: "60px 60px" }),
           overflow: "hidden",
         }}
       >
-        <svg
-          width={1920}
-          height={1080}
-          viewBox="0 0 1920 1080"
-          style={{ position: "absolute", left: -28, top: -28 }}
-        >
-          {strokes.map((s, i) => (
-            <StrokeItem key={`s${i}`} item={s} index={i} ink={ink} />
-          ))}
-          {arrays.map((a, i) => (
-            <ArrayBoard key={`a${i}`} item={a} index={i} ink={ink} accent={accent} />
-          ))}
-          {memories.map((m, i) => (
-            <MemoryBoard key={`m${i}`} item={m} index={i} ink={ink} accent={accent} />
-          ))}
-          <Pointer keys={data.pointer ?? []} />
-        </svg>
-        <div style={{ position: "absolute", left: -28, top: -28, width: 1920, height: 1080 }}>
-          {images.map((im, i) => (
-            <ImageItem key={`im${i}`} item={im} />
-          ))}
-          {writes.map((w, i) => (
-            <Handwriting key={`w${i}`} item={w} ink={ink} />
-          ))}
-          {codes.map((c, i) => (
-            <CodeBoard key={`c${i}`} item={c} ink={ink} />
-          ))}
-        </div>
+        {cam ? (
+          <div
+            data-wb-zoom={cam.scale}
+            style={{
+              position: "absolute",
+              left: -28,
+              top: -28,
+              width: 1920,
+              height: 1080,
+              transformOrigin: "0 0",
+              transform: `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.scale})`,
+              backgroundImage: GRID,
+              backgroundSize: "60px 60px",
+              backgroundPosition: "28px 28px",
+            }}
+          >
+            {layers(0)}
+          </div>
+        ) : (
+          layers(-28)
+        )}
       </AbsoluteFill>
     </AbsoluteFill>
   );

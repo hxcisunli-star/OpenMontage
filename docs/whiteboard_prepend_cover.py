@@ -1,7 +1,10 @@
 """Prepend a ~2 s cover to a finished lesson video WITHOUT re-rendering.
 
 Usage (from the OpenMontage root):
-    .venv/bin/python docs/whiteboard_prepend_cover.py projects/<lesson> [--seconds 2] [--out-dir DIR]
+    .venv/bin/python docs/whiteboard_prepend_cover.py projects/<lesson> [--seconds 2] [--out-dir DIR] [--sting STING.mp4]
+
+--sting: an animated opening (EXPERIMENTAL, "H3片段（实验）"): a finished 1920x1080, 30 fps mp4 made by docs/whiteboard_h3_clip.py fit; it plays BEFORE the still cover (so the still
+cover keeps the lesson number and title), and everything the cover shifts (subtitles, chapters) shifts by sting + cover seconds.
 
 Source of truth stays untouched: renders/final.mp4, assets/subtitles.srt.
 Writes (default into <lesson>/exports/):
@@ -44,9 +47,15 @@ def main():
     ap.add_argument("project")
     ap.add_argument("--seconds", type=float, default=2.0)
     ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--sting", default=None, help="an animated opening played before the still cover (fitted mp4)")
     a = ap.parse_args()
     P = Path(a.project)
-    s = a.seconds
+    sting = Path(a.sting) if a.sting else None
+    if sting and not sting.exists():
+        sys.exit(f"missing {sting}")
+    s0 = a.seconds                      # the still cover
+    sd = dur(sting) if sting else 0.0   # the animated opening
+    s = s0 + sd                         # everything the cover part shifts
     out = Path(a.out_dir) if a.out_dir else P / "exports"
     final, cover_png, cover_jpg = P / "renders/final.mp4", P / "exports/thumbnails/cover.png", P / "exports/thumbnails/cover_1280x720.jpg"
     for f in (final, cover_png, cover_jpg):
@@ -57,12 +66,16 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix="cover_"))
 
     # 1. intro clip: same codec parameters as the Remotion final (h264 High, yuvj420p, 30 fps, aac 48 kHz stereo)
-    run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(s), "-i", str(cover_png),
-         "-f", "lavfi", "-t", str(s), "-i", "anullsrc=r=48000:cl=stereo",
+    run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(s0), "-i", str(cover_png),
+         "-f", "lavfi", "-t", str(s0), "-i", "anullsrc=r=48000:cl=stereo",
          "-vf", "format=yuvj420p,setrange=pc", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuvj420p",
          "-r", "30", "-video_track_timescale", "90000", "-c:a", "aac", "-b:a", "128k", "-shortest", str(tmp / "intro.mp4")])
-    run(["ffmpeg", "-v", "error", "-y", "-i", str(final), "-c", "copy", str(tmp / "main.mp4")])
-    (tmp / "list.txt").write_text("file 'intro.mp4'\nfile 'main.mp4'\n")
+    run(["ffmpeg", "-v", "error", "-y", "-i", str(final), "-c", "copy", "-video_track_timescale", "90000", str(tmp / "main.mp4")])   # the same time base as the intro parts (the Remotion final already has it)
+    if sting:   # same stream format as the still intro (re-encoded once: the join is by stream copy), silent audio
+        run(["ffmpeg", "-v", "error", "-y", "-i", str(sting), "-f", "lavfi", "-t", f"{sd:.3f}", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a",
+             "-vf", "format=yuvj420p,setrange=pc", "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuvj420p", "-crf", "18", "-r", "30", "-video_track_timescale", "90000",
+             "-c:a", "aac", "-b:a", "128k", "-shortest", str(tmp / "sting.mp4")])
+    (tmp / "list.txt").write_text(("file 'sting.mp4'\n" if sting else "") + "file 'intro.mp4'\nfile 'main.mp4'\n")
 
     # 2. concat (stream copy) + attach the cover picture
     target = out / "video/output.mp4"
@@ -79,6 +92,8 @@ def main():
     meta["chapters_original"] = orig
     meta["chapters"] = [dict(c, start_seconds=(0 if i == 0 else c["start_seconds"] + s)) for i, c in enumerate(orig)]
     meta["cover_seconds"] = s
+    if sting:
+        meta["sting_seconds"] = round(sd, 3)
     (out / "metadata/metadata.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "metadata/chapters.txt").write_text(
         "\n".join(f"{fmt(c['start_seconds'])} - {c['title']}" for c in meta["chapters"]) + "\n", encoding="utf-8")
@@ -92,7 +107,7 @@ def main():
         run(["ffmpeg", "-v", "error", "-y", "-ss", str(t), "-i", str(path), "-frames:v", "1", str(tmp / name)])
         return np.asarray(Image.open(tmp / name).convert("RGB"), float)
     same = abs(frame(target, s + 0.5, "a.png") - frame(final, 0.5, "b.png")).mean()
-    cov = abs(frame(target, s / 2, "c.png") - np.asarray(Image.open(cover_png).convert("RGB"), float)).mean()
+    cov = abs(frame(target, sd + s0 / 2, "c.png") - np.asarray(Image.open(cover_png).convert("RGB"), float)).mean()
     print(f"duration {d0:.3f} -> {d1:.3f} (+{d1 - d0:.3f}); content-frame diff {same:.3f} (expect 0); cover-frame diff {cov:.2f}")
     if same > 0.5 or abs(d1 - d0 - s) > 0.1:
         sys.exit("VERIFY FAILED")

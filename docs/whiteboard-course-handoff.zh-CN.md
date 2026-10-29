@@ -18,6 +18,7 @@
 - **43 门课全部已发布**（第 1–43 课），没有进行中的课程；补漏路线 v2 与综合案例三部曲（叫号机 → 病历册 → 门诊系统）已走完，**没有已定的下一课**，由用户另定（用户说“继续策划下一课”或直接给题目再开始）。
 - 渲染：分块渲染 + 多进程；默认自动走远程渲染机（整课约 155–225 秒），失败自动回退本机（整课约 27 分钟起）；**每次渲染前先 `python3 tools/video/remote_cpu_render.py probe` 并看输出**；故障记录见 `docs/remote-render-incident-20261015-job-log-unavailable.zh-CN.md`。
 - 2026-10-19 起项目里有五个来自 OpenMAIC 的改编教学设计 skill（`backward-design`、`plain-language-review`、`lesson-fact-check`、`exercise-design`、`spiral-series-check`，见做课手册 2.49），还没在真实课里试用，下一课是首次试用。
+- **2026-10-21 起：视觉升级与新系列（用户决定）**：今后的课与 C 语言课**没有任何联系**（不回扣、不用医生、不用“C语言白板课”标识）；教师是新设计的**彩色平涂女老师 + AI 小搭档机器人**（用户选 A+C），表现手段要按教学内容选（彩色插画与角色、会动的图解、真实界面与图表、色彩与版面语汇）。风格指南 `docs/whiteboard/style-guide-agent.zh-CN.md`（已批准）；系列配置 `docs/whiteboard/series.yaml`（系列名**还没定**，封面与成品包在定之前明确报错）；角色素材库 `projects/_cast/agent/`（本机）。试点（试验课 s4/s5/s6 重画，新旧并排）用户已通过；它与全过程记录在 `projects/visual-upgrade-lab/EXPERIMENT.md`，成果沉淀见登记表 E76–E87；第二轮（s1–s8 整课试点、代码上色、音效、H3 评估）已做完，去留由用户交给我裁定（见第 5b 节）。**下一课（新系列第一课）还没定**，由用户另定题目与系列名。
 - 2026-10-19 起经验按“登记表 + 阶段清单 + 复盘”沉淀，不再往多处各写一遍（见第 7 节）；重复出现的教训已做成脚本（口令助手、缩略图检查、成片核对器、回扣提取器、单一词表与脚本检查、一键建课），回测见 `docs/whiteboard_backtest.py`。**老课体检**（每块板最后一项笔迹有没有写完就淡出）：`docs/whiteboard/old-lessons-last-item-report.zh-CN.md`，只出报告，是否重渲由用户定。
 
 ## 2. 43 课一览
@@ -122,6 +123,15 @@
 - **每课结构**：8 段（每段 ≤600 字、一个动作）；开场回扣上一课的悬念；一个“错写法”（只画叉或只编译，不运行）；一处中途预测、末段两道预测题（各留 3 秒静默）；末段三句回顾；课后练习随发布包。
 - **例子**：全部用 `gcc -std=c11 -Wall -Wextra -Wpedantic -Werror` 编译、真实运行，输出存 `validation/`；单词与成员名避开 o、c（apple、tea、hi、id、age、v）。
 
+## 5b. 新系列（智能体篇，2026-10-21 起；与 C 课无关，第 5 节的医生与病房比喻只属于 C 篇）
+
+- **配置**：`docs/whiteboard/series.yaml`（项目名 `agent-…-cn` 属于它）：系列名（未定）、角色素材库、封面角色、禁用词、“第N课”指本系列自己的课、可用的呈现手段清单。建课 `docs/whiteboard_new_lesson.py --pid agent-xxx-cn --n 课号 --title 课名` 会按它拷角色素材（老师与 AI 搭档的各个姿势、校徽、参考图）、从试验课的脚本起步，并提醒系列名还没定。
+- **画面**：风格指南 `docs/whiteboard/style-guide-agent.zh-CN.md`（配色：用户米 `#E3CA9B`、程序深蓝 `#1C3653`、模型天蓝 `#56CBFD`，取自角色实测像素；便利贴、气泡、柱状图、方块、插画卡片、圈注与荧光笔；老师站右下、搭档在她左侧；角色不得盖住内容）。积木 `docs/whiteboard_v2_kit.py`，Board 的新参数（填色、路径、顶层、运动关键帧、镜头）在起步模板的 `_build_head.py`。场景计划每个场景写“呈现手段”，检查 `docs/whiteboard_scene_plan_check.py`。
+- **素材**：新姿势、插画卡片用 `docs/whiteboard_pose_tool.py`（远程渲染机的 Qwen；纯绿底抠色，角色带绿色用品红底）。
+- **旁白**：不得出现 C 课身份词（series.yaml 的 forbid_terms），不回扣 C 课；试验课 `agent-messages-cn`（带 EXPERIMENT.md）写在脱钩之前，仍按 C 课解析、不受约束。
+- **改合成器**：先渲基线静帧、改后逐字节比较（`docs/whiteboard_baseline_stills.py`，登记表 E78）。
+- **第二轮手段（2026-10-21，用户把去留交给我，按工程与呈现效果裁定；细则风格指南第 7 节，登记表 E83、E85–E87）**：保留并进 `series.yaml` 手段清单——代码上色加结果面板（`code` 项可选 `lang`）、时序图、题卡与倒计时圆环、对错分屏、红叉与哎呀、词元计数条；角色微动（`char(…, idle=True)`）站立角色默认开。**音效**默认只开答案揭晓叮声：build 之后、渲染之前跑 `.venv/bin/python docs/whiteboard_sfx.py apply projects/<课>`（`--cues all` 全量，`--undo` 撤销）。**不采用**：H3 片头与 H3 比喻片段（评估后放弃，`docs/whiteboard_h3_clip.py`、`video_clip` 块、`--sting` 保留休眠，不进手段清单）；曲线图（`curve`）没在课里验证过，不进清单。试点 `projects/agent-messages-v2-cn`（s1–s8 全课，同一条旁白）的审阅文件在 `projects/visual-upgrade-lab/review/round2/`；三个成片：`renders/final.mp4`（无音效）、`final_chime.mp4`（默认档）、`final_sfx.mp4`（全量音效，给用户听）。**没人听过音效、没在播放器里看过动作**。
+
 ## 6. 流水线与脚本速查
 
 阶段顺序：`research → proposal(门) → script(门) → scene_plan(门) → assets(门) → edit(含样片，用户审) → compose(用户审) → publish(门)`。检查点由 `lib/checkpoint.py` 的 `write_checkpoint(...)` 写（用 `.venv/bin/python`）；决策记录 `decision_log.json` 只追加；校验用 `schemas.artifacts.validate_artifact`。**每个阶段做什么、命令、已知会出错的地方：`docs/whiteboard/checklists/`。**
@@ -140,7 +150,7 @@
 | `run_validation.sh` / `run_exercises.sh` / `make_exercises.py` | 例子与练习的真实运行 / 练习文本 |
 | `publish_prep.py` / `finish_publish.py` | 缩略图（`THUMB_T`）+ SRT + 章节元数据 / 导出包 + publish 检查点 |
 
-渲染与检查工具（都在 `docs/`，说明见做课手册 4.4）：`whiteboard_lint.py`（渲染前检查，含手写体混写拉丁字母警告）、`whiteboard_last_item_check.py`（最后一项笔迹写完时间，按渲染器算法；起步模板的 `rebuild_edit.sh` 已并入）、`whiteboard_thumb_check.py`（缩略图时间）、`whiteboard_script_lint.py`（旁白与脚本检查，词表 `docs/whiteboard/wordlist.yaml`）、`whiteboard_callbacks.py`（回扣原话核对）、`whiteboard_verify.py`（成片核对：`verify`、`probe`、`stills`、`local-ref`、`compare`）与 `whiteboard_finish_compose.py`（合成报告读实测）、`whiteboard_wait.py`（等后台任务）、`whiteboard_gate.py`（口令助手）、`whiteboard_new_lesson.py`（一键建课，模板在 `docs/whiteboard/starter/`）、`whiteboard_render.py`（`--final`、`--contact`、`--stills`、`--sample`，`--local` / `--remote-cpu`）、`whiteboard_cover_maker.py`、`whiteboard_prepend_cover.py`、`whiteboard_release_pack.py`。白板元素（`remotion-composer/src/components/WhiteboardScene.tsx`）**不要改仓库代码，只改数据**。
+渲染与检查工具（都在 `docs/`，说明见做课手册 4.4）：`whiteboard_lint.py`（渲染前检查，含手写体混写拉丁字母警告）、`whiteboard_last_item_check.py`（最后一项笔迹写完时间，按渲染器算法；起步模板的 `rebuild_edit.sh` 已并入）、`whiteboard_thumb_check.py`（缩略图时间）、`whiteboard_script_lint.py`（旁白与脚本检查，词表 `docs/whiteboard/wordlist.yaml`）、`whiteboard_callbacks.py`（回扣原话核对）、`whiteboard_verify.py`（成片核对：`verify`、`probe`、`stills`、`local-ref`、`compare`）与 `whiteboard_finish_compose.py`（合成报告读实测）、`whiteboard_wait.py`（等后台任务）、`whiteboard_gate.py`（口令助手）、`whiteboard_new_lesson.py`（一键建课，模板在 `docs/whiteboard/starter/`）、`whiteboard_render.py`（`--final`、`--contact`、`--stills`、`--sample`，`--local` / `--remote-cpu`）、`whiteboard_cover_maker.py`、`whiteboard_prepend_cover.py`、`whiteboard_release_pack.py`。白板元素（`remotion-composer/src/components/WhiteboardScene.tsx`）**不要随手改仓库代码，只改数据**；确要改合成器，按登记表 E78 先渲基线静帧、改后逐字节比较。新增工具：`whiteboard_scene_plan_check.py`（场景计划的呈现手段）、`whiteboard_pose_tool.py`（姿势与抠色）、`whiteboard_baseline_stills.py`（合成器基线）、`whiteboard_v2_kit.py`（新系列积木）、`whiteboard_sfx.py`（音效：`apply`、`cues`、`mix`、`check`）、`whiteboard_h3_clip.py`（H3 片段，休眠）。
 
 ## 7. 经验怎么积累（2026-10-19 起）
 
@@ -172,6 +182,10 @@
 | 每课审阅页与关键产物 | `projects/<课>/script-review.html`、`scene-plan-review.html`；`artifacts/{research_brief,proposal_packet,script,scene_plan,asset_manifest,edit_decisions,render_report,final_review}.json`；`checkpoint_*.json`；`decision_log.json` |
 | 每课成品 | `projects/<课>/exports/`（`video/output.mp4` 是带 2 秒封面片头的发布版）；统一成品文件夹 `projects/C语言白板课_成品/第NN课_课名/` + `目录.txt` + 同名 zip，由 `docs/whiteboard_release_pack.py` 重建 |
 | 封面 | `docs/whiteboard_cover_maker.py`（`LESSONS` 加一行）、`docs/whiteboard_prepend_cover.py` |
+| 系列配置、新系列风格指南、角色素材库 | `docs/whiteboard/series.yaml`、`docs/whiteboard/style-guide-agent.zh-CN.md`、`projects/_cast/agent/`（本机，不进库） |
+| 合成器基线参考集 | `projects/_baseline/ref/`（226 张静帧，本机；用 `docs/whiteboard_baseline_stills.py`） |
+| 视觉升级试点 | `projects/visual-upgrade-lab/`（过程记录、证据、并排视频；第二轮审阅文件在 `review/round2/`，H3 拼接变体在 `ab_h3b/`）、`projects/agent-messages-v2-cn/`（试点项目，带 EXPERIMENT.md） |
+| 音效素材 | `docs/whiteboard/sfx/`（21 个 Pixabay 许可音效、`manifest.json`、`CREDITS.md`）；工具 `docs/whiteboard_sfx.py` |
 | 本地生图工具 | `tools/graphics/qwen_local_image.py` |
 | 用户记忆 | `/root/.claude/projects/-home-MyProject-OpenMontage/memory/`（`MEMORY.md` 索引） |
 
