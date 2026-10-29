@@ -660,11 +660,10 @@ entries:
     from: [Hexp-18]
   - id: E93
     stage: compose
-    level: 清单
-    by: tools/video/remote_cpu_render.py
-    rule: "渲染机连接停顿时客户端没有活性超时，样片、关键帧、整片都会无声卡住：启动渲染后 120 秒内必须在日志里看到 remote: queued，没有就按进程号停掉改 --local；等待循环不要写成有上限就返回；渲染前先 probe，但 probe 通了不等于上传提交一定通。渲染机侧的回执在 docs/remote-render-replies/2026-10-28-connection-stalls.md（直连 SSH 上传停顿，已改走代理，数天稳定性未验证）。"
-    why: "本课卡过 29、15、6 分钟；用户说远程渲染机非常快，实际样片 80 秒、整片 213 秒，慢的是卡住后的等待和本机回退（本机一段 68 秒样片要 9 分 36 秒）"
-    todo: 客户端加活性超时（提交前 5 秒 probe，不通直接回退本机；提交后 60 秒没有 queued 或作业开始后 120 秒状态没进展就取消并回退），改 docs/whiteboard_render.py 前要用户同意
+    level: 检查
+    by: tools/video/remote_cpu_render.py、docs/whiteboard_render.py
+    rule: "渲染机客户端有活性限时与清理（2026-10-29，agent/6 起渲染机不再自动清理）：控制请求单次 30 秒、含重试总共 75 秒（prepare、submit 只试一次），probe 总共 20 秒；上传每 30 秒至少走 256 KB 否则掐断，总期限随包大小（60 秒加大小除以 32 KiB/s，限 120 到 3600 秒，设计值不是实测下限），写完最后一字节就停止没流量检测、只等回复；排队分阶段计时（准备、上传、提交各有截止），--remote-queue-seconds 只是可选上限；渲染中 90 秒没有一次成功的状态应答才放弃（--remote-silent-seconds），日志读不到只提示，不按没有新帧取消；任务号启动时先打印并记入 renders/remote_jobs.log。放弃的任务：abort 信号结束阻塞的调用、不再 submit、submit 应答不明先按原任务号查 status 对账；然后 retire = cancel、等终态、cleanup（busy 重试），先记进 renders/remote_pending_cleanup.json（含属主进程号）再清理，清不掉的留在账本里，下一次渲染开头 sweep，属主进程还活着的不扫。超时则回本机渲染，--remote-cpu 报错退出（正式制作里别默认用）。测试 tests/tools/test_remote_cpu_render_liveness.py 与 test_whiteboard_render_remote_liveness.py（34 个，假进程）。真实停顿下的验证待正式制作中的真实任务（用户决定不单独约故障注入）；渲染机一侧见 docs/remote-render-support-request-20261029-client-liveness.zh-CN.md 与回执 docs/remote-render-replies/2026-10-29-client-liveness.md。"
+    why: "2026-10-28 下午连接停顿，样片、关键帧、整片无声卡住 29、15、6 分钟：上传下载没有整体期限、读状态每次最长 120 秒还重试 4 次；第一版客户端又有缺陷（上传写完后 30 秒没流量就杀 ssh、放弃后还继续 submit、cancel 后立刻 cleanup 被拒、日志卡住被当成状态失联），渲染机回执逐条指出；agent/6 撤掉 6 小时隐式清理后，漏清的任务号会无限占盘"
     from: [Hexp-19]
   - id: E94
     stage: compose

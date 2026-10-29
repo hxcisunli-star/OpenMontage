@@ -14,6 +14,7 @@
 **产出**：renders/final.mp4；render_report.json；final_review.json
 
 **已由脚本拦下**（先跑，红了就改，不要放宽阈值）：
+- **[E93]** 渲染机客户端有活性限时与清理（2026-10-29，agent/6 起渲染机不再自动清理）：控制请求单次 30 秒、含重试总共 75 秒（prepare、submit 只试一次），probe 总共 20 秒；上传每 30 秒至少走 256 KB 否则掐断，总期限随包大小（60 秒加大小除以 32 KiB/s，限 120 到 3600 秒，设计值不是实测下限），写完最后一字节就停止没流量检测、只等回复；排队分阶段计时（准备、上传、提交各有截止），--remote-queue-seconds 只是可选上限；渲染中 90 秒没有一次成功的状态应答才放弃（--remote-silent-seconds），日志读不到只提示，不按没有新帧取消；任务号启动时先打印并记入 renders/remote_jobs.log。放弃的任务：abort 信号结束阻塞的调用、不再 submit、submit 应答不明先按原任务号查 status 对账；然后 retire = cancel、等终态、cleanup（busy 重试），先记进 renders/remote_pending_cleanup.json（含属主进程号）再清理，清不掉的留在账本里，下一次渲染开头 sweep，属主进程还活着的不扫。超时则回本机渲染，--remote-cpu 报错退出（正式制作里别默认用）。测试 tests/tools/test_remote_cpu_render_liveness.py 与 test_whiteboard_render_remote_liveness.py（34 个，假进程）。真实停顿下的验证待正式制作中的真实任务（用户决定不单独约故障注入）；渲染机一侧见 docs/remote-render-support-request-20261029-client-liveness.zh-CN.md 与回执 docs/remote-render-replies/2026-10-29-client-liveness.md。 —— 2026-10-28 下午连接停顿，样片、关键帧、整片无声卡住 29、15、6 分钟：上传下载没有整体期限、读状态每次最长 120 秒还重试 4 次；第一版客户端又有缺陷（上传写完后 30 秒没流量就杀 ssh、放弃后还继续 submit、cancel 后立刻 cleanup 被拒、日志卡住被当成状态失联），渲染机回执逐条指出；agent/6 撤掉 6 小时隐式清理后，漏清的任务号会无限占盘 〔脚本：`tools/video/remote_cpu_render.py、docs/whiteboard_render.py`〕
 - **[E94]** 成片核对里“意外静音”不过时不许手改测量结果：先把实测数字和位置告诉用户，用户决定保留才用 whiteboard_verify.py verify --allow-silence 起 止 原因 登记那一段（起止要与实测相差不超过 0.3 秒、不超过 2.5 秒，对不上就报错）；原因和用户的决定写进成片核对报告，检查点脚本把它从“结尾静音”里排除；其余检查照旧。 —— 金句后一段 1.295 秒的停顿比门槛 1.3 秒只差 0.005 秒，停顿在已批准的配音里；没有登记例外的办法就写不出合成检查点。我加例外功能时第一次漏了把它从结尾静音里排除，报告把结尾静音写成 2.8 秒，发现后已修 〔脚本：`docs/whiteboard_verify.py、docs/whiteboard_finish_compose.py`〕
 - **[E95]** 渲染规划（--plan、--final）对板上每个字符串查是不是媒体文件名；超过 255 字节的串（SVG 路径、长文字）不是文件名，要跳过并容错 OSError。出样片和关键帧不走这段，所以整片规划才会崩，整片渲染前先跑一次 --plan。 —— 第 6 块的长虚线路径串让 media_hashes 抛 File name too long，--plan 和 --final 都崩；样片和关键帧都正常，所以到整片才发现 〔脚本：`docs/whiteboard_render.py`〕
 
@@ -22,7 +23,6 @@
 - **[E58]** 成片核对：verify 量完（ffprobe、响度、静音对问答时间线、黑帧、静止、md5）并生成拼图后，人要逐张看完 renders/review_dense/sheet_*.png（每 4 秒一帧）和 renders/review_cues/sheet.png（问答时刻与结尾），再下“正常”的结论；结尾单独看最后几秒的帧确认最后一句写完；整课渲染后的 4 秒帧才看得出相邻文字贴在同一行；logo、字幕、字形都要看，问答时答案不早于 answer_not_before；看完写 validation/compose-notes.json，再跑 docs/whiteboard_finish_compose.py（报告全部来自实测）。 〔第 16、30、40 课〕
 - **[E59]** freezedetect 在稀疏白板上会报近似静止，要对照帧确认只有小字写入，并如实写进核对。 〔第 33 课〕
 - **[E60]** 已说“成片通过”后才发现缺陷：如实说明、修复、重渲、按 4 秒一帧加问答帧重新核对，发布前请用户重新审看并再说“发布通过”；要重渲已批准的成片先告知用户（第 40 课 K2、K6）。 〔第 16 课〕
-- **[E93]** 渲染机连接停顿时客户端没有活性超时，样片、关键帧、整片都会无声卡住：启动渲染后 120 秒内必须在日志里看到 remote: queued，没有就按进程号停掉改 --local；等待循环不要写成有上限就返回；渲染前先 probe，但 probe 通了不等于上传提交一定通。渲染机侧的回执在 docs/remote-render-replies/2026-10-28-connection-stalls.md（直连 SSH 上传停顿，已改走代理，数天稳定性未验证）。 —— 本课卡过 29、15、6 分钟；用户说远程渲染机非常快，实际样片 80 秒、整片 213 秒，慢的是卡住后的等待和本机回退（本机一段 68 秒样片要 9 分 36 秒） 〔脚本：`tools/video/remote_cpu_render.py`；拟做成脚本：客户端加活性超时（提交前 5 秒 probe，不通直接回退本机；提交后 60 秒没有 queued 或作业开始后 120 秒状态没进展就取消并回退），改 docs/whiteboard_render.py 前要用户同意〕
 
 **已是模板或工具的默认做法**（知道即可，别改掉）：
 - **[E54]** 整课、样片、关键帧默认自动走远程渲染机（失败自动回退本机）；REMOTE_MIN_PART=30、STILLS_LOCAL_MAX=60 已内置，不用加参数；小任务（≤60 张静帧）走本机更快；慢的时候看 remote timing 里的 fetched 与 install 分开判断。 〔第 18 课；脚本：`docs/whiteboard_render.py`〕

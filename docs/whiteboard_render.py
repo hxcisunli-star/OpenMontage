@@ -469,70 +469,136 @@ def build_remote_input(dest, props_path, pub, spec):
     (dest / "jobs.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
 
 
+QUEUE_STAGE_SLACK = 5   # seconds added to the client's own limits when run_remote judges that a queueing phase is stuck (the client normally ends the call first)
+
+
 def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
     """groups: [{"id", "chunks":[{"out","from","to"}], "stills":[{"out","frame"}], "outputs":[(name, dest Path)], "expected":{name:frames}, "workers"?}].
     One remote job per group.  Jobs are queued in parallel, polled in parallel, and each finished job is downloaded in the background while the
-    others keep rendering, then handed to install(group).  Returns the ids of groups that failed (caller falls back to local)."""
+    others keep rendering, then handed to install(group).  Returns the ids of groups that failed (caller falls back to local).
+
+    Liveness (docs/remote-render-client.md): every phase of queueing has its own deadline (prepare, upload sized by the package, submit); a job that does not get queued in time, or whose
+    render agent stops answering `status`, is abandoned: its abort signal ends whatever call is blocked, and it is retired (cancel, wait for the final state, cleanup).  Since agent/6 the render
+    machine removes nothing by itself, so EVERY job id is written to renders/remote_pending_cleanup.json before it is retired and removed from it only when cleanup succeeded; the next run sweeps it."""
+    import threading
     from concurrent.futures import ThreadPoolExecutor, wait
-    from tools.video.remote_cpu_render import RemoteRenderError
+    from tools.video.remote_cpu_render import CleanupLedger, RemoteRenderError
     client, feats = backend["client"], backend["features"]
     runtime = args.remote_runtime
     expected = {n: f for g in groups for n, f in g["expected"].items()}
     prog = Progress(proj / "renders" / "render.log", expected)
-    jobs, failed = [], set()
+    ledger = CleanupLedger(proj / "renders" / "remote_pending_cleanup.json")
+    jobs, failed, all_jobs = [], set(), []
     stamp = int(time.time() * 1000)
     t0 = time.time()
     tm = {}  # phase timings, printed at the end so we see where the time goes
-    pool = ThreadPoolExecutor(max_workers=max(4, 2 * len(groups)))
+    pool = ThreadPoolExecutor(max_workers=max(6, 3 * len(groups)))
+    queue_cap = getattr(args, "remote_queue_seconds", None)       # optional cap on the whole queueing of a job (default: only the per-phase deadlines)
+    silent_seconds = float(getattr(args, "remote_silent_seconds", 90.0))
 
     def since():
         return time.time() - t0
 
-    bg = []  # best-effort cleanups running in the background: they must never hold up the render
+    bg = []  # retire tasks running in the background: they must never hold up the render
 
-    def tidy(job, cancel):
+    def note(job, event):
+        """One line per job event in renders/remote_jobs.log: after a crash or a stall the ids of the jobs that may still exist on the render machine are on record."""
+        try:
+            with (proj / "renders" / "remote_jobs.log").open("a", encoding="utf-8") as fh:
+                fh.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {job['id']} {job['group']['id']} {event}\n")
+        except OSError:
+            pass
+
+    def retire_job(job, cancel):
+        """cancel (unless the job finished normally) -> final state -> cleanup.  The ledger entry is written FIRST, so a job is never lost even if this process ends in the middle."""
         t1 = time.time()
-        for fn in ((client.cancel, client.cleanup) if cancel else (client.cleanup,)):
-            try:
-                fn(job["id"])
-            except Exception:  # noqa: BLE001 - best effort
-                pass
-        if time.time() - t1 > 10:
-            print(f"remote: cleanup of {job['id']} took {time.time() - t1:.0f}s", flush=True)
+        try:
+            ledger.add(job["id"], "retire in progress")
+            res = client.retire(job["id"], cancel=cancel)
+        except Exception as exc:  # noqa: BLE001 - whatever happened, the id stays in the ledger
+            res = {"cleaned": False, "state": None, "note": f"retire raised: {str(exc)[:160]}"}
+        if res["cleaned"]:
+            ledger.remove(job["id"])
+            note(job, f"retired, cleaned up on the render machine ({time.time() - t1:.0f}s)")
+        else:
+            ledger.add(job["id"], res["note"])
+            note(job, f"NOT cleaned up, kept in the pending-cleanup ledger: {res['note']}")
+            print(f"remote: job {job['id']} is not cleaned up yet ({res['note']}); it stays in {ledger.path.name} and is retried by the next run", flush=True)
+        return res
 
     def drop(job, background=True):
+        """Give up on a job: stop whatever call of it is blocked, then retire it."""
+        job["abort"].set()
         if background:
-            bg.append(pool.submit(tidy, job, True))
+            bg.append(pool.submit(retire_job, job, True))
         else:
-            tidy(job, True)
+            retire_job(job, True)
 
-    def queue(g):
-        job = {"id": f"om-{sha(proj.name.encode())[:10]}-{g['id']}-{stamp}".lower(), "group": g, "shown": 0, "offset": 0, "state": None}
+    def new_job(g):
+        job = {"id": f"om-{sha(proj.name.encode())[:10]}-{g['id']}-{stamp}".lower(), "group": g, "shown": 0, "offset": 0, "state": None, "stage": "new", "abort": threading.Event(),
+               "t_start": time.time(), "last_status_ok": time.time(), "stage_deadline": time.time() + 300}
+        all_jobs.append(job)
+        return job
+
+    def dir_size(path):
+        return sum(p.stat().st_size for p in Path(path).rglob("*") if p.is_file())
+
+    def queue(job):
+        g = job["group"]
+        ab = job["abort"]
+
+        def stage(name, budget):
+            if ab.is_set():
+                raise RemoteRenderError("aborted by the caller")
+            job["stage"], job["stage_deadline"] = name, time.time() + budget
+
         spec = {"propsPath": "props.json", "publicDir": "public", "composition": "Explainer", "concurrency": backend["tabs"],
                 "workers": g.get("workers") or backend["workers"], "timeoutMs": 7200000, "chunks": g["chunks"], "stills": g["stills"], "render": backend.get("render") or {},
                 "composer_hash": composer_hash(), "lock_sha256": sha((COMPOSER / "package-lock.json").read_bytes())}
         try:
             with tempfile.TemporaryDirectory(prefix=".remote-in-", dir=cleanup_dir) as tmp:
+                stage("build", 300)
                 build_remote_input(Path(tmp) / "input", pp, pub, spec)
-                client.prepare(job["id"]); client.upload(job["id"], Path(tmp) / "input"); client.submit(job["id"], runtime)
+                size = dir_size(Path(tmp) / "input")
+                stage("prepare", client.CALL_DEADLINE + QUEUE_STAGE_SLACK)
+                client.prepare(job["id"], abort=ab)
+                stage("upload", client.upload_deadline(size) + client.REPLY_TIMEOUT + 2 * QUEUE_STAGE_SLACK)
+                client.upload(job["id"], Path(tmp) / "input", abort=ab)
+                stage("submit", client.CALL_DEADLINE + QUEUE_STAGE_SLACK)
+                try:
+                    client.submit(job["id"], runtime, abort=ab)
+                except RemoteRenderError as exc:
+                    if ab.is_set():
+                        raise
+                    # the answer may have been lost although the job was queued: ask about the ORIGINAL id before deciding anything (never submit it again, never take another id)
+                    try:
+                        state = client.status(job["id"], abort=ab).get("state")
+                    except RemoteRenderError as exc2:
+                        raise RemoteRenderError(f"submit answer unclear ({str(exc)[:80]}) and status failed too ({str(exc2)[:80]})") from exc2
+                    if state in ("failed", "canceled"):
+                        raise RemoteRenderError(f"submit: the job is {state}") from exc
+                    note(job, f"submit answer was unclear ({str(exc)[:80]}); the render machine reports {state}: carrying on")
+            job["stage"], job["last_status_ok"] = "queued", time.time()
             return job, None
         except RemoteRenderError as exc:
             return job, exc
 
-    def poll(job):
+    def poll_status(job):
         st = client.status(job["id"])
-        state, text, offset, shown = st.get("state"), "", job["offset"], job["shown"]
-        if state in ("running", "completed", "failed"):  # stream the log of jobs that are (or were) running
-            if "log_offset" in feats:
-                r = client.logs(job["id"], job["offset"]); text, offset = r.get("log", ""), r.get("next", job["offset"])
-            else:
-                full = client.logs(job["id"]).get("log", ""); text, shown = full[job["shown"]:], len(full)
-        return st, state, text, offset, shown
+        job["last_status_ok"] = time.time()    # silence is judged by `status` alone: a logs call that hangs must not look like a dead render agent
+        return st
+
+    def poll_logs(job):
+        if "log_offset" in feats:
+            r = client.logs(job["id"], job["offset"])
+            return r.get("log", ""), r.get("next", job["offset"]), job["shown"]
+        full = client.logs(job["id"]).get("log", "")
+        return full[job["shown"]:], job["offset"], len(full)
 
     def fetch(job):
         out = Path(tempfile.mkdtemp(prefix=".remote-out-", dir=cleanup_dir))
         try:
-            client.download(job["id"], out)
+            client.download(job["id"], out, abort=job["abort"])
             for name, dest in job["group"]["outputs"]:
                 src = out / name
                 if not src.is_file():
@@ -543,21 +609,62 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
             shutil.rmtree(out, ignore_errors=True)
 
     try:
-        for fut in [pool.submit(queue, g) for g in groups]:
-            job, exc = fut.result()
-            if exc is None:
-                jobs.append(job)
-                print(f"remote: queued {job['group']['id']} ({job['id']})", flush=True)
-            else:
-                print(f"remote: could not queue {job['group']['id']}: {str(exc)[:200]}", flush=True)
-                drop(job); failed.add(job["group"]["id"])
+        if ledger.pending():   # jobs of earlier runs whose cleanup did not finish: retry in the background
+            bg.append(pool.submit(client.sweep, ledger, lambda m: print(m, flush=True)))
+        new_jobs = [new_job(g) for g in groups]
+        for job in new_jobs:   # the id is printed and written down BEFORE the first call, so a job that gets stuck can be found and cancelled by hand
+            print(f"remote: preparing {job['group']['id']} ({job['id']})", flush=True)
+            note(job, "preparing")
+            ledger.add(job["id"], "queueing")
+        pending = {pool.submit(queue, job): job for job in new_jobs}
+        while pending:   # every job must get queued within the deadline of the phase it is in (and within --remote-queue-seconds when given)
+            done, _ = wait(list(pending), timeout=1.0)
+            for fut in done:
+                job = pending.pop(fut)
+                job, exc = fut.result()
+                if exc is None:
+                    jobs.append(job)
+                    print(f"remote: queued {job['group']['id']} ({job['id']})", flush=True)
+                    note(job, f"queued after {time.time() - job['t_start']:.0f}s")
+                else:
+                    print(f"remote: could not queue {job['group']['id']} (stage {job['stage']}): {str(exc)[:200]}", flush=True)
+                    note(job, f"could not queue at {job['stage']}: {str(exc)[:120]}")
+                    drop(job); failed.add(job["group"]["id"])
+            now = time.time()
+            for fut, job in list(pending.items()):
+                over_stage = now > job["stage_deadline"]
+                over_cap = queue_cap is not None and now - job["t_start"] > float(queue_cap)
+                if over_stage or over_cap:
+                    why = f"stuck at {job['stage']} past its deadline" if over_stage else f"not queued within {float(queue_cap):.0f}s"
+                    print(f"remote: no answer for {job['group']['id']} ({why}); cancelling {job['id']} and rendering locally", flush=True)
+                    note(job, f"{why}: abort sent, retiring, local fallback")
+                    drop(job); failed.add(job["group"]["id"])
+                    del pending[fut]
         tm["queued"] = since()
         deadline = time.time() + args.remote_timeout
         while jobs:
             round_start = time.time()
-            polls = {j["id"]: pool.submit(poll, j) for j in jobs if "fetch" not in j}  # all jobs asked at the same time
+            for j in jobs:   # one status poll and one logs poll per job at a time; a call that hangs is not asked again, and does not hold up the others
+                if "fetch" not in j and j.get("poll") is None:
+                    j["poll"] = pool.submit(poll_status, j)
+                if j["state"] in ("running", "completed", "failed") and j.get("lpoll") is None:
+                    j["lpoll"] = pool.submit(poll_logs, j)
+            waiting = [f for j in jobs for f in (j.get("poll"), j.get("lpoll")) if f is not None]
+            if waiting:
+                wait(waiting, timeout=max(0.5, min(args.remote_poll_seconds + 12, silent_seconds / 3)))
             for job in list(jobs):
                 g = job["group"]
+                lf = job.get("lpoll")
+                if lf is not None and lf.done():
+                    job["lpoll"] = None
+                    try:
+                        text, job["offset"], job["shown"] = lf.result()
+                        for line in text.splitlines():
+                            prog.feed(line)
+                    except RemoteRenderError as exc:   # logs are only for progress: a failing logs call never cancels a job
+                        if not job.get("logs_warned"):
+                            job["logs_warned"] = True
+                            print(f"remote: logs of {g['id']} not available for now ({str(exc)[:100]}); the render itself is not affected", flush=True)
                 if "fetch" in job:
                     if not job["fetch"].done():
                         continue
@@ -567,17 +674,26 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
                         g["rendered_by"] = "remote"
                         install(g)
                         tm["installed"] = since()
-                        bg.append(pool.submit(tidy, job, False))
+                        bg.append(pool.submit(retire_job, job, False))   # finished normally: cleanup only (no cancel)
                     except (RemoteRenderError, SystemExit) as exc:  # bad/missing download or a part that fails verification
                         print(f"remote: {g['id']} result rejected: {str(exc)[:200]}", flush=True)
+                        note(job, f"result rejected: {str(exc)[:120]}")
                         failed.add(g["id"]); drop(job)
                     jobs.remove(job)
                     continue
+                pf = job["poll"]
+                if not pf.done():   # no answer yet: how long has the render agent been silent?
+                    silent = time.time() - job["last_status_ok"]
+                    if silent > silent_seconds:
+                        print(f"remote: no answer from the render agent for {silent:.0f}s ({g['id']}, {job['id']}); cancelling it and rendering locally", flush=True)
+                        note(job, f"silent for {silent:.0f}s: abort sent, retiring, local fallback")
+                        failed.add(g["id"]); drop(job); jobs.remove(job)
+                    continue
+                job["poll"] = None
                 try:
-                    st, state, text, job["offset"], job["shown"] = polls[job["id"]].result()
+                    st = pf.result()
+                    state = st.get("state")
                     job["errors"] = 0
-                    for line in text.splitlines():
-                        prog.feed(line)
                     if state != job["state"]:
                         job["state"] = state
                         if state not in ("queued", None):
@@ -589,11 +705,14 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
                         job["fetch"] = pool.submit(fetch, job)  # download in the background; the other jobs keep being polled
                     elif state in ("failed", "canceled"):
                         print(f"remote: {g['id']} {state}: {str(st.get('error'))[:300]}", flush=True)
+                        note(job, f"{state}")
                         failed.add(g["id"]); drop(job); jobs.remove(job)
-                except RemoteRenderError as exc:  # the client already retried; give up on this job after 3 rounds of that
+                except RemoteRenderError as exc:  # the client already retried; give up on this job after 3 rounds of that, or after silent_seconds without one good answer
                     job["errors"] = job.get("errors", 0) + 1
-                    if job["errors"] >= 3:
+                    silent = time.time() - job["last_status_ok"]
+                    if job["errors"] >= 3 or silent > silent_seconds:
                         print(f"remote: channel problem for {g['id']} ({str(exc)[:160]}); it will render locally", flush=True)
+                        note(job, f"channel problem after {silent:.0f}s without an answer: {str(exc)[:120]}")
                         failed.add(g["id"]); drop(job); jobs.remove(job)
             if jobs:
                 if time.time() > deadline:
@@ -603,13 +722,19 @@ def run_remote(proj, args, backend, pp, pub, groups, install, cleanup_dir):
                     break
                 time.sleep(max(0.5, args.remote_poll_seconds - (time.time() - round_start)))
     except BaseException:
-        for j in jobs:
-            drop(j, background=False)  # Ctrl-C and errors: the cancel must really be sent
+        for j in all_jobs:
+            if not j["abort"].is_set():
+                drop(j, background=False)  # Ctrl-C and errors: the cancel must really be sent, and the cleanup waited for (idempotent for a job that is already gone)
         raise
     finally:
-        wait(bg, timeout=10)  # then give up on stragglers; the agent also cleans old jobs by itself
+        for j in all_jobs:
+            j["abort"].set()   # ends any call of a job that is still blocked, so that no thread keeps the interpreter from exiting
+        wait(bg, timeout=90)   # cancel -> final state -> cleanup takes up to ~50 s; what is still open is in the ledger and is retried by the next run
         pool.shutdown(wait=False, cancel_futures=True)
         prog.close()
+        left = ledger.pending()
+        if left:
+            print(f"remote: {len(left)} job(s) not cleaned up on the render machine yet: {', '.join(sorted(left))} (see {ledger.path})", flush=True)
         if tm:
             print("remote timing: " + ", ".join(f"{k.replace('_', ' ')} {v:.0f}s" for k, v in tm.items()) + f", total {since():.0f}s", flush=True)
     return failed
@@ -939,6 +1064,8 @@ def main():
     ap.add_argument("--remote-port", type=int, default=None, help="default: OPENMONTAGE_RENDER_PORT")
     ap.add_argument("--min-part", type=int, default=None, help="shortest part (frames) a chunk may be split into (default 120); longer parts mean fewer Chrome start-ups")
     ap.add_argument("--remote-poll-seconds", type=float, default=3.0)
+    ap.add_argument("--remote-queue-seconds", type=float, default=None, help="optional cap on the whole queueing of a job (prepare, upload, submit); default: only the deadlines of each phase (the upload deadline grows with the package size)")
+    ap.add_argument("--remote-silent-seconds", type=float, default=90.0, help="a queued or running job whose render agent gives no good status answer for this many seconds is cancelled and renders locally")
     ap.add_argument("--remote-timeout", type=float, default=8 * 60 * 60)
     args = ap.parse_args()
     proj = Path(args.proj).resolve()

@@ -86,6 +86,27 @@ python3 tools/video/remote_cpu_render.py cleanup JOB_ID
 
 v1 也已应用相同的 browser executable 补丁，但新任务统一使用 v2。运行时目录和浏览器目录归 `openmontage-render` 服务使用，不从本机项目树读取依赖。
 
+## 活性限时与清理（2026-10-29 起）
+2026-10-28 下午连接停顿时，样片、关键帧、整片都无声卡住过 29、15、6 分钟：上传和下载没有整体期限，读状态每次最长 120 秒还重试 4 次。现在每一步都有时限，超时就报错，`docs/whiteboard_render.py` 放弃该任务并回退本机渲染（`--remote-cpu` 则报错退出、不回退；正式制作里别默认用它）。数值依据渲染机的回执（`docs/remote-render-replies/2026-10-28-connection-stalls.md` 第二节第 6 项、`2026-10-29-client-liveness.md` 的“144 客户端待改项”）。
+
+| 环节 | 限制 | 在哪里改 |
+|---|---|---|
+| ssh 握手 | 15 秒；ServerAlive 10 秒×3，约 30 秒发现断链 | `RemoteRenderClient.CONNECT_TIMEOUT`、`ALIVE_*` |
+| 探测 `probe` | 单次 10 秒，总共 20 秒 | `PROBE_TIMEOUT`、`PROBE_DEADLINE` |
+| 控制请求（prepare、submit、status、logs、cancel、cleanup） | 单次 30 秒，含重试总共 75 秒；只读请求最多再试两次、间隔 2 秒；prepare 和 submit 只试一次（重试可能重复提交） | `CALL_TIMEOUT`、`CALL_DEADLINE` |
+| 上传 | 每 30 秒至少要走 256 KB，否则杀掉 ssh 报 `stalled`；总期限随包大小：60 秒 + 大小÷32 KiB/s，限在 120–3600 秒（**32 KiB/s 是设计值，不是实测下限**；健康时 31.8 MB 约 7 秒）；**最后一个字节写完就停止“没流量”检测**，之后只等回复，最多 120 秒 | `STALL_*`、`UPLOAD_*`、`REPLY_TIMEOUT` |
+| 下载 | 同样每 30 秒至少 256 KB，第一个字节前多给 30 秒；一次最长 900 秒 | `STALL_*`、`STREAM_DEADLINE` |
+| 排队（准备、上传、提交） | **分阶段**各有截止时间（准备、提交各约 80 秒，上传 = 上传总期限 + 回复 + 10 秒），哪一阶段超了就放弃；`--remote-queue-seconds` 可选，给了就再加一道整体上限；启动时先打印并记下任务号（`remote: preparing … (任务号)`，同时写进 `projects/<课程>/renders/remote_jobs.log`） | `QUEUE_STAGE_SLACK`、`--remote-queue-seconds` |
+| 渲染中 | 90 秒内没有一次成功的**状态**应答，就放弃；日志读不到只提示、不取消；**不按“没有新帧”取消** | `--remote-silent-seconds` |
+| 放弃后 | 每个任务有 `abort` 信号：上传、下载和重试循环看到就立刻结束；放弃后**不再 submit**；submit 应答不明时先按**原任务号**查 `status`：已排队、运行中、已完成就当作已排队继续，终态失败或 unknown 才算失败，绝不换号重交 | |
+
+**渲染机不再自动清理（agent/6 起）。**原来的 6 小时隐式清理已撤除，一次上传最多可占 48 GiB，所以每个任务号都必须由客户端显式清掉：
+- 放弃或失败的任务：`retire` = `cancel` → 等到终态（canceled、completed、failed 或 unknown job，最多约 40 秒）→ `cleanup`；`cleanup` 遇到 `busy`（上传或下载还占着锁）重试 3 次、间隔 5 秒。正常完成并装好之后只做 `cleanup`，不 cancel。
+- **先记账再清理**：任务号一出生就写进 `projects/<课程>/renders/remote_pending_cleanup.json`（含属主进程号），清理成功才删；清不掉的留在里面，结束时会打印。下一次渲染开头在后台 `sweep`（对账本里的号重试），**属主进程还活着的任务不扫**（别的渲染正在用）。
+- 手工：`python3 tools/video/remote_cpu_render.py retire <任务号>`（加 `--no-cancel` 表示已正常完成）、`sweep <账本文件>`；也可以单独 `cancel`、`cleanup`。
+
+测试：`.venv/bin/python -m pytest tests/tools/test_remote_cpu_render_liveness.py tests/tools/test_whiteboard_render_remote_liveness.py`（假进程和按 agent/6 回答的假客户端，不联网，34 个）。限制与渲染机一侧的配合事项见 `docs/remote-render-support-request-20261029-client-liveness.zh-CN.md`。**真实停顿下的保护还没有在真实通道里测过**（用户决定不单独约故障注入，改为正式制作中的真实任务检测）。
+
 ## 服务检查
 
 本机执行：
