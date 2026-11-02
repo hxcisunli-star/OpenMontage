@@ -4,7 +4,7 @@
 # 晋升规则：停在“清单”级、却出现在 ≥3 课的笔记里（见 stats），就该做成检查或默认。
 # from：来源编号（P6-n＝手册 §6 踩坑行，Hn-k＝交接文档归档里第 n 课的笔记子句，Ln-k＝手册逐课“教训”）；seen_extra：来源行里点名、但没有编号的课。
 version: 1
-updated: "2026-10-29"
+updated: "2026-11-02"
 
 stages:
   any:
@@ -744,6 +744,30 @@ entries:
     by: docs/whiteboard_prepend_cover.py
     rule: "重跑 finish_publish.py 后，exports/metadata/description.txt 末尾“章节时间轴”下的章节行是没加封面偏移的旧时间（差 2 秒），而 chapters.txt 和 metadata.json 是已偏移的；成品包用后两者，不受影响，但这份 description.txt 要改成与 chapters.txt 一致。拟让 whiteboard_prepend_cover.py 顺带改写这一份（改共用工具要先跑回测）。"
     why: "第 1 课重跑导出后发现 description.txt 里是 1:22，视频里实际在 1:24；之前这份文件章节行是空的，没人发现。"
+    from: [ext:agent第1课复盘]
+  - id: E106
+    stage: compose
+    level: 清单
+    rule: "已通过的成片要改一块板书重渲时：先读 build_parts.py／_build_tail.py——build_one.sh 是部分构建，会把 whiteboard_scenes／edit_decisions／render_props 写成只剩一块；整片要用 rebuild_edit.sh 完整构建，并立刻比对没动的块的 JSON 逐字相同。构建会把 render_props 的旁白换回无音效版，必须再跑 whiteboard_sfx.py apply，并带上已通过那一档（--cues 与用户在样片页选的一致）。新加画面项后看三样：lint 警告数没有增加；whiteboard_sfx.py cues 没有多出不想要的声音（实心路径不透明度≥0.9 会被当成“便条出现”加一声弹出）；先用 --stills 抽几帧看版面。渲完：前面没动的段落用 ffmpeg psnr 逐帧比旧成片应全为无穷大，声音解码后逐采样比，差异只能在改动处。"
+    why: "第 1 课 D12：第一版 backlog 写的是 build_one.sh（错的）；默认档重混会让 82 秒的声音和已通过成片不同（用户选的是全量档），是解码后逐采样比对才看出来；第一版槽二亮边用填色，让 lint 多一条对比度警告，改成只亮边又多出一声弹出，要把不透明度压到 0.9 以下。"
+    from: [ext:agent第1课复盘]
+  - id: E107
+    stage: edit
+    level: 清单
+    rule: "剪辑检查点里的“sfx: 只有答案叮声（default profile light）”是 finish_edit.py 写死的字符串，与实际音效档无关。音效档以用户在样片页的回读和 compose-notes 里记的为准；要核实际档位，用 whiteboard_sfx.py cues（默认档）和 --cues all 各列一遍，对照成片声音。拟让 finish_edit 从 render_props 和音点清单读出实际档位再写（改起步脚本要先说）。"
+    why: "第 1 课检查点写“只有叮声”，用户选的是全量档（161 个音点），成片也是全量；发现于第二轮重渲前，若信了检查点会把整片声音悄悄改成只有叮声。"
+    from: [ext:agent第1课复盘]
+  - id: E108
+    stage: publish
+    level: 清单
+    rule: "书、简介、图注、结果文件里写“人工标注／人工逐条读／人工设计／真人”之前，核对到底是谁做的：AI 模型做的就写“AI 模型”，并写明几路、互相看没看、有没有真人。阴性结论里“其余的都……”这类概括，在那些组标完之前不能写成结论；标完后回头 grep 所有出处（结果文件、书、记忆、简介）逐处更正，旧文保留并追加更正。"
+    why: "第 1 课书里写“人工逐条标注”，实际是 Claude 一路读；结果文件写“换一个模型都说不存在或无法确认”，写那句时 Qwen 其他设置还没标，补标后 Qwen 默认思考 30 个里有 1 个编造。是补标后回读才发现。"
+    from: [ext:agent第1课复盘]
+  - id: E109
+    stage: any
+    level: 清单
+    rule: "写“连跑两次结果不变”的检查时，逐次取脚本自己的退出码（每次 echo exit=$?）并分别 cmp 文件；不要写成 `脚本 | tail && cmp`——管道只给最后一个命令的退出码，脚本中途断言失败，cmp 比的是没被改写的两个文件，会误报“幂等”。"
+    why: "第 1 课第二轮：装配脚本第二次运行抛出 AssertionError（后加的替换对改掉了早先一对的旧文），被 `| tail` 吞了，输出里“run2 == run1 (idempotent)”是假的；靠读到输出里的错误才发现。"
     from: [ext:agent第1课复盘]
 
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）

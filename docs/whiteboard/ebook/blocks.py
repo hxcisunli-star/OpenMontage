@@ -77,6 +77,20 @@ def labels(r):
     return f'<div class="scroll"><table class="t"><tr><th>问法</th><th>编造</th><th>无法确认／说不存在</th><th>套话</th></tr>{rows}</table></div>'
 
 
+MODE_TEXT = {"think_off": "关闭思考", "think_default": "默认（思考开）"}
+
+
+def labels_all(r):
+    """The 12 groups (2 models x 2 thinking settings x 3 questions, 10 answers each) in one table, with a total row."""
+    rows = "".join(f'<tr><td>{esc(x["model"])}</td><td>{esc(MODE_TEXT[x["mode"]])}</td><td>{esc(LABEL_CASE.get(x["case"], x["case"]))}</td>'
+                   f'<td class="{"bad" if x["counts"].get("fabricated") else ""}">{x["counts"].get("fabricated", 0)} 遍</td><td>{x["counts"].get("declined", 0)} 遍</td><td>{x["counts"].get("canned", 0)} 遍</td></tr>'
+                   for x in r["rows"])
+    t = r["totals"]
+    total = (f'<tr><td colspan="3"><b>合计 {sum(t.values())} 个回答</b></td><td class="{"bad" if t.get("fabricated") else ""}"><b>{t.get("fabricated", 0)} 遍</b></td>'
+             f'<td><b>{t.get("declined", 0)} 遍</b></td><td><b>{t.get("canned", 0)} 遍</b></td></tr>')
+    return f'<div class="scroll"><table class="t"><tr><th>模型（网关标称名）</th><th>思考设置</th><th>问法</th><th>编造</th><th>无法确认／说不存在</th><th>套话</th></tr>{rows}{total}</table></div>'
+
+
 def task(r):
     """A small real task: the prompt, one real answer (shown whole, folded when long) and how many runs there were.  Used for 'what it is good at' examples."""
     ans = r["answer"]
@@ -99,7 +113,9 @@ def show(b, ctx):
         body, cap = task(r), caliber(r)
     elif r["kind"] == "labels":
         main = ctx.records["H1_open_ds"]
-        body, cap = labels(r), f"主模型 {main['model']} · {main['date']} · 关闭思考 · 人工逐条标注 · 每个问法 10 遍"
+        body, cap = labels(r), f"主模型 {main['model']} · {main['date']} · 关闭思考 · 逐条标注（AI 模型标注，没有真人） · 每个问法 10 遍"
+    elif r["kind"] == "labels_all":
+        body, cap = labels_all(r), f"模型名都是{r['model_note']} · {r['date']} · 每个问法 10 遍 · 标注人：{r['labelers']}"
     elif r["kind"] == "stat":
         body = (f'<p>同一句“{esc(r["prompt"])}”：关闭思考时，送进模型的内容长度是 {"、".join(map(str, r["think_off_prompt_tokens"]))}，默认思考时是 {"、".join(map(str, r["think_default_prompt_tokens"]))}'
                 "（单位叫“词元”，不一定正好是一个字，这一章先不展开）。</p>")

@@ -23,6 +23,7 @@
 - **[E58]** 成片核对：verify 量完（ffprobe、响度、静音对问答时间线、黑帧、静止、md5）并生成拼图后，人要逐张看完 renders/review_dense/sheet_*.png（每 4 秒一帧）和 renders/review_cues/sheet.png（问答时刻与结尾），再下“正常”的结论；结尾单独看最后几秒的帧确认最后一句写完；整课渲染后的 4 秒帧才看得出相邻文字贴在同一行；logo、字幕、字形都要看，问答时答案不早于 answer_not_before；看完写 validation/compose-notes.json，再跑 docs/whiteboard_finish_compose.py（报告全部来自实测）。 〔第 16、30、40 课〕
 - **[E59]** freezedetect 在稀疏白板上会报近似静止，要对照帧确认只有小字写入，并如实写进核对。 〔第 33 课〕
 - **[E60]** 已说“成片通过”后才发现缺陷：如实说明、修复、重渲、按 4 秒一帧加问答帧重新核对，发布前请用户重新审看并再说“发布通过”；要重渲已批准的成片先告知用户（第 40 课 K2、K6）。 〔第 16 课〕
+- **[E106]** 已通过的成片要改一块板书重渲时：先读 build_parts.py／_build_tail.py——build_one.sh 是部分构建，会把 whiteboard_scenes／edit_decisions／render_props 写成只剩一块；整片要用 rebuild_edit.sh 完整构建，并立刻比对没动的块的 JSON 逐字相同。构建会把 render_props 的旁白换回无音效版，必须再跑 whiteboard_sfx.py apply，并带上已通过那一档（--cues 与用户在样片页选的一致）。新加画面项后看三样：lint 警告数没有增加；whiteboard_sfx.py cues 没有多出不想要的声音（实心路径不透明度≥0.9 会被当成“便条出现”加一声弹出）；先用 --stills 抽几帧看版面。渲完：前面没动的段落用 ffmpeg psnr 逐帧比旧成片应全为无穷大，声音解码后逐采样比，差异只能在改动处。 —— 第 1 课 D12：第一版 backlog 写的是 build_one.sh（错的）；默认档重混会让 82 秒的声音和已通过成片不同（用户选的是全量档），是解码后逐采样比对才看出来；第一版槽二亮边用填色，让 lint 多一条对比度警告，改成只亮边又多出一声弹出，要把不透明度压到 0.9 以下。
 
 **已是模板或工具的默认做法**（知道即可，别改掉）：
 - **[E54]** 整课、样片、关键帧默认自动走远程渲染机（失败自动回退本机）；REMOTE_MIN_PART=30、STILLS_LOCAL_MAX=60 已内置，不用加参数；小任务（≤60 张静帧）走本机更快；慢的时候看 remote timing 里的 fetched 与 install 分开判断。 〔第 18 课；脚本：`docs/whiteboard_render.py`〕
