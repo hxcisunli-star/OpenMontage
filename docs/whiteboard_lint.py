@@ -11,6 +11,10 @@ Checks (each one is a mistake we already paid for, see docs/whiteboard-course-pl
   ERROR  a non-circle item starts inside a quiz silence (question_end+0.3 .. answer_not_before) -> answer shown too early
   WARN   other non-ASCII in mono text; non-ASCII memory-cell names; lowercase c/o in hand text; file-name / call / long Latin word mixed with Chinese in a hand-font write
   WARN   estimated text boxes that are visible at the same time and overlap (an ESTIMATE, only for `write` items: the measured check is docs/whiteboard_layout_check.py)
+Reminders borrowed from huashu-art-motion (MIT, evaluated 2026-11-01; WARN only, the numbers are its author's measurements of other people's videos, not checked against our own cuts yet):
+  WARN   a camera move (scale or centre differs from the previous key) without `kind` (缓推 / 拉远 / 横移 / 快推 / 砸入) or without `why` (what the viewer should look at now); a `kind` outside that list;
+         a move whose length (this key's `at` minus the previous key's) is outside the range of its kind: 缓推 / 拉远 / 横移 0.6-1.5 s, 快推 0.25-0.35 s, 砸入 0.1-0.2 s
+  WARN   hand-font writes longer than 8 characters (one WARN per cut): the board takes short words, long sentences belong to the narration and the subtitles
 New optional fields (layer / move / rot / origin / fill / path / camera, see WhiteboardScene.tsx):
   ERROR  code `lang` other than "c" / "py"; layer other than "top"; a `move` key without a numeric `at`; a `path` stroke without a `d` string; a fill or fillOpacity that is not a colour string / a number
          in 0..1; a camera key with scale < 1 (the board edge would show) or without a numeric `at`
@@ -25,6 +29,8 @@ from pathlib import Path
 CJK = re.compile(r"[\u2e80-\u9fff\uff00-\uffef\u3000-\u303f]")
 MONO_SAFE = "\u2192\u2018\u2019\u201c\u201d\u2026\u00b7\u00d7\u2190\u2191\u2193"  # glyphs the mono font really has (seen rendered)
 MIN_VERTICAL_GAP = 88
+CAMERA_KINDS = {"缓推": (0.6, 1.5), "拉远": (0.6, 1.5), "横移": (0.6, 1.5), "快推": (0.25, 0.35), "砸入": (0.1, 0.2)}   # seconds a move of that kind takes
+MAX_HAND_CHARS = 8
 MIXED_LATIN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z0-9]+|[A-Za-z_][A-Za-z0-9_]*\(|[A-Za-z]{5,}")  # name.ext, call(, or a long Latin word
 
 
@@ -95,6 +101,25 @@ def check_camera(cid, wb, errors, warns):
             errors.append(f"{cid}: camera scale {k['scale']} < 1 would show the edge of the board")
         if (k.get("cx") is not None and not 0 <= k["cx"] <= 1920) or (k.get("cy") is not None and not 0 <= k["cy"] <= 1080):
             warns.append(f"{cid}: camera centre ({k.get('cx')}, {k.get('cy')}) is outside the canvas")
+    keys = sorted((k for k in wb.get("camera") or [] if isinstance(k, dict) and isinstance(k.get("at"), (int, float))), key=lambda k: k["at"])
+    untagged = []
+    for prev, k in zip(keys, keys[1:]):
+        kind = k.get("kind")
+        if kind is not None and kind not in CAMERA_KINDS:
+            warns.append(f"{cid} @{k['at']:.1f}s: camera kind {kind!r} is not one of {'／'.join(CAMERA_KINDS)}")
+        same = lambda a, b: abs((a if a is not None else 1) - (b if b is not None else 1)) < 1e-6
+        moved = not same(k.get("scale"), prev.get("scale")) or (k.get("cx") is not None and k.get("cx") != prev.get("cx")) or (k.get("cy") is not None and k.get("cy") != prev.get("cy"))
+        if not moved:
+            continue
+        if not kind or not k.get("why"):
+            untagged.append(f"@{k['at']:.1f}s")
+        elif kind in CAMERA_KINDS:
+            lo, hi = CAMERA_KINDS[kind]
+            length = k["at"] - prev["at"]
+            if not lo - 0.05 <= length <= hi + 0.05:
+                warns.append(f"{cid} @{k['at']:.1f}s: {kind}用了 {length:.2f} 秒，常见范围是 {lo}-{hi} 秒（过渡用缓的，重音才用快的）")
+    if untagged:
+        warns.append(f"{cid}: {len(untagged)} 个镜头动作（{'、'.join(untagged)}）没写 kind（{'／'.join(CAMERA_KINDS)}）和 why（观众这一刻该看哪）：动镜头前先答“看哪、过渡还是重音、上一镜动作是什么”")
 
 
 def _span(it):
@@ -172,6 +197,7 @@ def lint_props(props, quiz=None):
         check_camera(cid, wb, errors, warns)
         check_contrast(cid, wb, base, warns)
         boxes = []  # (x0, y0, x1, y1, t0, t1, label)
+        long_hand = []
         for it in wb.get("items", []):
             kind = it.get("kind")
             check_new_fields(cid, it, where, errors, warns)
@@ -189,6 +215,8 @@ def lint_props(props, quiz=None):
                         errors.append(f"{where(it)}: {bad!r} in HAND-font write (drawn as squares; write in mono): {text!r}")
                     elif re.search(r"[co]", text):
                         warns.append(f"{where(it)}: lowercase c/o in hand-font write (square glyphs?): {text!r}")
+                    if len(text.replace(" ", "")) > MAX_HAND_CHARS:
+                        long_hand.append(text)
                     if CJK.search(text) and MIXED_LATIN.search(text):  # lesson 40: `list.txt` written in the hand font next to Chinese looked wrong; split into hand + mono
                         warns.append(f"{where(it)}: file name / call / code-like Latin mixed into a CJK hand-font write; split it into hand text + a mono write: {text!r}")
                 size = float(it.get("size", 60))
@@ -217,6 +245,9 @@ def lint_props(props, quiz=None):
                         gap = abs(ty - fy) - f.get("h", 130) / 2 - t.get("h", 130) / 2
                         if gap < MIN_VERTICAL_GAP:
                             errors.append(f"{where(a)}: vertical memory arrow {a['from']}->{a['to']} gap {gap:.0f}px (< {MIN_VERTICAL_GAP})")
+        if long_hand:
+            longest = max(long_hand, key=len)
+            warns.append(f"{cid}: {len(long_hand)} 条手写文字超过 {MAX_HAND_CHARS} 字（最长 {len(longest.replace(' ', ''))} 字：{longest[:16]!r}）。板上写短词，长句交给旁白和字幕；确有必要就留着（这只是提醒）")
         # simultaneous text overlap (estimates only)
         for i in range(len(boxes)):
             for j in range(i + 1, len(boxes)):

@@ -9,18 +9,20 @@ c:
   cover_cast: null                          # null＝封面用 C 篇的医生图
   forbid_terms: []
 agent:
-  name: null                                # 系列名由用户另定；没定时封面与成品包明确报错，不用占位
+  name: "智能体拆拆装装"                      # 用户 2026-10-29 定（对话里说“系列名用拆拆装装”）；封面与成品包读它
+  subtitle: "智能体开发工程师岗位系列课"       # 副标题，用户 2026-10-29 要求加、由 Claude 拟定；不承诺录用（大纲明确写了不承诺录用）。封面脚本还没读这个字段，发布阶段前要接上
   pack_dir: null                            # 默认 "<name>_成品"
   bare_lesson_refs: self                    # 旁白里的“第N课”指本系列自己的课；与 C 课没有任何联系，不回扣、不用 C 课的比喻
-  template_lesson: agent-messages-cn        # 新课脚本从它起步（试验课，只作模板；不是课程）
+  template_lesson: agent-workflow-or-agent-cn   # 新课脚本从它起步（试验课，只作模板；不是课程）；AGENT_SPECIFIC 里的几个脚本从它拷，带试验标注的由守卫挡住，改写后才能用
+  starter_dir: docs/whiteboard/starter-agent/scripts   # 智能体篇专用的通用零件（docs/whiteboard/starter/ 是 C 课共用的，不改）
   cast_dir: projects/_cast/agent            # 角色素材库：老师（候选 A）与 AI 小搭档（候选 C）的各个姿势、校徽
-  cast_assets: [teacher_hold.png, teacher_point_l.png, teacher_think.png, robot_wave.png, robot_point_l.png, robot_idea.png, robot_confused.png, teacher_oops.png, robot_cheer.png, schoollogo.png]
+  cast_assets: [robot_barrier_grip.png, robot_cheer.png, robot_confused.png, robot_flag_hold.png, robot_idea.png, robot_key_hold.png, robot_key_putaway.png, robot_listen.png, robot_nod.png, robot_note_nod.png, robot_note_write.png, robot_point_l.png, robot_proud_lookback.png, robot_read_letter.png, robot_scissors_hold.png, robot_think_tilt.png, robot_walk_in.png, robot_wave.png, robot_wheel_hold.png, robot_wheel_putaway.png, schoollogo.png, teacher_explain.png, teacher_hold.png, teacher_oops.png, teacher_point_l.png, teacher_point_right_hand.png, teacher_think.png, teacher_thumbs_up.png, robot_pat_chest.png, robot_hatch_open.png, card_chain_machine.png, card_draw_box.png]
   logo: schoollogo.png
   cast_references:                          # 新课的 references/ 里放的参考图（给 whiteboard_pose_tool.py pose 做图生图用）：目标文件名 → cast_dir 里的原图
     ref_teacher.png: raw/teacher_main.png
     ref_robot.png: raw/robot_main.png
   cover_cast:                               # 封面上的角色：file 在 cast_dir 里，h＝高（像素），right/bottom＝离画面右/下边的距离
-    - {file: teacher_point_l.png, h: 860, right: 150, bottom: 70}
+    - {file: teacher_point_l.png, h: 780, right: 150, bottom: 70}   # 860 → 780：副标题在右上角系列名下面，老师的头不能盖住它
     - {file: robot_wave.png, h: 330, right: 520, bottom: 70}
   cover_text_width: 1060                    # 标题与副标题的最大宽度（要给搭档留出位置）
   # 新系列与 C 课无关：这些是 C 课的身份词（医生比喻、第 2 课克隆门……），旁白里出现就是回扣，旁白检查报错

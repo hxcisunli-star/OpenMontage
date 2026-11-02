@@ -6,7 +6,7 @@ a missing assets/captions, and a copied finish_compose.py that overwrote another
   1. lib.checkpoint.init_project + code validation scripts assets/images assets/captions review references artifacts exports
   2. the series' cast pictures: from its cast library when docs/whiteboard/series.yaml gives one (cast_dir: teacher + AI partner poses, school logo, reference pictures for new poses),
      otherwise (the C series) the doctor images and the school logo of the source lesson
-  3. the never-changing scripts from docs/whiteboard/starter/scripts (placeholders __PID__ / __N__ replaced; rebuild_edit.sh already runs last_item_check)
+  3. the never-changing scripts from series.yaml starter_dir (default docs/whiteboard/starter/scripts) (placeholders __PID__ / __N__ replaced; rebuild_edit.sh already runs last_item_check)
   4. the lesson-specific scripts (plan_stage, build_script, build_scene_plan, _body_boards, _build_tail, sample_voice, finish_assets, publish_prep, make_exercises, run_*.sh) copied from the
      source lesson with its project name / lesson number replaced; build_script.py reads the hard words from docs/whiteboard/wordlist.yaml (NEW_TERMS = this lesson's new terms);
      publish_prep.py refuses a thumbnail time that is not fully drawn (docs/whiteboard_thumb_check.py)
@@ -30,6 +30,8 @@ STARTER = ROOT / "docs/whiteboard/starter/scripts"
 SPECIFIC = ["plan_stage.py", "build_script.py", "build_scene_plan.py", "_body_boards.py", "_build_tail.py", "sample_voice.py", "finish_assets.py", "publish_prep.py",
             "make_exercises.py", "run_exercises.sh", "run_validation.sh"]
 LEGACY_ASSETS = ["assets/images/doctor_holding_note.png", "assets/images/doctor_pointing.png", "assets/images/schoollogo.png", "references/ref_doctor.png"]   # the C series: copied from the source lesson
+# agent series: the generic machinery is in starter_dir (series.yaml); these are copied from template_lesson with its name replaced and, while they still carry experiment labels, stopped by guard() until rewritten for the new lesson
+AGENT_SPECIFIC = ["sample_voice.py", "plan_stage.py", "build_script.py", "build_scene_plan.py", "publish_prep.py", "make_exercises.py", "run_exercises.sh"]
 ASSETS = LEGACY_ASSETS
 DIRS = ["code", "validation", "scripts", "assets/images", "assets/captions", "review", "references", "artifacts", "exports"]
 D = "零一二三四五六七八九"
@@ -112,6 +114,8 @@ def main():
     table = lesson_table()
     same = {p: v for p, v in table.items() if series_of(p) == series}   # lesson numbers count inside a series
     cfg = series_config(series)
+    starter = ROOT / cfg["starter_dir"] if cfg.get("starter_dir") else STARTER
+    specific = AGENT_SPECIFIC if series == "agent" else SPECIFIC
     src = a.src or cfg["template_lesson"] or max(same or table, key=lambda p: (same or table)[p][0])   # a series names its template lesson in series.yaml; otherwise the latest lesson of its own series, else of the C series
     pdir = Path(a.projects_dir)
     srcdir, dst = pdir / src, pdir / a.pid
@@ -124,7 +128,7 @@ def main():
     src_n = table.get(src, (None,))[0]
     casts = cast_plan(cfg, srcdir)
     plan = [f"project {a.pid} (lesson {a.n}, {a.title!r}, {series} series) from {src} (lesson {src_n})", f"dirs: {DIRS}", f"cast pictures: {[d for _, d in casts]}",
-            f"starter scripts: {sorted(p.name for p in STARTER.iterdir())}", f"lesson-specific scripts: {[f for f in SPECIFIC if (srcdir / 'scripts' / f).exists()]}"]
+            f"starter scripts: {sorted(p.name for p in starter.iterdir())}", f"lesson-specific scripts: {[f for f in specific if (srcdir / 'scripts' / f).exists()]}"]
     if not cfg["name"]:
         plan.append(f"note: the {series} series has no name yet (docs/whiteboard/series.yaml name): covers and the release pack refuse to run until the user has chosen one")
     print("\n".join(plan))
@@ -143,13 +147,13 @@ def main():
         else:
             print("warning: no", from_)
     sc = dst / "scripts"
-    for f in sorted(STARTER.iterdir()):
+    for f in sorted(starter.iterdir()):
         text = f.read_text(encoding="utf-8").replace("__PID__", a.pid).replace("__N__", str(a.n))
         (sc / f.name).write_text(text, encoding="utf-8")
         if f.suffix == ".sh":
             (sc / f.name).chmod(0o755)
     notes = []
-    for f in SPECIFIC:
+    for f in specific:
         p = srcdir / "scripts" / f
         if not p.exists():
             continue
@@ -162,6 +166,15 @@ def main():
         if f == "publish_prep.py":
             text, ok = patch_publish_prep(text)
             notes.append(("publish_prep.py thumbnail guard", ok))
+        if series == "agent" and f == "sample_voice.py":
+            # This source copy remains lesson-specific; voice/sample are author-owned metadata.
+            text = text.replace('ROOT = Path(__file__).resolve().parents[3]', 'from project_paths import ROOT, P')
+            text = text.replace(f'P = ROOT / "projects/{a.pid}"', '')
+            text = text.replace('"s3_key_cherry_raw.wav"', '"voice_sample_raw.wav"').replace('"s3_key_cherry.wav"', '"voice_sample.wav"')
+            text = text.replace('s3 sample sentence', 'metadata sample sentence')
+            text = text.replace('in Cherry', 'in the configured voice')
+            text = text.replace('text = json.load(open(P / "artifacts/script.json", encoding="utf-8"))["metadata"]["voice_sample_text"]', 'metadata = json.loads((P / "artifacts/script.json").read_text(encoding="utf-8"))["metadata"]\ntext = metadata["voice_sample_text"]')
+            text = text.replace('"voice": "Cherry"', '"voice": metadata.get("voice", "Cherry")')
         text, guarded = guard(f, text)
         if guarded:
             notes.append((f"{f}: experiment labels -> GUARD at the top (rewrite for this lesson, then delete the guard line)", True))

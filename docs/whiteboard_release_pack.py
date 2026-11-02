@@ -52,8 +52,11 @@ def main(series="c"):
         (d / f"{base}_简介.txt").write_text(f"{m['title']}\n\n{desc}\n{ch}\n\n标签：{'、'.join(m['tags'])}\n{' '.join(m['hashtags'])}\n", encoding="utf-8")
         if (E / "metadata/exercises.txt").exists():   # from lesson 11 on: homework (read, modify, find the bug, write), answers from real runs
             shutil.copy(E / "metadata/exercises.txt", d / f"{base}_课后练习.txt")
+        has_book = (E / "ebook/index.html").exists()   # the offline ebook of the lesson (agent series): a self-contained folder; the video inside it is its own copy
+        if has_book:
+            shutil.copytree(E / "ebook", d / f"{base}_电子书")
         dur = duration(d / f"{base}.mp4")
-        index.append(f"第{no:02d}课 {name}  时长 {int(dur // 60)}分{int(dur % 60):02d}秒  文件夹：{base}")
+        index.append(f"第{no:02d}课 {name}  时长 {int(dur // 60)}分{int(dur % 60):02d}秒  文件夹：{base}" + ("　含电子书（用浏览器打开 电子书 文件夹里的 index.html）" if has_book else ""))
         print(base, f"{dur:.1f}s")
     (DEST / "目录.txt").write_text("\n".join(index) + "\n", encoding="utf-8")
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:

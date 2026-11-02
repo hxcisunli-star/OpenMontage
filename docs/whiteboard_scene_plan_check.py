@@ -3,6 +3,7 @@
 Run:  .venv/bin/python docs/whiteboard_scene_plan_check.py projects/<lesson>        exit code 1 on any ERROR
 The scene plan schema has no field for it, so the convention is: the `movement` text of every scene STARTS with "呈现手段：手段一、手段二；…", every device from the series' `devices` list.
   ERROR  a scene whose movement does not start with 呈现手段：, or names a device that is not in the list
+  WARN   a scene whose movement or description says 出现／显示／展示／淡入／逐条 (a result, not an action: write what the thing does)
   WARN   a scene that uses only 纯板书 (hand-written text, boxes, arrows) - fine now and then, but the series exists because lessons built only from boxes were too thin;
          WARN when half or more of the scenes are 纯板书 only, or when the whole lesson uses fewer than 4 different devices"""
 import json
@@ -14,11 +15,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from whiteboard_lessons import series_config, series_of  # noqa: E402
 
 HEAD = re.compile(r"^\s*呈现手段：([^；。]*)")
+# words that name a result instead of an action (borrowed from huashu-art-motion's shot-list rules, 2026-11-01; a reminder only)
+ABSTRACT = re.compile(r"出现(?!次数|频率|过)|显示|展示|淡入|逐条")        # "出现次数" is a noun (how often), not the thing appearing
 
 
 def check(scenes, devices):
     errors, warns, used, plain_only = [], [], set(), 0
     for sc in scenes:
+        body = HEAD.sub("", sc.get("movement", ""), count=1)
+        for field, text in (("movement", body), ("description", sc.get("description", ""))):
+            hit = sorted(set(ABSTRACT.findall(text)))
+            if hit:
+                warns.append(f"{sc['id']}: {field} 里写了“{'、'.join(hit)}”：这是结果不是动作。写成画面里那个物自己的动作（飘进来、写出来、被圈住、翻过去、跳出来……），写不出动作的先别做")
         m = HEAD.match(sc.get("movement", ""))
         if not m:
             errors.append(f"{sc['id']}: movement must start with 呈现手段：手段一、手段二；…（手段取自：{'、'.join(devices)}）")

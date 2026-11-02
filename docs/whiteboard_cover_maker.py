@@ -70,6 +70,8 @@ LESSONS = [
     ("c-caller-cn", 41, "门诊叫号机", "先写考卷，再拼零件", "diff - expected.txt"),
     ("c-record-cn", 42, "病历册", "零件之间，要说好约定", "round trip ok"),
     ("c-clinic-cn", 43, "门诊系统", "拼起来，先想会撞什么", "./clinic book.txt"),
+    # 智能体篇（系列名与副标题见 docs/whiteboard/series.yaml）：板上没有代码，最后一项是写在便条上的一句钩子问题
+    ("agent-what-is-llm-cn", 1, "同一个问题问三遍", "它为什么答得不一样？", "问三遍，答案会一样吗？"),
 ]
 
 
@@ -148,9 +150,13 @@ def make(proj, no, title, sub, code):
     d.rounded_rectangle((70, 52, 70 + lw + 40, 52 + logo.height + 40), 14, fill=(22, 36, 82))
     img.paste(logo, (90, 72), logo)
 
-    # series tag top-right
+    # series tag top-right (+ the series subtitle under it, only for a series that has one: the C series has none, so its covers stay byte-identical)
     tw = width_mixed(d, tag, 44)
     draw_mixed(d, (W - 90 - tw, 72), tag, 44, BLUE)
+    scfg = series_config(series_of(proj))
+    if scfg["cast_dir"] and scfg.get("subtitle"):
+        sw = width_mixed(d, scfg["subtitle"], 30)
+        draw_mixed(d, (W - 90 - sw, 72 + 62), scfg["subtitle"], 30, (70, 84, 118))
 
     # lesson badge
     bx, by = 110, 250
@@ -173,13 +179,26 @@ def make(proj, no, title, sub, code):
         sub_size -= 2
     draw_mixed(d, (tx, ul_y + 40), sub, sub_size, (70, 84, 118))
 
-    # code chip
-    cf = ImageFont.truetype(MONO, 56)
-    cw = int(d.textlength(code, font=cf)) + 80
-    cy = 820
-    d.rounded_rectangle((tx, cy, tx + cw, cy + 120), 22, fill=(236, 240, 248),
-                        outline=(150, 164, 196), width=4)
-    d.text((tx + 40, cy + 26), code, font=cf, fill=INK)
+    # lower left: a C lesson shows the code chip.  A lesson of a series with a cast_dir (the agent series, no code on its board) passes a one-line hook instead, written on a yellow note
+    if code and scfg["cast_dir"]:
+        ns = 54
+        while width_mixed(d, code, ns) > text_w - 80:
+            ns -= 2
+        nw, nh = int(width_mixed(d, code, ns)) + 90, ns + 70
+        layer = Image.new("RGBA", (nw + 80, nh + 80), (0, 0, 0, 0))
+        ld = ImageDraw.Draw(layer)
+        ld.rectangle((46, 46, 46 + nw, 46 + nh), fill=(120, 110, 70, 70))             # soft shadow
+        ld.rectangle((36, 36, 36 + nw, 36 + nh), fill=(255, 243, 168, 255), outline=(214, 196, 96, 255), width=3)
+        draw_mixed(ld, (36 + 45, 36 + 30), code, ns, (59, 51, 0, 255))
+        layer = layer.rotate(3, resample=Image.BICUBIC, expand=True)
+        img.paste(layer, (tx - 36, 800), layer)
+    elif code:
+        cf = ImageFont.truetype(MONO, 56)
+        cw = int(d.textlength(code, font=cf)) + 80
+        cy = 820
+        d.rounded_rectangle((tx, cy, tx + cw, cy + 120), 22, fill=(236, 240, 248),
+                            outline=(150, 164, 196), width=4)
+        d.text((tx + 40, cy + 26), code, font=cf, fill=INK)
 
     # the cast on the right (the doctor, or the teacher with the AI partner), drawn in the order of the list
     for pic, dh, right, bottom in cast:

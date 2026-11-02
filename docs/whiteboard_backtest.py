@@ -418,7 +418,7 @@ def t_v2_fields():
     box = [100, 100, 500, 300]
     note = {"kind": "stroke", "shape": "path", "d": "M 100 100 L 500 100 L 500 300 L 100 300 Z", "box": box, "at": 1, "width": 0, "fill": "#FFF3A8", "shadow": True}
     txt = lambda **kw: {"kind": "write", "text": "一条消息", "x": 120, "y": 150, "at": 1.5, "size": 50, **kw}
-    e, w = lint(note, txt(rot=-2, origin=[300, 200], move=[{"at": 3, "dx": 0}, {"at": 4, "dx": 200}]), camera=[{"at": 1, "scale": 1}, {"at": 3, "scale": 1.4, "cx": 700, "cy": 400}])
+    e, w = lint(note, txt(rot=-2, origin=[300, 200], move=[{"at": 3, "dx": 0}, {"at": 4, "dx": 200}]), camera=[{"at": 1, "scale": 1}, {"at": 2.2, "scale": 1.4, "cx": 700, "cy": 400, "kind": "缓推", "why": "看便条上的那条消息"}])
     check("v2 lint: a sticky note (filled path + write with the same move), a top layer and a camera push-in are quiet", not e and not w, str(e + w))
     e, w = lint({**note, "layer": "front"})
     check("v2 lint: a layer other than \"top\" is an error", any("layer must be" in x for x in e))
@@ -684,6 +684,60 @@ def t_cover_series():
     finally:
         CM.ROOT, CM.series_config = keep_root, keep_cfg
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def t_registry_external_source():
+    import whiteboard_registry as R
+    check("registry: an ext: source is accepted as provenance and is not counted as a lesson source", R.expand("ext:某个外部评估") == [] and R.expand("P6-3..4") == ["P6-3", "P6-4"])
+
+
+def t_scene_plan_abstract_words():
+    import whiteboard_scene_plan_check as SC
+    import whiteboard_lessons as WL
+    devs = WL.series_config("agent")["devices"]
+    head = "呈现手段：便条飞行；"
+    good = [{"id": "sc01", "movement": head + "便条从程序飞到模型，模型亮一下", "description": "搭档把空装配图挂在角上"}]
+    only = lambda w: [x for x in w if "结果不是动作" in x]
+    e, w, _ = SC.check(good, devs)
+    check("scene plan abstract words: a scene written as actions is quiet", not e and not only(w), str(w))
+    for word in ("出现", "显示", "展示", "淡入", "逐条"):
+        e, w, _ = SC.check([{"id": "sc01", "movement": head + f"题卡{word}", "description": ""}], devs)
+        check(f"scene plan abstract words: 「{word}」 in movement is warned (and is not an error)", not e and any(word in x and "movement" in x for x in w), str(w))
+    e, w, _ = SC.check([{"id": "sc01", "movement": head + "便条飞行", "description": "十条线展示七遍相同"}], devs)
+    check("scene plan abstract words: the description is read too", any("description" in x for x in w), str(w))
+    e, w, _ = SC.check([{"id": "sc01", "movement": head + "同色方块叠成塔，对应出现次数；出现过的名字画红框", "description": ""}], devs)
+    check("scene plan abstract words: 「出现次数」 and 「出现过」 are nouns/tenses, not the thing appearing: quiet", not only(w), str(w))
+
+
+def t_lint_camera_and_long_text():
+    import whiteboard_lint as W
+    def props(camera=None, texts=()):
+        items = [{"kind": "write", "text": x, "x": 100, "y": 100 + 90 * i, "at": 1.0 + i, "dur": 1.0, "size": 40} for i, x in enumerate(texts)]
+        return {"cuts": [{"id": "K1", "in_seconds": 0, "whiteboard": {"items": items, "camera": camera or []}}]}
+    still = [{"at": 0, "scale": 1}, {"at": 5, "scale": 1}]
+    e, w = W.lint_props(props(still))
+    check("lint camera: keys that do not move are quiet", not e and not w, str(w))
+    push = [{"at": 0, "scale": 1, "cx": 960, "cy": 540}, {"at": 0.8, "scale": 1.4, "cx": 960, "cy": 540}]
+    e, w = W.lint_props(props(push))
+    check("lint camera: a push without kind/why is one WARN (not an error)", not e and len(w) == 1 and "kind" in w[0] and "why" in w[0], str(w))
+    tagged = [push[0], dict(push[1], kind="缓推", why="看红框里的两个答案")]
+    e, w = W.lint_props(props(tagged))
+    check("lint camera: a tagged push of a normal length is quiet", not e and not w, str(w))
+    e, w = W.lint_props(props([push[0], dict(push[1], at=0.3, kind="缓推", why="x")]))
+    check("lint camera: a 缓推 of 0.3 s is warned as too short", any("缓推" in x and "0.30" in x for x in w), str(w))
+    e, w = W.lint_props(props([push[0], dict(push[1], at=0.3, kind="快推", why="揭晓")]))
+    check("lint camera: the same 0.3 s is fine for a 快推", not w, str(w))
+    e, w = W.lint_props(props([push[0], dict(push[1], kind="乱推", why="x")]))
+    check("lint camera: a kind outside the list is warned", any("乱推" in x for x in w), str(w))
+    e, w = W.lint_props(props([{"at": 0, "scale": 1}, {"at": 1, "scale": 1.3}, {"at": 2, "scale": 1}, {"at": 3, "scale": 1.3}]))
+    check("lint camera: several untagged moves in one cut are summed up in one WARN", len(w) == 1 and "3 个镜头动作" in w[0], str(w))
+    e, w = W.lint_props(props(texts=["同一个问题问三遍", "文件有三行"]))
+    check("lint text: hand-font writes of 8 characters or fewer are quiet", not w, str(w))
+    e, w = W.lint_props(props(texts=["这两个模型，这一回，脾气不一样", "它读到的，真是一个一个的字吗？", "短词"]))
+    check("lint text: long hand-font writes are one WARN per cut, with the count and the longest", len(w) == 1 and "2 条" in w[0] and "15 字" in w[0] and not e, str(w))
+    it = {"kind": "write", "text": "print(len(names) + len(prices))", "font": "mono", "x": 100, "y": 100, "at": 1.0, "dur": 1.0, "size": 40}
+    e, w = W.lint_props({"cuts": [{"id": "K1", "in_seconds": 0, "whiteboard": {"items": [it]}}]})
+    check("lint text: a long line of code in mono is not a long hand text", not w and not e, str(w))
 
 
 def t_scene_plan_devices():
@@ -1051,7 +1105,7 @@ def t_verify(slow):
 
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test

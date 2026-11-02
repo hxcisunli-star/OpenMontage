@@ -7,6 +7,7 @@
   .venv/bin/python docs/whiteboard_registry.py render     由 docs/whiteboard/lessons-learned.yaml 生成 docs/whiteboard/checklists/*.md
   .venv/bin/python docs/whiteboard_registry.py check      清单与登记表不一致时退出码 1（改了登记表却没重新 render）
 
+外部来源写 ext:名称（例如 ext:huashu-art-motion评估）：只记出处，不进上面的映射和课数统计。
 来源编号：P6-n = 做课手册 §6“踩坑速查表”第 n 行；Hn-k = 交接文档（归档全文）里“做下一课要注意（来自第 n 课）”的第 k 个子句；
 Ln-k = 手册逐课章节里第 n 课“教训”的第 k 个分点（只作旁证，不要求映射）。
 晋升规则：一条教训第二次出现仍停在文字上（level: 清单 而且 stats 里出现 ≥3 课），就该做成脚本（level: 检查）或模板默认（level: 默认）。
@@ -102,6 +103,8 @@ def lesson_of(item_id):
 
 def expand(tok):
     tok = str(tok).strip()
+    if tok.startswith("ext:"):      # an outside source (e.g. an evaluated open-source skill): kept as provenance, not part of the P6/H/L universe or of the lesson counts
+        return []
     m = re.match(r"^([A-Z])(\w+?)-(\d+)\.\.(\d+)$", tok)
     if m:
         return [f"{m.group(1)}{m.group(2)}-{i}" for i in range(int(m.group(3)), int(m.group(4)) + 1)]
