@@ -16,7 +16,7 @@
 
 ## 1. 一句话现状
 
-用户在复审页选了 **B**：只改视频旁白里三处不够准的话（V1 窗口与最大输出、V2 三页文档、V3 “只占一个词元／个数固定”的限定）。**视频已改完并重渲，成片检查点是 `awaiting_human`，等用户重说一遍“成片通过，进入发布阶段”**（E60）。在他说之前，发布阶段的东西（封面片头、简介章节时间、电子书取帧、成品包）都还是**改前的旧版**，不能当成最新。“发布通过”还没说；提交也还没做（用户只在第 2 课第一轮说过“提交”，已提交 `65eb067`／本机库 `342451c`）。
+用户在复审页选了 **B**：只改视频旁白里三处不够准的话（V1 窗口与最大输出、V2 三页文档、V3 “只占一个词元／个数固定”的限定）。**视频已改完并重渲，成片检查点是 `awaiting_human`，等用户重说一遍“成片通过，进入发布阶段”**（E60）。在他说之前，发布阶段的东西（封面片头、简介章节时间、电子书取帧、成品包）都还是**改前的旧版**，不能当成最新。“发布通过”还没说；用户 2026-11-03 又说了一次“提交”，已提交：外层 `c99076a`（`blocks.py`、测试、本交接文档，已推 fork，没推 origin）、projects 本机库 `219226a`（第 2 课选 B 后的文本源快照 61 个文件，不推送）；更早的是 `65eb067`／`342451c`。**提交不等于“发布通过”。**
 
 检查点（`.venv/bin/python docs/whiteboard_gate.py status`）：research 完成；proposal、script、scene_plan、assets、edit 已批准；**compose 等用户**；publish 等用户。`approvals.jsonl` 里有 7 条旧口令，其中那条“成片通过，进入发布阶段”对的是**改旁白之前的成片**，所以必须用户重说，说了用 `approve` 追加一条。
 
@@ -113,8 +113,8 @@
 ## 7. 提交规矩与现在未提交的东西
 
 - **只在用户说“提交”时提交**；提交后自动推 fork：`git -c 'credential.helper=!gh auth git-credential' push fork <分支>`，不推 origin、不强推；推送前扫增行里的密钥与外部 IP；提交要带 `-c user.name=… -c user.email=…`，署名行按当前会话要求；同时在 `projects/` 本机库提交本课文本源快照（不推送）。分支 `feat/whiteboard-scene-dashscope-image`。
-- **外层仓库未提交**：`docs/whiteboard/ebook/blocks.py`（文档卡题注读各页自己的取页日期、`docs-link` 加 `src-link` 类）、`tests/tools/test_ebook_blocks_records.py`（4 项测试）、本交接文档；以及与第 2 课无关的老未提交项：`.claude/skills/anatomy/`、`.pyodide-integration/`、`.remotion/`、`docs/anatomy-skill-evaluation.zh-CN.md`、渲染机验收 json 和证据压缩包（这些不提交）。
-- **projects 本机库未提交**：第 2 课选 B 之后的全部文本源改动（`scripts/`、`code/`、`validation/`、`artifacts/` 里的文本、`edit_deviations.json`、`compose-notes.json`），以及 roadmap 的 v1.1 等无关改动。
+- **外层仓库**：`blocks.py`、测试和本交接文档已在 `c99076a` 提交并推 fork（本节这次修改是提交之后改的，下次“提交”时随带）。**仍未提交且不属于第 2 课的**：`docs/remote-render-client.md` 和 `tools/video/remote_cpu_render.py`（别的进程 2026-11-02 晚加的渲染机心跳与重连改动，含渲染机端口和主机细节，**不要提交**，除非用户另有指示）；以及老的未提交项：`.claude/skills/anatomy/`、`.pyodide-integration/`、`.remotion/`、`docs/anatomy-skill-evaluation.zh-CN.md`、渲染机验收 json 和证据压缩包（这些不提交）。
+- **projects 本机库**：第 2 课选 B 之后的文本源改动已在 `219226a` 提交；之后发布阶段（封面、章节、电子书、成品包文本）产生的新改动还没提交；roadmap 的 v1.1 等无关改动（52 个文件）仍未提交，范围要用户定。
 - 发布阶段完成后的提交要新建一个提交（在 `65eb067` 之后），不要改写已推送的历史。
 
 ## 8. 关键位置速查
