@@ -222,7 +222,8 @@ def show(b, ctx):
     elif r["kind"] == "cuts":
         body, cap = cuts(r), f"{r['date']} 在本机用两套公开的切字规则复现，只是示意，不代表你正在用的模型"
     elif r["kind"] == "docs":
-        body, cap = docs(r), f"{r['date']} 取页 · 三页的说法互不相同，这里不判谁对"
+        dates = "、".join(f"{c['archive']} {ctx.urls.get(c['archive'], {}).get('date') or r['date']}" for c in r["cards"])        # each page has its own archive/fetch date
+        body, cap = docs(r), f"取页日期：{dates} · 三页是各自场景里大致的参考，说法互不相同，这里不判谁对"
     else:
         raise AssertionError(r["kind"])
     after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""

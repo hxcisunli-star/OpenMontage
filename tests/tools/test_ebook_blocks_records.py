@@ -85,3 +85,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def test_docs_caption_uses_each_pages_own_date():
+    data = records()
+    ctx = blocks.Ctx(data, {}, {"A31": {"url": "https://example.invalid/a", "date": "2026-11-01"}, "A40": {"url": "https://example.invalid/b", "date": "2026-11-02"}})
+    out = blocks.show({"id": "D_docs"}, ctx)
+    assert "A31 2026-11-01" in out and "A40 2026-11-02" in out
+    assert "A41 " + data["D_docs"]["date"] in out        # a page that has no entry falls back to the record's own date
