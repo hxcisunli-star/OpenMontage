@@ -72,6 +72,7 @@ LESSONS = [
     ("c-clinic-cn", 43, "门诊系统", "拼起来，先想会撞什么", "./clinic book.txt"),
     # 智能体篇（系列名与副标题见 docs/whiteboard/series.yaml）：板上没有代码，最后一项是写在便条上的一句钩子问题
     ("agent-what-is-llm-cn", 1, "同一个问题问三遍", "它为什么答得不一样？", "问三遍，答案会一样吗？"),
+    ("agent-tokens-window-cn", 2, "“你好”两个字", "为什么算五个词元？", "小票上写着：五个词元"),
 ]
 
 

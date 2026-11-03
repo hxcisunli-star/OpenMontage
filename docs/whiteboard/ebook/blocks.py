@@ -101,6 +101,101 @@ def task(r):
     return f'<div class="chat">{bub("u", r["prompt"])}{body}{note}' + (f'<div class="sum">{checks}</div>' if checks else "") + "</div>"
 
 
+def usage(r):
+    """A prompt bubble beside a small receipt of the three token measurements."""
+    prompt_values = r["prompt_tokens"]
+    completion_values = r["completion_tokens"]
+    total_values = r["total_tokens"]
+
+    def row(label, values, same=False):
+        cells = "".join(f'<span class="usage-cell">{esc(value)}</span>' for value in values)
+        marker = '<span class="usage-same">三遍相同</span>' if same else ""
+        return f'<div class="usage-row"><span class="usage-label">{esc(label)}</span><span class="usage-values">{cells}</span>{marker}</div>'
+
+    same_prompt = len(set(prompt_values)) == 1
+    run_count = int(r.get("n", len(prompt_values)))
+    columns = "".join(f'<span class="usage-run">第 {i} 遍</span>' for i in range(1, run_count + 1))
+    ticket_label = (
+        f'三行词元记录：prompt_tokens 为 {"、".join(map(str, prompt_values))}，'
+        f'completion_tokens 为 {"、".join(map(str, completion_values))}，'
+        f'total_tokens 为 {"、".join(map(str, total_values))}'
+    )
+    receipt = (
+        '<div class="usage-ticket" role="img" aria-label="'
+        + esc(ticket_label)
+        + '">'
+        + f'<div class="usage-colhead"><span>测量</span><span class="usage-values">{columns}</span></div>'
+        + row("prompt_tokens", prompt_values, same_prompt)
+        + row("completion_tokens", completion_values)
+        + row("total_tokens", total_values)
+        + f'<div class="usage-summary">发出的话共 {esc(r["chars"])} 个字符，输入词元数（中位数）{esc(r["median_prompt_tokens"])}</div>'
+        + "</div>"
+    )
+    label = f'{r["title"]}：发出的话 {r["chars"]} 个字符，输入词元数中位数 {r["median_prompt_tokens"]}'
+    return f'<div class="usage-viz" role="group" aria-label="{esc(label)}">{bub("u", r["prompt"])}{receipt}</div>'
+
+
+def bars(r):
+    """Compare the three 1000-character inputs on a single scale."""
+    values = [m[k] for m in r["models"] for k in ("zh", "code", "en")]
+    maximum = max(values) if values else 1
+    names = (("zh", "中文"), ("code", "代码"), ("en", "英文"))
+    groups = []
+    for model in r["models"]:
+        rows = sorted(((label, model[key]) for key, label in names), key=lambda item: item[1], reverse=True)
+        bars_html = "".join(
+            '<div class="measure-bar" role="img" aria-label="'
+            + esc(f"{label} {value} 个词元")
+            + '"><span class="measure-bar-label">'
+            + esc(label)
+            + '</span><div class="measure-bar-track"><div class="measure-bar-fill" style="width:'
+            + f"{value / maximum * 100:.1f}%"
+            + '">'
+            + f'<span class="measure-bar-number">{esc(value)}</span></div></div></div>'
+            for label, value in rows
+        )
+        model_text = str(model["model"])
+        short_model = model_text.rsplit("/", 1)[-1] if "<" not in model_text else model_text
+        model_class = "measure-model" + (" latin" if lat(short_model) else "")
+        groups.append(
+            f'<div class="measure-group"><h4 class="{model_class}">{esc(short_model)}</h4>{bars_html}'
+            f'<div class="measure-note">固定开销 {esc(model["wrapper"])} 个；中文扣掉后 {esc(model["net_zh"])} 个</div></div>'
+        )
+    return f'<div class="measure-bars">{"".join(groups)}</div>'
+
+
+def cuts(r):
+    rows = []
+    for row in r["rows"]:
+        pieces = []
+        for piece in row["pieces"]:
+            if piece == "▯":
+                pieces.append('<span class="cut-chip cut-incomplete" title="不完整的字节块" aria-label="不完整的字节块">▯</span>')
+            else:
+                pieces.append(f'<span class="cut-chip">{esc(piece)}</span>')
+        rows.append(
+            f'<div class="cut-row"><div class="cut-rule">{esc(row["name"])}</div>'
+            f'<div class="cut-pieces">{"".join(pieces)}</div><span class="cut-count">共 {esc(len(row["pieces"]))} 块</span>'
+            f'<div class="cut-note">{esc(row["note"])}</div></div>'
+        )
+    return f'<div class="cuts-viz"><div class="cuts-original">原句：{esc(r["text"])}</div>{"".join(rows)}</div>'
+
+
+def docs(r):
+    cards = []
+    for card in r["cards"]:
+        url = str(card["url"])
+        visible_url = re.sub(r"^https?://", "", url)
+        cards.append(
+            f'<article class="docs-card"><h4 class="docs-who">{esc(card["who"])}</h4>'
+            f'<blockquote>“{esc(card["quote"])}”</blockquote>'
+            f'<p class="docs-says">一句话：{esc(card["says"])}</p>'
+            f'<a class="docs-link src-link" href="{esc(url)}" target="_blank" rel="noopener noreferrer">{esc(visible_url)}</a>'
+            f'<span class="docs-archive">存档 {esc(card["archive"])}</span></article>'
+        )
+    return f'<div class="docs-cards">{"".join(cards)}</div>'
+
+
 def show(b, ctx):
     r = ctx.records[b["id"]]
     ctx.used_records.append(b["id"])
@@ -120,6 +215,14 @@ def show(b, ctx):
         body = (f'<p>同一句“{esc(r["prompt"])}”：关闭思考时，送进模型的内容长度是 {"、".join(map(str, r["think_off_prompt_tokens"]))}，默认思考时是 {"、".join(map(str, r["think_default_prompt_tokens"]))}'
                 "（单位叫“词元”，不一定正好是一个字，这一章先不展开）。</p>")
         cap = (f"（{r['model_note']}）" if r.get("model_note") else "") + f"{r['model']} · {r['date']} · 关闭思考和默认思考各 {r['n']} 遍" + (f" · 额外参数（关闭思考时） {params_text(r['extra_params'])}" if r.get("extra_params") else "")
+    elif r["kind"] == "usage":
+        body, cap = usage(r), caliber(r)
+    elif r["kind"] == "bars":
+        body, cap = bars(r), f"{r['model_note']} · {r['date']} · {r['mode']} · 每个用例 {r['n']} 遍；每段文字恰好 1000 个字符"
+    elif r["kind"] == "cuts":
+        body, cap = cuts(r), f"{r['date']} 在本机用两套公开的切字规则复现，只是示意，不代表你正在用的模型"
+    elif r["kind"] == "docs":
+        body, cap = docs(r), f"{r['date']} 取页 · 三页的说法互不相同，这里不判谁对"
     else:
         raise AssertionError(r["kind"])
     after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""
@@ -131,11 +234,13 @@ def fact(b, ctx):
     c = ctx.claims[b["id"]]
     ctx.used_claims.append(b["id"])
     links = []
+    dates = {ctx.urls[a]["date"] for a in c["archive"]}
     for a in c["archive"]:
         u = ctx.urls[a]["url"]
-        links.append(f'<a class="src-link" href="{esc(u)}" target="_blank" rel="noopener noreferrer">{esc(re.sub(r"^https?://", "", u))}</a>')
+        links.append(f'<a class="src-link" href="{esc(u)}" target="_blank" rel="noopener noreferrer">{esc(re.sub(r"^https?://", "", u))}</a>' + (f'（{esc(ctx.urls[a]["date"])}）' if len(dates) > 1 else ""))
+    lead = f'原页（{esc(ctx.urls[c["archive"][0]]["date"])} 存档）：' if len(dates) == 1 else "原页（各页存档日期写在链接后面）："
     return (f'<aside class="fact" data-claim="{esc(b["id"])}"><span class="tag tag-source">来源说</span> <span class="src">{esc(b["src"])}</span><p>{esc(c["statement"])}</p>'
-            f'<p class="scope">适用范围：{esc(c["scope"])}</p><p class="srcline">原页（{esc(ctx.urls[c["archive"][0]]["date"])} 存档）：{"　".join(links)}</p></aside>')
+            f'<p class="scope">适用范围：{esc(c["scope"])}</p><p class="srcline">{lead}{"　".join(links)}</p></aside>')
 
 
 def term(b, ctx=None):

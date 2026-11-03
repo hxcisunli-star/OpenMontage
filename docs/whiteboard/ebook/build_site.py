@@ -300,13 +300,17 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     glossary = ""
     if ch.get("glossary"):
         glossary = '<details id="glossary" class="evidence"><summary>几个词的大白话</summary><ul>' + "".join(f'<li><b>{esc(w)}</b>：{esc(d)}</li>' for w, d in ch["glossary"]) + "</ul></details>"
-    rec_rows = "".join(f'<li><b>{esc(i)}</b>：{esc(ctx.records[i]["title"])}' + (f'　<span class="mono">{esc(ctx.records[i]["model"].split("/")[-1])} · {esc(ctx.records[i]["date"])} · {esc(ctx.records[i]["mode"])} · {ctx.records[i]["n"]} 遍</span>' if ctx.records[i].get("n") else "") + "</li>"
+    def model_names(r):      # one model, or (the bars record of lesson 2) the list of models it compares
+        return esc(r["model"].split("/")[-1]) if r.get("model") else esc("、".join(m["model"].split("/")[-1] for m in r["models"]))
+    rec_rows = "".join(f'<li><b>{esc(i)}</b>：{esc(ctx.records[i]["title"])}' + (f'　<span class="mono">{model_names(ctx.records[i])} · {esc(ctx.records[i]["date"])} · {esc(ctx.records[i]["mode"])} · {ctx.records[i]["n"]} 遍</span>' if ctx.records[i].get("n") else "") + "</li>"
                        for i in dict.fromkeys(ctx.used_records))
     used_claims = list(dict.fromkeys(ctx.used_claims))
     src_rows = "".join(f'<li><b>{esc(k)}</b>：{esc(ctx.claims[k]["statement"])} <span class="muted">适用范围：{esc(ctx.claims[k]["scope"])}</span></li>' for k in used_claims)
+    mixed = any(ctx.records[i].get("kind") in ("cuts", "docs") for i in ctx.used_records)      # lesson 2: a local reproduction of two public cutting rules and quotes from archived pages are records too
+    evidence_lead = ("这一章的“实测”里，模型调用的记录都是经模型网关调用的；切法示意是在本机用公开规则复现的；文档摘引取自存档页面（日期见各自的来源）。" if mixed else "这一章的“实测”都是经模型网关调用的记录，")
     evidence = ('<details id="evidence" class="evidence"><summary>证据抽屉：这一章的数字和说法从哪里来</summary>'
                 f'<h4>实测记录（{len(set(ctx.used_records))} 条）</h4><ul>{rec_rows}</ul>'
-                f"<p>这一章的“实测”都是经模型网关调用的记录，录制日期是 {'、'.join(sorted({ctx.records[i]['date'] for i in ctx.used_records if ctx.records[i].get('date')}))}（每条记录上都标了）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
+                f"<p>{evidence_lead}录制日期是 {'、'.join(sorted({ctx.records[i]['date'] for i in ctx.used_records if ctx.records[i].get('date')}))}（每条记录上都标了）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
                 f'<h4>来源说（{len(used_claims)} 条）</h4><ul>{src_rows}</ul></details>')
     side = ""
     if vid:
