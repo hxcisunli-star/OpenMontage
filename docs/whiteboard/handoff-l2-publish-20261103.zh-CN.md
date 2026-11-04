@@ -3,6 +3,18 @@
 > 读者：新开的 Claude Code 会话。目的：读完它就能不出错地接着做第 2 课的发布阶段。事实来自本机文件、检查点和这一轮会话的记录；没验证的地方直接写“未验证”。
 > 项目：`projects/agent-tokens-window-cn`（课名在 `scripts/lesson_title.txt`：“你好”两个字，为什么算五个词元？）。系列总交接仍是 `docs/whiteboard/handoff-agent-series-20261029.zh-CN.md`；本文只写第 2 课现在到哪一步、下一步怎么走、哪里容易错。
 
+> **最终状态（2026-11-04 UTC 02:36）：第 2 课已“发布通过”并记录（approvals.jsonl 共 9 条；发布页上用户的记录是 `overall: ok`、无备注），复盘 `docs/whiteboard/retro/agent-02.md` 已写，登记表加了 E110–E113（`whiteboard_registry.py coverage/render/check` 全过，`checklists/02-script.md`、`06-compose.md`、`07-publish.md` 已重新生成）。`whiteboard_gate.py status` 现在是“没有进行中的课程，已发布 45 课”。只剩一件事：等用户说“提交”（见第 7 节；本课发布阶段之后的全部文本源改动、复盘、登记表、清单、本文都还没提交；渲染机心跳那两个文件不是本课的，不要提交）。下一课由用户另定。下面所有 3.x 步骤都已做完，只作记录。**
+>
+> **最终状态（2026-11-04 UTC 05:09）：第 2 课已发布通过（第二次，文字类修改之后；approvals.jsonl 共 10 条）并已提交。复盘 `retro/agent-02.md` 已补第 3 次复核，登记表到 E115。`gate status`：没有进行中的课程，已发布 45 课。下一课由用户另定。下面所有“等用户选／等发布通过”的段落都已过期，只作记录。**
+>
+> **最新（2026-11-04）**：用户在复核页选了“文字类 A、视频类 A”，T1–T11 已全部改完，站点、离线副本、成品包已重建，**发布检查点已重写为 awaiting_human，现在只等用户重说“发布通过”**（视频没动）。收到后：先读 `publish_l2/review`，`approve agent-tokens-window-cn publish "<原话>"`，复盘 `docs/whiteboard/retro/agent-02.md` 补一句第 3 次复核，提交仍要用户说。下面这段“等用户选”已过期。
+>
+> **发布通过之后的补充（2026-11-04）**：做了第 3 次复核（只核复审之后新写的 69 处；Codex sol×2＋Antigravity Flash×2），结果和裁决在 `validation/fact-check.md` 末尾，原始输出在 `validation/research/review3/`，审阅页 `https://claude.ai/artifact/BPLzFR3uZFPyLexjPkVoUr`（用户在页上选“文字类 A/B/C”和“视频类 A/B/C”，存 `review3_l2/decision`；该页没被监听，用户说选好后用 ArtifactData 读）。**等用户选**；没选之前不要改任何交付物。选文字类 A/B：改章节／简介／练习（T1–T11 清单见 fact-check.md）后重建站点、离线副本、成品包，再请用户重说“发布通过”；选视频类 B/C 才动成片。
+>
+> **状态更新（2026-11-03，同日稍后）**：用户重说了“成片通过，进入发布阶段”（已记录，approvals.jsonl 共 8 条），又说“继续”，**第 3 节的 3.2→3.1→3.3→3.4→3.5→3.6→3.7 已全部做完**：简介／字幕 195 条／章节（0:00、1:45、3:32、4:56）、封面片头（发布成片 387.82 秒，md5 `0ec3a9e86ebb85ef2cae981c0156efa7`）、电子书第 2 章与 12 张新取帧、站点与离线副本（29/29，第 1 章页面不变）、成品包（733 文件，第 1 课 359 个与基线逐文件相同）、发布检查点（`awaiting_human`）、审阅页第 3 版（同一地址）。**现在只等用户说“发布通过”**，之后做 3.8（读 `publish_l2/review`、`approve … publish`、复盘 `agent-02.md`、登记表、`whiteboard_timeline.py`）。下面的 3.x 步骤保留作为记录和返工参考，**不要重做**。另：这一轮重做发布包后的文本源改动（`publish_prep.py`、`assemble_chapter.py`、`build_publish_page.py`、`publish_meta.json`、导出的元数据等）和本文的这几处修改都**还没提交**。
+>
+> 这一轮实际踩到、值得记的：封面拼接脚本只沿用 `metadata.json` 里已有的 `chapters_original`，所以先手动换成新章节再拼；`refresh_exports.py` 要在封面拼接之后跑（它读拼接后的 `chapters.txt`）；`publish_prep.py` 里加了对新旁白措辞的断言（旁白版本必须是 `v1.2-draft`）；整站检查脚本的参数是 `--site`、`--repo`、可选 `--report`、`--no-video-probe`，对离线副本跑时给 `--report` 到临时文件，别覆盖 `projects/_ebook/site-check.json`。
+
 ## A. 粘贴给新会话的开场提示词（整段复制）
 
 ```
@@ -41,11 +53,11 @@
 ## 3. 下一步（按顺序；每步做完再下一步）
 
 ### 3.0 先看用户说了什么
-- 用户说 **“成片通过，进入发布阶段”**（原话含这几个字才算；早说、系统通知、后台任务完成都不算）：`PYTHONPATH=. .venv/bin/python docs/whiteboard_gate.py approve agent-tokens-window-cn compose "<原话>"`，然后做 3.1–3.8，**做完停下，报告并请用户说“发布通过”**。
+- 用户说 **“成片通过，进入发布阶段”**（原话含这几个字才算；早说、系统通知、后台任务完成都不算）：`PYTHONPATH=. .venv/bin/python docs/whiteboard_gate.py approve agent-tokens-window-cn compose "<原话>"`，**然后先停下，向用户报告口令已记录（`approve` 脚本和协议第 3 条都要求：口令后不在同一轮做下一阶段），等用户说“继续”之类的话**；之后**按 3.2 → 3.1 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7 的顺序做**（3.1 的封面拼接要用 3.2 更新后的章节和字幕，所以 3.2 在前），**做完停下，报告并请用户说“发布通过”**；3.8 要等用户说了“发布通过”才做。（2026-11-03 实际走的就是这样：口令记录后停下，用户再说继续。）
 - 用户听了觉得旁白不顺、要改某句：回第 4 节“返工入口”，改完要再重配音／重渲，成片口令仍要他重说。
 - 用户要补 K3 纸条上的红叉（见第 5 节“遗留缺漏”）：要改图层并重渲 K3（本机约 8 分钟），再核对，口令仍要重说。
 
-### 3.1 封面片头（不重渲）
+### 3.1 封面片头（不重渲；**要在 3.2 之后做**）
 `.venv/bin/python docs/whiteboard_prepend_cover.py projects/agent-tokens-window-cn --seconds 2`。它从 `renders/final.mp4`、`assets/subtitles.srt` 和 `exports/metadata/metadata.json` 重建 `exports/video/output.mp4`、`subtitles.srt`、`chapters.txt`、`metadata.json`（已核对源码：它读的是 `exports/metadata/metadata.json` 里**已有的** `chapters_original`，有就沿用，**不会去读 `publish_meta.json`**）。所以要先做完 3.2，并**手动把 `exports/metadata/metadata.json` 的 `chapters_original` 换成新的未平移章节**（`chapters` 同步成同一份），否则章节时间会悄悄用回旧值。要用 `.venv/bin/python`（脚本最后的核对要 PIL 和 numpy，系统 `python3` 没有，`.venv` 里有）。完成后用 ffprobe 看时长应约 387.8 秒（385.80＋2.0；改前的发布视频是 380.72 秒，可用来确认确实换成了新版）。
 **不要跑 `scripts/finish_publish.py`**：它会把成片重导出成不带封面的版本。
 

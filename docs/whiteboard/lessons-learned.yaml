@@ -770,5 +770,44 @@ entries:
     why: "第 1 课第二轮：装配脚本第二次运行抛出 AssertionError（后加的替换对改掉了早先一对的旧文），被 `| tail` 吞了，输出里“run2 == run1 (idempotent)”是假的；靠读到输出里的错误才发现。"
     from: [ext:agent第1课复盘]
 
+  - id: E110
+    stage: script
+    level: 清单
+    rule: "事实核对不只核数字和引文：每条断言写出“成立条件”（哪个模型、哪一页、什么设置）；引用外部页面（官方文档、窗口、定价）要联网重取一次，对照原话并读该页完整上下文（它指的是哪个产品或模型）；“三页三个数”这类对比先问各页是不是在说同一件事；由推断得来的前提（如“单个字母只占一个词元”）旁白里要带限定语（“按公开规则”“在这两个模型里”）。"
+    why: "第 2 课脚本阶段只对着 records／claims 核数字和引文，通过后第二次复审才查出三处旁白说满（窗口与最大输出、“两页出自同一家公司”、字母和“你好”只占一个词元），已批准的成片因此要改旁白、重配三个片段、整课重渲，成片口令要用户重说；章节里还有我凭记忆写错的两处。"
+    from: [ext:agent第2课复盘]
+  - id: E111
+    stage: script
+    level: 清单
+    rule: "对已批准的阶段重跑 build_script.py（或任何会写检查点的脚本）之前，先备份 checkpoint_*.json、approvals.jsonl、decision_log.json；跑完拷回，再用 whiteboard_gate.py status 确认各阶段仍是 approved。被它覆盖的 artifacts/script.json、script_review.json 已是新版，要在交接文档里写明；不要重跑 build_scene_plan.py、finish_assets.py、finish_edit.py、finish_publish.py。"
+    why: "第 2 课选 B 改旁白时重跑 build_script.py，它把脚本检查点写成 awaiting_human 并覆盖了 script.json、script_review.json 等；靠事先备份把检查点和口令记录拷回，脚本阶段才仍是 approved。"
+    from: [ext:agent第2课复盘]
+  - id: E112
+    stage: compose
+    level: 清单
+    rule: "核对笔记（compose-notes.json）里描述画面，逐项对着全尺寸关键帧写，不照事件表抄；新加的板书文字要在全尺寸帧上看有没有压到框线和卡片边；板上笔画和不透明的便条、卡片谁在上层，要看帧确认（笔画可能画在它们下面而不显示）。缩略联系表只能看整体，不能当这类核对的依据。"
+    why: "第 2 课：K3 纸条上的红叉画在纸条图层下面，成片里一直看不到，而第一版核对笔记写成“红叉划掉纸条”；K4 新加的标签压在车厢外框线上，联系表看不出，全尺寸帧才看到。"
+    from: [ext:agent第2课复盘]
+  - id: E113
+    stage: publish
+    level: 清单
+    by: docs/whiteboard_prepend_cover.py
+    rule: "旁白变了、章节起点移动之后：先把 exports/metadata/metadata.json 的 chapters 和 chapters_original 换成 publish_meta.json 里新的未平移章节，再跑 whiteboard_prepend_cover.py（它沿用已有的 chapters_original，不读 publish_meta.json）；refresh_exports（或手改 description.txt 章节行）要在拼接之后；最后核对 chapters.txt 的时间＝段起点取整＋2 秒、首条仍是 0:00。"
+    why: "第 2 课选 B 后第四章节从 292 秒移到 294 秒；若不手动同步，成品里的章节时间会悄悄用旧值（与 E105 同一类，这次的源头是 chapters_original）。"
+    from: [ext:agent第2课复盘]
+
+  - id: E114
+    stage: publish
+    level: 清单
+    rule: "派审稿子智能体时，材料里要带上审稿人核数据要用的**原始文件**，不只给汇总（records.json）：原始调用记录、对照表、完整文本等；审稿人写“不确定／没有记录／材料里没有”，先查是不是我没给，回原始数据核一遍再判，不当成问题也不当成通过。"
+    why: "第 2 课第 3 次复核给 Codex 的材料只有汇总记录，它把 19 段分词对照、120 份总数等于输入加输出、三段文字的字符数判成“不确定”，回原始数据全部成立；第 1 课也出过同一类（给它漏了记录，审稿人说没记录）。"
+    from: [ext:agent第2课复盘]
+  - id: E115
+    stage: any
+    level: 清单
+    rule: "用同一个运行器反复跑一批会破坏运行环境的尝试（红队、错解集）时，每个尝试单独起进程，不要在同一个 Python 进程里连续跑；结果与上一次差得离谱（本该失败的突然通过），先怀疑是不是进程被污染，再怀疑检查被放宽。"
+    why: "第 2 课红队重跑练习检查时我图省事在同一进程里连续跑，前面“覆盖 compile／清空检查列表”的尝试污染了运行器，多出 10 个假的“新绕过”；改成每个尝试独立进程后消失。"
+    from: [ext:agent第2课复盘]
+
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
 narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7, Hvu-22, Hexp-24, Hexp-25]
