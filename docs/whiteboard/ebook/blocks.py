@@ -196,10 +196,98 @@ def docs(r):
     return f'<div class="docs-cards">{"".join(cards)}</div>'
 
 
+# ------------------------------------------------------------ lesson 3 kinds: a table the service returned for one request, ten answers per row, official quotes, one strange answer, ten long answers, a request with its stop reason, a made-up sketch
+ROW_COLORS = ["#FFF3A8", "#CDEBFA", "#FAD3D9", "#D4F0D2", "#E3CA9B", "#E6D5F7", "#E2EDB0", "#BFEBDD", "#D9DEE5", "#F1C0E8"]    # ten pale hues, none of them orange (orange only means "the token this return actually chose")
+
+
+def _pct(p):
+    return "<0.1%" if p < 0.05 else f"{p:.1f}%"
+
+
+def ptable(r):
+    """Top-5 bars of ONE returned table, 100 % = 200 px; the rest as an empty dashed bar; orange only on `chosen`; the stop token is pink and labelled 停止符."""
+    cols = []
+    for b in r["bars"]:
+        h = max(3.0, b["pct"] * 2.0)
+        cls = "pbar" + (" stop" if b.get("stop") else "") + (" pick" if r.get("chosen") and b["token"] == r["chosen"] else "")
+        cols.append(f'<div class="pcol" role="img" aria-label="{esc(b["token"] + " " + _pct(b["pct"]))}"><span class="pnum">{esc(_pct(b["pct"]))}</span><div class="{cls}" style="height:{h:.1f}px"></div><span class="ptok">{esc(b["token"])}</span></div>')
+    if r.get("rest_pct"):
+        h = max(24.0, r["rest_pct"] * 2.0)
+        cols.append(f'<div class="pcol" role="img" aria-label="{esc("其余合计 " + _pct(r["rest_pct"]))}"><span class="pnum rest">{esc(_pct(r["rest_pct"]))}</span><div class="pbar restbar" style="height:{h:.1f}px"></div><span class="ptok rest">其余合计</span></div>')
+    chosen = f'<p class="pnote"><span class="swatch pick"></span>{esc(r["chosen_note"])}（橙色只表示这一次实际选中的词元）</p>' if r.get("chosen") and r.get("chosen_note") else ""
+    head = f'<p class="pq">问：{esc(r["prompt"])}　<span class="muted small">温度 {esc(r["temperature"])} · {esc(r["label"])}</span></p>'
+    return f'<div class="ptable">{head}<div class="pbars">{"".join(cols)}</div>{chosen}<p class="pnote muted">{esc(r["note"])}</p></div>'
+
+
+def rows(r):
+    out = []
+    for row in r["rows"]:
+        cells = "".join(f'<i class="cell" style="background:{ROW_COLORS[c]}"></i>' for c in row["colors"])
+        out.append(f'<div class="crow" role="img" aria-label="{esc(row["label"] + "：十遍，" + str(row["versions"]) + " 种不同的文字")}"><span class="clabel">{esc(row["label"])}</span> <span class="cells">{cells}</span> <span class="cnt2">共 {esc(row["versions"])} 种</span></div>')
+    return f'<div class="rowsfig"><p class="pq">问：{esc(r["prompt"])}</p>{"".join(out)}<p class="pnote muted">{esc(r["note"])}</p></div>'
+
+
+def quotes(r):
+    cards = []
+    for c in r["cards"]:
+        when = f'存档 {esc(c["archive"])}（{esc(c["archive_date"])} 存档，{esc(c.get("date", r["date"]))} 重取原页核对）' if c.get("archive_date") else f'存档 {esc(c["archive"])} · 取页 {esc(c.get("date", r["date"]))}'
+        foot = f'<p class="qfoot">{esc(c["footnote"])}</p>' if c.get("footnote") else ""
+        cards.append(f'<div class="qcard"><b class="qwho">{esc(c["who"])}</b><p class="qen" lang="en">{esc(c["english"])}</p><p class="qzh">{esc(c["zh"])}</p>{foot}<span class="qid">{when}</span></div>')
+    return f'<div class="qcards">{"".join(cards)}</div><p class="pnote muted">{esc(r["note"])}</p>'
+
+
+def excerpt(r):
+    latin = " ".join(r["latin_words"])
+    return (f'<div class="exc"><p class="pq">问：{esc(r["prompt"])}　<span class="muted small">温度 {esc(r["temperature"])}</span></p>'
+            f'<p class="exc-head">{esc(r["normal_head"])}</p><p class="exc-latin" lang="en">{esc(latin)}</p><p class="exc-wave" aria-hidden="true">……</p>'
+            f'<p class="pnote muted">{esc(r["note"])}</p></div>')
+
+
+def lines_fig(r):
+    pre = r["common_prefix"]
+    rows_html = "".join(f'<li style="background:{ROW_COLORS[i % 10]}"><mark>{esc(h[:len(pre)])}</mark>{esc(h[len(pre):])}</li>' for i, h in enumerate(r["heads"]))
+    return f'<div class="linesfig"><p class="pq">问：{esc(r["prompt"])}　<span class="muted small">温度 {esc(r["temperature"])}</span></p><ol class="heads">{rows_html}</ol><p class="pnote muted">{esc(r["note"])}</p></div>'
+
+
+def finish_fig(r):
+    body = r.get("content") or (r["content_head"] + "……（后面还有）")
+    reason = f'<span class="fr">finish_reason: {esc(r["finish_reason"])}</span>'
+    return (f'<div class="finish"><p class="pq">问：{esc(r["prompt"])}</p><pre class="req">max_tokens: {esc(r["max_tokens"])}\ntemperature: {esc(r["temperature"])}</pre>'
+            f'<p class="ret">{esc(body)}</p><pre class="req">completion_tokens: {esc(r["completion_tokens"])}\n{reason}</pre><p class="pnote muted">{esc(r["note"])}</p></div>')
+
+
+def sketch(r):
+    names = r["names"]
+    panels = []
+    for t, v in r["by_temperature"].items():
+        cols = "".join(f'<div class="pcol" role="img" aria-label="{esc(n)}"><div class="pbar sk" style="height:{max(3.0, p * 160):.1f}px"></div><span class="ptok">{esc(n)}</span></div>' for n, p in zip(names, v["p"]))
+        panels.append(f'<div class="skp"><span class="sk-t">温度 {esc(t)}</span><div class="pbars small">{cols}</div></div>')
+    return f'<div class="sketch"><div class="skrow">{"".join(panels)}</div><p class="pnote muted">{esc(r["note"])}</p></div>'
+
+
+
+def _cal3(r):
+    bits = [r["model"], r["date"], r["mode"]]
+    return "（网关标称名，转发身份无法独立验证）" + " · ".join(bits)
+
+
+TAG_SHICE = '<span class="tag tag-shice">实测</span>'
+LESSON3_KINDS = {      # kind -> function(record, ctx) -> (body html, caption, tag html)
+    "ptable": lambda r, c: (ptable(r), _cal3(r) + f" · 温度 {r['temperature']} · {r['label']}", TAG_SHICE),
+    "rows": lambda r, c: (rows(r), _cal3(r) + f" · 每行 {r['n']} 遍", TAG_SHICE),
+    "quotes": lambda r, c: (quotes(r), f"{r['date']} 重取原页核对 · 三页说法各自成立，这里不判谁对", '<span class="tag tag-source">引文</span>'),
+    "excerpt": lambda r, c: (excerpt(r), _cal3(r) + f" · 温度 {r['temperature']} · 某一次的返回（节选）", TAG_SHICE),
+    "lines": lambda r, c: (lines_fig(r), _cal3(r) + f" · 温度 {r['temperature']} · 共 {r['n']} 遍，各取开头", TAG_SHICE),
+    "finish": lambda r, c: (finish_fig(r), _cal3(r) + f" · 温度 {r['temperature']} · 某一次的返回（同样的请求发了 {r['n']} 遍，这是其中一遍）", TAG_SHICE),
+    "sketch": lambda r, c: (sketch(r), r["label"], '<span class="tag tag-shiyi">示意</span>'),
+}
+
+
 def show(b, ctx):
     r = ctx.records[b["id"]]
     ctx.used_records.append(b["id"])
     head = f'<div class="fh">{esc(r["title"])}</div>'
+    tag = TAG_SHICE
     if r["kind"] == "towers":
         body, cap = towers(r), caliber(r)
     elif r["kind"] == "chat":
@@ -224,10 +312,12 @@ def show(b, ctx):
     elif r["kind"] == "docs":
         dates = "、".join(f"{c['archive']} {ctx.urls.get(c['archive'], {}).get('date') or r['date']}" for c in r["cards"])        # each page has its own archive/fetch date
         body, cap = docs(r), f"取页日期：{dates} · 三页是各自场景里大致的参考，说法互不相同，这里不判谁对"
+    elif r["kind"] in LESSON3_KINDS:
+        body, cap, tag = LESSON3_KINDS[r["kind"]](r, ctx)
     else:
         raise AssertionError(r["kind"])
     after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""
-    return f'<figure class="show" data-record="{esc(b["id"])}">{head}{body}<figcaption class="rec"><span class="tag tag-shice">实测</span> {esc(cap)}</figcaption>{after}</figure>'
+    return f'<figure class="show" data-record="{esc(b["id"])}">{head}{body}<figcaption class="rec">{tag} {esc(cap)}</figcaption>{after}</figure>'
 
 
 # ------------------------------------------------------------ sources, metaphors, questions

@@ -311,3 +311,41 @@ code { font-family: var(--font-mono); font-size: .92em; background: var(--note-b
 .docs-link { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .docs-archive { align-self: flex-start; padding: 0 7px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; }
 @media (max-width: 640px) { .docs-cards { flex-direction: column; } }
+
+/* 第 3 课的图：一次返回的概率表、十格行、官方引文、怪词、长回答、停止原因、示意柱（只在末尾追加；颜色走变量，深色模式跟着换） */
+:root { --pick: #E8873A; --stopbar: #FAD3D9; --restline: #8A94A3; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pick: #F59E5B; --stopbar: #7A3A48; --restline: #9AA3AF; } }
+:root[data-theme="dark"] { --pick: #F59E5B; --stopbar: #7A3A48; --restline: #9AA3AF; }
+.tag-shiyi { background: var(--hl); color: #3A2E00; }
+.pq { font-size: 15px; line-height: 1.6; } .pnote { font-size: 14px; line-height: 1.7; margin: 4px 0 0; } .pnote.muted { color: var(--muted); }
+.pbars { display: flex; align-items: flex-end; gap: 14px; padding: 6px 4px 0; border-bottom: 3px solid var(--fg); min-height: 230px; overflow-x: auto; }
+.pbars.small { min-height: 190px; gap: 8px; }
+.pcol { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; min-width: 52px; }
+.pbars.small .pcol { min-width: 34px; }
+.pnum { font-family: var(--font-mono); font-size: 13px; color: var(--fg); } .pnum.rest { color: var(--muted); }
+.ptok { font-family: var(--font-hand); font-size: 20px; line-height: 1.4; padding-top: 4px; border-top: 0; } .ptok.rest { color: var(--muted); font-size: 16px; }
+.pbar { width: 44px; background: var(--model); border: 2px solid var(--model-line); border-radius: 5px 5px 0 0; box-sizing: border-box; }
+.pbars.small .pbar { width: 26px; }
+.pbar.pick { background: var(--pick); } .pbar.stop { background: var(--stopbar); } .pbar.sk { background: var(--model); }
+.pbar.restbar { background: transparent; border: 2px dashed var(--restline); }
+.swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border: 2px solid var(--model-line); border-radius: 3px; vertical-align: -1px; } .swatch.pick { background: var(--pick); }
+.rowsfig { display: flex; flex-direction: column; gap: 6px; }
+.crow { display: grid; grid-template-columns: 5.6em auto 4em; gap: 8px; align-items: center; } .clabel { font-size: 15px; } .cnt2 { font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
+.cells { display: inline-flex; gap: 4px; flex-wrap: wrap; } .cell { display: inline-block; width: 22px; height: 22px; border: 2px solid var(--model-line); border-radius: 4px; box-sizing: border-box; }
+.qcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.qcard { background: var(--note-bg); border: 1px solid var(--line); padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.qwho { font-size: 15px; } .qen { font-family: var(--font-mono); font-size: 13px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; } .qzh { font-size: 15px; margin: 0; } .qid { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.exc { display: flex; flex-direction: column; gap: 6px; } .exc-head { font-size: 16px; margin: 0; } .exc-latin { font-family: var(--font-mono); font-size: 14px; margin: 0; overflow-wrap: anywhere; } .exc-wave { margin: 0; color: var(--red); letter-spacing: 2px; }
+.heads { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; } .heads li { padding: 3px 10px; font-size: 15px; color: #111827; border: 1px solid var(--line); } .heads mark { background: var(--hl); color: #3A2E00; padding: 0 2px; }
+.finish { display: flex; flex-direction: column; gap: 6px; } .finish .req { margin: 0; padding: 8px 12px; background: #1C3653; color: #F1F5F9; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; overflow-x: auto; } .finish .fr { background: var(--hl); color: #3A2E00; padding: 0 4px; }
+.finish .ret { margin: 0; padding: 8px 12px; background: var(--model); color: var(--model-fg); border: 1px solid var(--model-line); border-radius: 10px; font-size: 15px; }
+.skrow { display: flex; flex-wrap: wrap; gap: 20px; } .skp { display: flex; flex-direction: column; gap: 4px; } .sk-t { font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
+.qfoot { font-size: 13px; line-height: 1.6; margin: 0; padding: 4px 8px; background: var(--hl); color: #3A2E00; }
+@media (max-width: 520px) {      /* phone: six columns (five names and the rest) must fit without scrolling sideways */
+  .pbars { gap: 4px; padding-left: 0; padding-right: 0; }
+  .pcol { flex: 1 1 0; min-width: 0; }
+  .pbar { width: min(40px, 88%); }
+  .pbars.small .pbar { width: min(22px, 80%); }
+  .ptok { font-size: 15px; text-align: center; overflow-wrap: anywhere; } .ptok.rest { font-size: 13px; }
+  .pnum { font-size: 11px; }
+}

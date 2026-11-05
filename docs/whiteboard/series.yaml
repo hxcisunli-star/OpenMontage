@@ -15,6 +15,8 @@ agent:
   bare_lesson_refs: self                    # 旁白里的“第N课”指本系列自己的课；与 C 课没有任何联系，不回扣、不用 C 课的比喻
   template_lesson: agent-workflow-or-agent-cn   # 新课脚本从它起步（试验课，只作模板；不是课程）；AGENT_SPECIFIC 里的几个脚本从它拷，带试验标注的由守卫挡住，改写后才能用
   starter_dir: docs/whiteboard/starter-agent/scripts   # 智能体篇专用的通用零件（docs/whiteboard/starter/ 是 C 课共用的，不改）
+  teacher_voice: Cherry                     # 老师的配音音色（百炼 qwen3-tts-flash）
+  partner_voice: Mochi                      # 搭档的配音音色：用户 2026-11-05 在第 3 课候选页（Bunny、Pip、Mochi、Mia）点选儿童声音 Mochi；后面的课默认沿用，除非用户另说（登记表 E124）
   cast_dir: projects/_cast/agent            # 角色素材库：老师（候选 A）与 AI 小搭档（候选 C）的各个姿势、校徽
   cast_assets: [robot_barrier_grip.png, robot_cheer.png, robot_confused.png, robot_flag_hold.png, robot_idea.png, robot_key_hold.png, robot_key_putaway.png, robot_listen.png, robot_nod.png, robot_note_nod.png, robot_note_write.png, robot_point_l.png, robot_proud_lookback.png, robot_read_letter.png, robot_scissors_hold.png, robot_think_tilt.png, robot_walk_in.png, robot_wave.png, robot_wheel_hold.png, robot_wheel_putaway.png, schoollogo.png, teacher_explain.png, teacher_hold.png, teacher_oops.png, teacher_point_l.png, teacher_point_right_hand.png, teacher_think.png, teacher_thumbs_up.png, robot_pat_chest.png, robot_hatch_open.png, card_chain_machine.png, card_draw_box.png, card_receipt.png, card_cut_veg.png, card_parcel_box.png, card_train_car.png]
   logo: schoollogo.png

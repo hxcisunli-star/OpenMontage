@@ -88,6 +88,7 @@ class Finder:
         self.sid = sid
 
     def at(self, phrase, end=False):
+        phrase = "".join(ch for ch in phrase if ch not in PUNCT and not ch.isspace())   # the scene plan writes anchors with the narration's punctuation; the caption text is searched without it
         p = self.plain.find(phrase, self.cur)
         if p < 0:
             raise SystemExit(f"anchor not found in {self.sid}: {phrase!r} (after {self.cur})")
@@ -249,13 +250,35 @@ class Board:
             ar.append(d)
         self.items.append({"kind": "memory", "cells": cs, "arrows": ar})
 
-    def check(self, cx, cy, at, color=GREEN):
-        self.stroke("line", at, 0.25, color=color, width=9, x1=cx - 26, y1=cy, x2=cx - 6, y2=cy + 24)
-        self.stroke("line", at + 0.25, 0.35, color=color, width=9, x1=cx - 6, y1=cy + 24, x2=cx + 34, y2=cy - 26)
+    def check(self, cx, cy, at, color=GREEN, until=None):
+        """A tick (two strokes).  Without `until` it stays to the end of the board: give one when it belongs to something that goes away (lesson 3: a tick stayed 20 s too long)."""
+        kw = {} if until is None else {"until": until}
+        self.stroke("line", at, 0.25, color=color, width=9, x1=cx - 26, y1=cy, x2=cx - 6, y2=cy + 24, **kw)
+        self.stroke("line", at + 0.25, 0.35, color=color, width=9, x1=cx - 6, y1=cy + 24, x2=cx + 34, y2=cy - 26, **kw)
 
-    def cross(self, cx, cy, at, color=RED):
-        self.stroke("line", at, 0.25, color=color, width=9, x1=cx - 24, y1=cy - 24, x2=cx + 24, y2=cy + 24)
-        self.stroke("line", at + 0.25, 0.25, color=color, width=9, x1=cx + 24, y1=cy - 24, x2=cx - 24, y2=cy + 24)
+    def cross(self, cx, cy, at, color=RED, until=None):
+        """A cross (two strokes).  Without `until` it stays to the end of the board: give one when it belongs to something that goes away (lesson 3)."""
+        kw = {} if until is None else {"until": until}
+        self.stroke("line", at, 0.25, color=color, width=9, x1=cx - 24, y1=cy - 24, x2=cx + 24, y2=cy + 24, **kw)
+        self.stroke("line", at + 0.25, 0.25, color=color, width=9, x1=cx + 24, y1=cy - 24, x2=cx - 24, y2=cy + 24, **kw)
+
+    def _stage_robot(self):
+        """Two things about the partner's pictures, done once when the board's data is written (the boards only say which pose is on stage when):
+        1. Z-order: the partner's images are listed BEFORE the teacher's, so it is drawn behind her (the images of layer top are painted in list order): it walks out from behind her and
+           leaves behind her instead of sliding over her as a see-through picture.
+        2. A pose swap is a short dissolve (about 0.2 s), not a long double picture: the old pose ends 0.2 s before the new one starts and the new one fades in over at most 0.25 s
+           (an image always fades out over 0.4 s after its `until`)."""
+        idx = [i for i, it in enumerate(self.items) if it["kind"] == "image"]
+        imgs = [self.items[i] for i in idx]
+        robots = [it for it in imgs if "/robot_" in it["src"]]
+        others = [it for it in imgs if "/robot_" not in it["src"]]
+        for slot, it in zip(idx, robots + others):
+            self.items[slot] = it
+        seq = sorted(robots, key=lambda it: it["at"])
+        for prev, nxt in zip(seq, seq[1:]):
+            if prev.get("until") is not None and nxt["at"] >= 0 and abs(nxt["at"] - prev["until"]) <= 0.3 and prev["src"] != nxt["src"]:
+                prev["until"] = round(min(prev["until"], nxt["at"] - 0.2), 2)
+                nxt["dur"] = min(nxt.get("dur", 0.25), 0.25)
 
     def data(self):
         out, last = [], -1
@@ -264,6 +287,7 @@ class Board:
                 at = round(last + 0.02, 2)
             out.append({"at": at, "x": x, "y": y})
             last = at
+        self._stage_robot()
         d = {"items": self.items, "pointer": out, "inkColor": INK, "accentColor": RED, "fadeOutSeconds": self.fade_out}
         if self.cam:
             d["camera"] = self.cam

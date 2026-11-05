@@ -309,7 +309,12 @@ def cmd_stills(args):
 
 def cmd_local_ref(args):
     proj = Path(args.proj).resolve()
-    boards = [b.strip() for b in args.boards.split(",")]
+    if args.boards:
+        boards = [b.strip() for b in args.boards.split(",")]
+    else:      # default: K3 and K6 where the lesson has a K6 (C series); a lesson with four blocks compares K3 and its last block (lesson 3 once failed with "no matching chunk file" for the absent K6)
+        ids = [c["id"] for c in json.loads((proj / "render_props.json").read_text(encoding="utf-8"))["cuts"] if c.get("type") == "whiteboard"]
+        boards = ["K3", "K6"] if "K6" in ids else (["K3", ids[-1]] if len(ids) >= 4 else ids[-2:])
+        print(f"local-ref: --boards not given, comparing {boards} (blocks of this lesson: {ids})", flush=True)
     chunks = proj / "renders/chunks"
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     bk = proj / "renders" / f"local_ref_backup_{stamp}"
@@ -364,7 +369,7 @@ def main():
     sub.add_parser("probe")
     c = sub.add_parser("compare"); c.add_argument("a"); c.add_argument("b")
     s = sub.add_parser("stills"); s.add_argument("proj")
-    l = sub.add_parser("local-ref"); l.add_argument("proj"); l.add_argument("--boards", default="K3,K6"); l.add_argument("--min-psnr", type=float, default=45.0)
+    l = sub.add_parser("local-ref"); l.add_argument("proj"); l.add_argument("--boards", default=None, help="comma list; default K3,K6 when the lesson has a K6, else K3 and the last block"); l.add_argument("--min-psnr", type=float, default=45.0)
     args = ap.parse_args()
     return {"verify": cmd_verify, "probe": cmd_probe, "compare": cmd_compare, "stills": cmd_stills, "local-ref": cmd_local_ref}[args.cmd](args)
 

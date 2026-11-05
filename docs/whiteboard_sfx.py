@@ -231,7 +231,10 @@ def apply(proj, which="light", timeline=None, props_name="render_props.json", na
     m0, m1 = measure(src), measure(out)
     change = None if m0["I"] is None or m1["I"] is None else round(m1["I"] - m0["I"], 2)
     problems = []
-    if m0["silences"] != m1["silences"]:
+    # the silences must be the same ones; the detector reports them rounded to 0.01 s at -40 dB, and a mix at 48 kHz can move one edge by that one step (seen: 332.31 -> 332.32), so
+    # equal means: same number of silences, every edge within 0.02 s.  A cue that really ran into a silence would move the edge by much more (the quiz rule cuts those first).
+    same = len(m0["silences"]) == len(m1["silences"]) and all(abs(a0 - a1) <= 0.021 and abs(b0 - b1) <= 0.021 for (a0, b0), (a1, b1) in zip(m0["silences"], m1["silences"]))
+    if not same:
         problems.append(f"the silences differ: {m0['silences']} -> {m1['silences']}")
     if change is None or abs(change) > max_change:
         problems.append(f"the loudness changed by {change} LU (more than {max_change})")

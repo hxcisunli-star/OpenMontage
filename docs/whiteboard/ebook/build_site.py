@@ -284,7 +284,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
         if fr:
             strip = '<div class="frames">' + "".join(
                 f'<figure class="frame-fig"><a class="frame" data-seek="{f["seek"]}" href="#lesson-video"><img src="{esc(site_media[f["src"]])}" alt="{esc(f["alt"])}"><span class="at">▶ {mmss(f["seek"])}</span></a>'
-                f'<figcaption>视频里这一刻，老师说：<q class="narr">{esc(f["narr"])}</q></figcaption></figure>' for f in fr) + "</div>"
+                f'<figcaption>视频里这一刻，{esc(f.get("who", "老师"))}说：<q class="narr">{esc(f["narr"])}</q></figcaption></figure>' for f in fr) + "</div>"
         blocks = "".join(render_block(blk, ctx) for blk in s["blocks"])
         secs.append(f'<section class="sec" id="sec-{esc(s["id"])}"><header class="sec-head"><span class="no">{no}</span><h2{lat(s["title"])}>{esc(s["title"])}</h2>{watch}</header>{strip}{blocks}</section>')
         toc.append(f'<li><a href="#sec-{esc(s["id"])}">{esc(s["title"])}</a></li>')
@@ -304,12 +304,25 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
         return esc(r["model"].split("/")[-1]) if r.get("model") else esc("、".join(m["model"].split("/")[-1] for m in r["models"]))
     rec_rows = "".join(f'<li><b>{esc(i)}</b>：{esc(ctx.records[i]["title"])}' + (f'　<span class="mono">{model_names(ctx.records[i])} · {esc(ctx.records[i]["date"])} · {esc(ctx.records[i]["mode"])} · {ctx.records[i]["n"]} 遍</span>' if ctx.records[i].get("n") else "") + "</li>"
                        for i in dict.fromkeys(ctx.used_records))
+    _used = set(ctx.used_records)
+    for _u in set(ctx.records) - _used - {"_meta"}:
+        assert not any(_u in _v for _v in _used), f"{u['id']}: record id {_u!r} is not shown but is a substring of a shown record id: the evidence drawer test would list it as shown; rename one of them (lesson 3)"
     used_claims = list(dict.fromkeys(ctx.used_claims))
+    LEAK = re.compile(r"Codex|WebFetch|Antigravity|Gemini Flash|提案|评审|读者测试|\bN[0-9]\b|脚本阶段|托管|研究笔记|决策日志")      # lesson 3: the claim list's working notes (tool names, review numbers) rendered on a reader's page
+    for k in used_claims:
+        assert not LEAK.search(ctx.claims[k]["scope"] + ctx.claims[k]["statement"]), f"{u['id']}: claim {k} carries a working note into the reader's page: give the chapter a book copy of the claims file with a reader-facing scope (lesson 3: code/assemble_chapter.py SCOPE_READER)"
     src_rows = "".join(f'<li><b>{esc(k)}</b>：{esc(ctx.claims[k]["statement"])} <span class="muted">适用范围：{esc(ctx.claims[k]["scope"])}</span></li>' for k in used_claims)
     mixed = any(ctx.records[i].get("kind") in ("cuts", "docs") for i in ctx.used_records)      # lesson 2: a local reproduction of two public cutting rules and quotes from archived pages are records too
     evidence_lead = ("这一章的“实测”里，模型调用的记录都是经模型网关调用的；切法示意是在本机用公开规则复现的；文档摘引取自存档页面（日期见各自的来源）。" if mixed else "这一章的“实测”都是经模型网关调用的记录，")
+    kinds = [ctx.records[i].get("kind") for i in dict.fromkeys(ctx.used_records)]
+    if "sketch" in kinds or "quotes" in kinds:      # lesson 3: made-up sketches and official quotes are in the drawer too, and must not sit under a heading that says 实测
+        n_sk, n_qt = kinds.count("sketch"), kinds.count("quotes")
+        rec_head = f"图和记录（共 {len(kinds)} 条：实测 {len(kinds) - n_sk - n_qt} 条、示意 {n_sk} 条、官方引文 {n_qt} 条）"
+        evidence_lead = "这一章标“实测”的图，都是经模型网关调用的记录；标“示意”的图，数是我们自编的，不是任何一次返回；官方引文取自存档页面（日期见各自的来源）。"
+    else:
+        rec_head = f"实测记录（{len(set(ctx.used_records))} 条）"
     evidence = ('<details id="evidence" class="evidence"><summary>证据抽屉：这一章的数字和说法从哪里来</summary>'
-                f'<h4>实测记录（{len(set(ctx.used_records))} 条）</h4><ul>{rec_rows}</ul>'
+                f'<h4>{rec_head}</h4><ul>{rec_rows}</ul>'
                 f"<p>{evidence_lead}录制日期是 {'、'.join(sorted({ctx.records[i]['date'] for i in ctx.used_records if ctx.records[i].get('date')}))}（每条记录上都标了）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
                 f'<h4>来源说（{len(used_claims)} 条）</h4><ul>{src_rows}</ul></details>')
     side = ""

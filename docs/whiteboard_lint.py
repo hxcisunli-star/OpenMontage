@@ -19,6 +19,10 @@ New optional fields (layer / move / rot / origin / fill / path / camera, see Whi
   ERROR  code `lang` other than "c" / "py"; layer other than "top"; a `move` key without a numeric `at`; a `path` stroke without a `d` string; a fill or fillOpacity that is not a colour string / a number
          in 0..1; a camera key with scale < 1 (the board edge would show) or without a numeric `at`
   WARN   a `path` stroke with a fill but no `box` (the tools cannot place it); a camera centre outside the canvas
+  ERROR  a `move` key with a field the composer does not read (it reads at, dx, dy, scale, sy, rot; anything else, e.g. `sx`, is silently ignored: lesson 3's knob was squashed that way)
+  ERROR  two or more pictures of the same character (layer "top", same name before the first "_": robot_, teacher_) visible together (opacity > 0.2) for more than 1.0 s (WARN from 0.4 s):
+         a pose swap is a dissolve, longer means two poses stand on top of each other (lesson 3: an old pose whose `until` ran to the end of the board, 25 s; back-test 2026-11-05: lesson 1
+         has a 2.8 s double teacher in K3).  An image always fades out over 0.4 s after its `until`, so end the old pose at least 0.2 s before the new one starts.
   WARN   text lying on a filled block whose contrast with the fill is too low (WCAG 4.5, 3.0 for text of 40 px and up; hex colours only; the topmost fill that is on the board at the same time counts)
 """
 import json
@@ -70,6 +74,9 @@ def fill_box(it):
     return None
 
 
+MOVE_FIELDS = {"at", "dx", "dy", "scale", "sy", "rot"}
+
+
 def check_new_fields(cid, it, where, errors, warns):
     kind = it.get("kind")
     if kind == "code" and "lang" in it and it["lang"] not in ("c", "py"):
@@ -79,6 +86,8 @@ def check_new_fields(cid, it, where, errors, warns):
     for k in it.get("move") or []:
         if not isinstance(k, dict) or not isinstance(k.get("at"), (int, float)):
             errors.append(f"{where(it)}: a `move` key needs a numeric `at`: {k!r}")
+        elif set(k) - MOVE_FIELDS:
+            errors.append(f"{where(it)}: a `move` key has fields the composer does not read: {sorted(set(k) - MOVE_FIELDS)} (it reads only {sorted(MOVE_FIELDS)}; e.g. use `scale`, not `sx`)")
     if kind == "stroke":
         if it.get("shape") == "path":
             if not isinstance(it.get("d"), str) or not it.get("d").strip():
@@ -90,6 +99,48 @@ def check_new_fields(cid, it, where, errors, warns):
         fo = it.get("fillOpacity")
         if fo is not None and not (isinstance(fo, (int, float)) and 0 <= fo <= 1):
             errors.append(f"{where(it)}: fillOpacity must be a number in 0..1 (got {fo!r})")
+
+
+def check_characters(cid, wb, length, errors, warns):
+    """Two pictures of one character on the board at once (see the docstring): scan the cut in 0.05 s steps with the composer's opacity rules (fade-in easeInOut over `dur` for
+    reveal "fade", fade-out linear over 0.4 s after `until`)."""
+    def ease(x):
+        x = min(max(x, 0.0), 1.0)
+        return 2 * x * x if x < 0.5 else 1 - (-2 * x + 2) ** 2 / 2
+    groups = {}
+    for it in wb.get("items", []):
+        if it.get("kind") == "image" and it.get("layer") == "top":
+            name = str(it.get("src", "")).rsplit("/", 1)[-1]
+            if "_" in name:
+                groups.setdefault(name.split("_", 1)[0], []).append(it)
+    for kind, its in groups.items():
+        if len(its) < 2:
+            continue
+        run0, worst, worst_t = None, 0.0, 0.0
+        t = 0.0
+        while t <= length:
+            n = 0
+            for it in its:
+                at = float(it.get("at", 0) or 0)
+                if it.get("reveal") == "fade":
+                    p = 1.0 if at < 0 else ease((t - at) / max(float(it.get("dur", 1.2) or 1.2), 1e-6))
+                else:
+                    p = 1.0 if t >= at else 0.0
+                u = it.get("until")
+                f = 1.0 if u is None else min(max(1 - (t - float(u)) / 0.4, 0.0), 1.0)
+                if p * f > 0.2:
+                    n += 1
+            if n >= 2:
+                run0 = t if run0 is None else run0
+                if t - run0 > worst:
+                    worst, worst_t = t - run0, run0
+            else:
+                run0 = None
+            t = round(t + 0.05, 2)
+        if worst > 1.0:
+            errors.append(f"{cid} @{worst_t:.1f}s: two or more '{kind}_' pictures are visible together for {worst:.2f} s (a pose swap is a dissolve of 0.4 s; end the old pose 0.2 s before the new one starts)")
+        elif worst > 0.4:
+            warns.append(f"{cid} @{worst_t:.1f}s: two '{kind}_' pictures are visible together for {worst:.2f} s (a pose swap is a dissolve of about 0.2 s; a longer one shows two characters)")
 
 
 def check_camera(cid, wb, errors, warns):
@@ -195,6 +246,7 @@ def lint_props(props, quiz=None):
 
         walk_null(wb, "whiteboard")
         check_camera(cid, wb, errors, warns)
+        check_characters(cid, wb, float(cut.get("out_seconds", 0) or 0) - base, errors, warns)
         check_contrast(cid, wb, base, warns)
         boxes = []  # (x0, y0, x1, y1, t0, t1, label)
         long_hand = []

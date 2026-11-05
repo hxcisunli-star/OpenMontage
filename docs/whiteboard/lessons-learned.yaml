@@ -4,7 +4,7 @@
 # 晋升规则：停在“清单”级、却出现在 ≥3 课的笔记里（见 stats），就该做成检查或默认。
 # from：来源编号（P6-n＝手册 §6 踩坑行，Hn-k＝交接文档归档里第 n 课的笔记子句，Ln-k＝手册逐课“教训”）；seen_extra：来源行里点名、但没有编号的课。
 version: 1
-updated: "2026-11-02"
+updated: "2026-11-05"
 
 stages:
   any:
@@ -81,9 +81,11 @@ stages:
       - {path: .claude/skills/lesson-fact-check/SKILL.md, why: 写简介与练习前后各查一遍}
       - {path: docs/whiteboard/retro-template.md, why: 发布通过之后写复盘，把教训分流}
     steps:
-      - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：先 `python3 docs/whiteboard_thumb_check.py projects/<课程> --list` 选 `THUMB_T`，再 `publish_prep.py`（不合格会停）→ `finish_publish.py`。
-      - 封面：`docs/whiteboard_cover_maker.py` 的 LESSONS 加一行再运行；`docs/whiteboard_prepend_cover.py projects/<课程> --seconds 2`；`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py`。
-      - 写 publish 检查点 awaiting_human，停下等“发布通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> publish "<用户原话>"`。
+      - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：先 `python3 docs/whiteboard_thumb_check.py projects/<课程> --list` 选 `THUMB_T`，再 `publish_prep.py`（不合格会停）→ `finish_publish.py --no-checkpoint`（只导出，检查点最后才写，E134）。链式命令先 `set -o pipefail`（E133）。
+      - 封面：`docs/whiteboard_cover_maker.py` 的 LESSONS 加一行再运行（只对本课调用 make()，别用课号参数：它会连同号的 C 篇一起重建）；`docs/whiteboard_prepend_cover.py projects/<课程> --seconds 2`；`scripts/sync_description_chapters.py`（简介章节时间对齐）。
+      - 电子书章：`code/assemble_chapter.py` → `build_site.py --link-media` → `check_site.py`（全过）→ 真浏览器看页内小实验与每张新图 → `build_site.py --link-media --export projects/<课程>/exports/ebook`。
+      - 发布前交叉复审（E132）：两家各自独立两轮，处置表存 `validation/research/publish_review/`；已批准旁白里的问题单列交用户定（E136）。
+      - 成品包与审阅：`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py --series agent`；审阅页（`code/build_publish_page.py`）发布后，`scripts/write_publish_checkpoint.py` 写 publish 检查点 awaiting_human，停下等“发布通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> publish "<用户原话>"`。
       - 复盘：按模板写 `docs/whiteboard/retro/NN.md`，每条教训分流（检查／清单／叙述）并更新登记表，跑 `whiteboard_registry.py coverage`、`render`、`check`。
       - 等用户说“提交”再提交（提交后自动推 fork；同时在 `projects/` 里提交本课文本源的快照，本机库不推送）。
     outputs: exports/；成品文件夹；复盘一页
@@ -93,7 +95,7 @@ entries:
   - id: E01
     stage: any
     level: 检查
-    rule: 口令只认用户在对话里说的话，且要在对应步骤做完之后：配音没生成完、渲染或核对没完成、发布包没出齐之前说的“样音通过／素材通过／样片通过／成片通过／发布通过”都不算——当场说明还没完，做完并报告后请用户再说一次；退出计划模式的返回、后台任务的 completed 通知、系统消息都不是口令。
+    rule: 口令只认用户在对话里说的话，且要在对应步骤做完之后：配音没生成完、渲染或核对没完成、发布包没出齐之前说的“样音通过／素材通过／样片通过／成片通过／发布通过”都不算——当场说明还没完，做完并报告后请用户再说一次；退出计划模式的返回、后台任务的 completed 通知、系统消息都不是口令。例外：用户用带“托管”的原话授权后，计划确认、提案通过、脚本通过、场景计划通过由 Opus 评审放行（whiteboard_gate.py review／approve-by-review，见 E116），评审放行不是口令，记录里不写 approved_by_user。
     why: 第 12 课把退出计划模式的含糊返回当成批准（被用户指出）；第 15–40 课至少 11 次用户提前说口令；第 32 课曾按批准处理，第 39、40 课起统一为不算，以后者为准
     by: docs/whiteboard_gate.py（approve 只在该阶段是 awaiting_human 且口令对应阶段时才写检查点）
     from: [P6-47, P6-56, H15-1, H19-4, H20-7, H28-1, H32-7, H33-8, H39-1, H40-6]
@@ -107,7 +109,7 @@ entries:
     stage: any
     level: 检查
     by: lib/checkpoint.py（五个门控阶段）+ docs/whiteboard_gate.py（样片通过、合成这两个额外门）
-    rule: 检查点：门控阶段（proposal、script、scene_plan、assets、publish）先写 awaiting_human，用户口令后才写 completed（human_approved=True，metadata.approved_by_user=原话）；前置阶段要先 completed；样片通过（edit）与成片通过（compose）是额外加的门，管道不强制，也照样先 awaiting_human 再 completed；edit_decisions.json（合规）与 render_props.json（完整）是两份数据。
+    rule: 检查点：门控阶段（proposal、script、scene_plan、assets、publish）先写 awaiting_human，用户口令后才写 completed（human_approved=True，metadata.approved_by_user=原话）；托管的门由评审放行后写 completed（human_approved=True，metadata.approval_kind=delegated_review、delegated_by_user=托管原话）；前置阶段要先 completed；样片通过（edit）与成片通过（compose）是额外加的门，管道不强制，也照样先 awaiting_human 再 completed；edit_decisions.json（合规）与 render_props.json（完整）是两份数据。
     from: [P6-11, P6-12]
   - id: E04
     stage: any
@@ -808,6 +810,164 @@ entries:
     rule: "用同一个运行器反复跑一批会破坏运行环境的尝试（红队、错解集）时，每个尝试单独起进程，不要在同一个 Python 进程里连续跑；结果与上一次差得离谱（本该失败的突然通过），先怀疑是不是进程被污染，再怀疑检查被放宽。"
     why: "第 2 课红队重跑练习检查时我图省事在同一进程里连续跑，前面“覆盖 compile／清空检查列表”的尝试污染了运行器，多出 10 个假的“新绕过”；改成每个尝试独立进程后消失。"
     from: [ext:agent第2课复盘]
+  - id: E116
+    stage: any
+    level: 检查
+    by: docs/whiteboard_gate.py（delegate 只允许四个文字类门；approve-by-review 只在最近一次评审 pass 且产物未改时放行；stop-hook 只催发起托管的会话）
+    rule: "托管：只有文字类的门（计划确认、提案、脚本、场景计划）能交给评审；评审由脚本另起只读的 Opus，在后台跑，结论写 review/gate-review-<阶段>-<n>.json；每个门最多审两次；needs_human、两次没过、要花计划外的钱、要改已批准内容、被自动模式拦、要提交推送，都先 delegate halt 再停。评审放行不冒充用户原话。"
+    why: "2026-11-03 用户要无人值守：第 3 课会话每过一个门都停下等口令；用户选了文字类门交给 Claude Opus 评审，听和看的门、对外的门仍由自己定。staging 实测：Opus 审第 2 课旧版脚本，独立找出了用户后来在 v1.2 里改的三处。"
+    from: [ext:用户2026-11-03托管决定]
+
+  - id: E117
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py（check_characters）
+    rule: "同一个角色（图片名在第一个下划线前相同，如 robot_、teacher_，layer 为 top）在同一时刻不能有两张图同时可见（不透明度 >0.2）超过 1.0 秒（0.4 秒起是警告）：换姿势是一次短叠化。图片结束后固定线性淡出 0.4 秒，所以旧姿势要在新姿势开始前至少 0.2 秒结束；搭档一律画在老师后面（Board._stage_robot 在起步模板里已做：图片列表里搭档在前、换姿势自动缩成约 0.2 秒叠化）。"
+    why: "第 3 课第一次样片：第一块里搭档“挥手”和“指板”两个 robot_on 都写到段末，34 到 59 秒两个小机器人叠在一起，用户看样片说“小机器人图片出现了重合”；lint、最后一笔检查、版面检查、我的搭档覆盖检查全都没拦住，因为都只看“有没有”，没数“同一时刻有几张”。回测旧课：第 1 课 K3 老师双图 2.8 秒（已发布，记入 video-backlog D15），第 1、2 课和试验课的搭档叠化 0.55–0.85 秒（D16）。"
+    from: [ext:agent第3课复盘]
+  - id: E118
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_partner_check.py
+    rule: "搭档自己有台词的课：渲染前跑 docs/whiteboard_partner_check.py <项目>（智能体起步模板的 rebuild_edit.sh 在脚本里有 partner_lines 时自动跑）。它查：每句真实配音（narration_timeline.json 里 speaker＝partner）开口前至少 0.5 秒搭档已站在场上、说完后至少 0.25 秒才退；每句台词逐字等于一个气泡（只在标点处换行），气泡在开口前 2.5 秒到后 0.8 秒之间出现、到配音结束才消失；搭档在场的每一段都包含一句台词；搭档图排在老师图之前（画在后面）。台词只有一两秒时搭档要提前约 1 秒从老师身边走出来。"
+    why: "第 3 课搭档说话：“为什么叫温度呀？”只有 1.1 秒，第一版板书让搭档在开口那一刻才开始走进来，气泡会在话说完后才出现；Codex 写的板书当时没有“搭档站定再开口”的检查，是我写了 check_boards.py 才发现，现已升成通用脚本。"
+    from: [ext:agent第3课复盘]
+  - id: E119
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_lint.py（check_new_fields 的 MOVE_FIELDS）
+    rule: "板上的 move 关键帧只认 at、dx、dy、scale、sy、rot 六个字段（kit 与 WhiteboardScene.tsx 的 WbKey）；别的字段名（如 sx）合成器静默忽略，lint 现在对它报 ERROR。旋钮、卡片这类“整张卡平移加缩放”的东西，卡片本身不带 rot，只让指针转；指针的中心圆点要带和卡片一样的 move。"
+    why: "第 3 课 Codex 写旋钮缩放时用了 sx／sy，渲出来旋钮卡斜着、圆被压成椭圆、指针圆点留在原地；是我渲全尺寸帧才看到，lint 当时没有这条。"
+    from: [ext:agent第3课复盘]
+  - id: E120
+    stage: edit
+    level: 默认
+    by: docs/whiteboard/starter-agent/scripts/
+    rule: "智能体篇起步模板（docs/whiteboard/starter-agent/scripts）已内置：Finder.at 先去掉锚点里的标点再找（场景计划的锚点带逗号）；build_parts.py 有 _body_common.py 就拼进去（本课共用件先写好冻结再派板书）；rebuild_edit.sh 默认用仓库 .venv 的 python、缺 pose_metrics.json 就先生成；Board.check／cross 可带 until；Board._stage_robot（搭档画在老师后面、换姿势短叠化）；finish_edit.py 从 sfx_profile.txt 与 validation/sfx-cues.json 读真实音效档；finish_assets.py 在 ASSETS_REFRESH_ONLY=1 时只刷新素材清单、不改已批准的检查点；gen_tts.py 支持第二个音色（voices.json＋script.metadata.partner_lines，按搭档的话和预测题问句切片段，片段文字写进时间线）；make_captions.py 读时间线里的片段文字。"
+    why: "第 3 课起步模板的缺口一个个在剪辑阶段才踩到：build_parts 没拼共用件、pose_metrics.json 没生成、系统 python3 没有 PIL、红叉和绿勾没有结束时间会留到板末、锚点带标点找不到，每次都是现场补在本课副本里。"
+    from: [ext:agent第3课复盘]
+  - id: E121
+    stage: edit
+    level: 清单
+    rule: "板书交给没有渲染器的子智能体（Codex）写时：lint、最后一笔检查通过只说明格式对，不说明画面对。收回来先渲 --contact 总览，再把每块板最挤、最复杂的十几个时刻取全尺寸帧逐张看（角色进退场、换姿势、旋钮／面板这类带动画的东西、深色面板上的字）；再跑真实版面检查和 E118 的搭档检查。子智能体对几何的说法也要用真实像素量（对象外框、不透明像素），本课 Codex 报“搭档与老师外框重叠”是误报，量过无重叠；反过来它写的“无重叠”也要量（measure_pair_gap.py）。"
+    why: "第 3 课四路 Codex sol 并行写四块板，交回时 lint 0 错、最后一笔余量 ≥0.85 秒，我渲出画面后改了 18 处，其中一处严重（25 秒两个小机器人叠在一起）；共用件先冻结、真表数据现读、气泡文字用断言，这三条让“手打数字”“文字不对”这类错一个都没出。"
+    from: [ext:agent第3课复盘]
+  - id: E122
+    stage: edit
+    level: 清单
+    rule: "对比度 WARN 在深色面板上逐条看全尺寸帧：深蓝底上的绿字（2.5）、红“实测”章（2.6）、浅青字压在黄色荧光上（1.1）真的看不清，要改字色（浅绿（色值 86EFAC 或 4ADE80）、浅红（色值 FCA5A5）、黄色荧光上用深色字，且荧光画在字段和值整行下面），不能写“事件表指定的颜色”就留着。小圆（旋钮面、指针圆点）用 rrect_path 画成路径，不用 circle 描边（手抖在小尺寸上成了鸡蛋形）；已经画好的静态件（_Static，at＝-10）要在某时刻消失，画完后手补 `it[\"until\"]＝b.r(t)`，因为静态模式下传 until 会变成 -10 而立刻消失。"
+    why: "第 3 课：s4 深色面板的 length 浅青字落在黄色荧光上几乎不可见、绿字对比度 2.5、s3 深色面板上的红章 2.6；s3 小旋钮的 circle 描边成了鸡蛋形；s4 槽四的静态问号压在后写的红字下面，真实版面检查报了本课唯一的 ERROR。"
+    from: [ext:agent第3课复盘]
+  - id: E123
+    stage: edit
+    level: 检查
+    by: docs/whiteboard_sfx.py（apply 的静默比较）
+    rule: "运行 docs/whiteboard_sfx.py apply 之后必须确认输出含 “applied profile”；返回 NOT applied 时 render_props.json 仍指向没有音效的旁白，接着渲的样片会悄悄没有音效。静默比较允许同一静默段的每个边界相差 ≤0.02 秒（检测器按 0.01 秒取整，混 48 kHz 后一个边界会差一格）。样片链脚本里 apply 失败就停，别往下渲。"
+    why: "第 3 课换声音后重建时间线，apply 因第三段静默起点 332.31／332.32 差 0.01 秒被拒，链脚本没检查返回值，先渲了三段没有音效的样片才发现；已把工具的比较改成容差 0.02 秒，链脚本改成失败即停。"
+    from: [ext:agent第3课复盘]
+  - id: E124
+    stage: assets
+    level: 清单
+    rule: "角色声音候选要符合角色设定：智能体篇的搭档是校园小机器人，样音页给搭档的候选必须包含儿童／可爱的音色（百炼现成的 Bunny、Pip、Mochi、Mia 都能用，Bella、Nini、Momo 也出声），并在页面上明说“要不要儿童声音”；用户没有点选就说样音通过时，不要默默取成人音色：把默认值和理由写在素材页上再问一次。用户已定（2026-11-05）：搭档用 Mochi（series.yaml 的 partner_voice），后面的课默认沿用，除非用户另说。"
+    why: "第 3 课样音页只给了 Ethan／Chelsie 两个成人音色，用户没点选，我按先例取了 Ethan；到样片阶段用户说“搭档的声音建议使用儿童声音，可爱点”，换成 Mochi 后搭档每句话更慢，整课从 402.4 秒变成 408.3 秒，全部时间点、四块板的锚点、七段样片和样片页都要重来一遍。"
+    from: [ext:agent第3课复盘]
+  - id: E125
+    stage: assets
+    level: 清单
+    rule: "用户在素材已批准之后要求改素材（换声音、换图）的流程：①备份 assets/audio、字幕、asset_manifest、各检查点和 approvals.jsonl 到仓库外；②改 voices.json（写依据、前一个值），gen_tts.py 只重配变了的片段（缓存按音色加文字哈希），make_captions.py；③ASSETS_REFRESH_ONLY=1 运行 finish_assets.py：刷新素材清单，不动 assets 检查点（门保持 approved，不要用户重说素材通过），gate status 确认；④整课时间变了：重跑 preflight（锚点逐个找得到、间隔不变短）、重建、E118 检查、版面检查、sfx apply（每次重建后都要，并确认 applied）；⑤样片窗口按新时间线重选（所有窗口位移），全部重渲，页面写清“这一版和上一版的区别”；⑥口令：样片口令要在新样片上说，之前说的不算（早说不算）。"
+    why: "第 3 课样片之后换搭档声音按这个顺序做完，素材门没有被回退；中途用户在样片还在重渲时就说了“样片通过，开始合成”，当场说明不算，做完再请用户说。"
+    from: [ext:agent第3课复盘]
+  - id: E126
+    stage: script
+    level: 清单
+    rule: "用户在脚本审阅页的反馈要求改脚本（第 3 课：“搭档应该也能说话，一问一答效果更好”）：先出计划让用户确认（计划模式，改哪里、哪些已批准的东西会动），备份检查点与口令记录，再改脚本与场景计划；脚本门在 awaiting_human 时场景计划检查点写不进去（PREREQUISITE VIOLATION），先用只写产物的小脚本（不写检查点），等用户说“脚本通过”之后再完整重建、再写场景检查点；托管已停止的话，不要在用户没说时恢复。改完旁白的字，立刻重跑 validate_section.py（锚点逐字、唯一、先后、间隔），不要攒到最后。"
+    why: "第 3 课脚本改到 v1.5 加搭档 8 句话，场景计划 118 个事件里几十个锚点和提示间隔因此失效，多轮“锚点对不上／间隔超 10 秒”靠反复跑校验器才收敛。"
+    from: [ext:agent第3课复盘]
+  - id: E127
+    stage: script
+    level: 清单
+    rule: "审阅页的决策区（选 A／B、选音色）：同一页换了问题之后，页面库里的决策文档 id 要按问题键区分（用 DATA.decision.key 取 id），否则旧问题的答案会显示在新问题上；换问题后要用无头浏览器点一遍并读库确认。"
+    why: "第 3 课脚本审阅页先问时长、后问搭档音色，新问题一度显示着旧的“时长选 A”。"
+    from: [ext:agent第3课复盘]
+  - id: E128
+    stage: scene
+    level: 清单
+    rule: "画真表的数字、模型名、日期、种数一律由代码从数据文件现读（real_tables.json、从 validation/real_runs 正式记录现算的 rows_data.json），板书里手写的数字为 0，并在共用件里断言；有逐次原始记录就按真实顺序和重复情况着色，不画“示意排列”（种数与已有数字逐一核对相等）。共用件（装配图卡、真表柱、章、脚注、气泡、旋钮）在派板书之前由我写好冻结，板书文件只调用不改。"
+    why: "第 3 课四块板、1112 个板上元素，实测数字 0 处手打、模型名日期 0 处手打；十格行本来按计划画“示意排列”，有了正式记录后改成真实的顺序和重复。"
+    from: [ext:agent第3课复盘]
+
+  - id: E129
+    stage: publish
+    level: 检查
+    by: docs/whiteboard/ebook/build_site.py
+    rule: "电子书一章里，没有展示的记录，它的 id 不能是某条已展示记录 id 的子串（整站检查在证据抽屉里按子串找记录 id，子串会让没展示的记录被当成展示了）；build_site.py 构建时直接拦，给两个 id 起名时别让一个包含另一个。"
+    why: "第 3 课把温度 1.0、1.5 两行的记录命名成 ROWS_name_qw_hi，而 ROWS_name_qw 没展示，整站检查报“证据记录集合不符”，靠改名才过。"
+    from: [ext:agent第3课复盘]
+  - id: E130
+    stage: publish
+    level: 检查
+    by: docs/whiteboard/ebook/build_site.py
+    rule: "章里的来源卡（fact 块）把说法清单里的“适用范围”逐字渲染给读者；说法清单（claims_used.json）是工作记录，里面有工具名、审稿编号、禁说编号时，章要用一份读者版（说法不变，适用范围改写，例：claims_book.json），build_site.py 构建时拦下带“Codex、WebFetch、Antigravity、提案、评审、读者测试、N 加数字、托管”等字样的来源卡。"
+    why: "第 3 课发布前复审，Codex 把“来源卡里写着我与 Codex 各重取一次、我用 WebFetch 读到同一段、提案评审意见 2”报成阻断项：学生会看到制作过程的内部记录。"
+    from: [ext:agent第3课复盘]
+  - id: E131
+    stage: script
+    level: 清单
+    rule: "旁白、板书、简介、练习里，凡是由“某一次的返回”里的一张表（例：北京 100.0%）推出“这道题几乎没有别的选择”“大签独占”“怎么抽都是它”的句子都要改成观察句：这批测试里每个模型各几遍、哪个温度、结果是什么；返回的表不等于抽签用的分布，只能说“表上这一次是这样”。第一次出现实测数字的那一句，旁白里就要交代范围（哪两个模型、哪一天、关没关思考、每个模型各几遍），不要只放在画面小字里；“各格几张”这类只对某一个模型成立的数，旁白里要说出是哪个模型。"
+    why: "第 3 课脚本通过之后，发布前两家 AI 复审指出已批准旁白里三句偏满（首都“大签独占”、第一次实测句没交代范围、“各格六到九张”没说第一个模型），用户选 A 全改，成片重配重渲重新通过；脚本门的评审和读者测试都没抓到。"
+    from: [ext:agent第3课复盘]
+  - id: E132
+    stage: publish
+    level: 清单
+    rule: "发布前交叉复审（电子书、简介、练习、旁白）的做法：两家模型各自独立（Codex 可联网可跑命令，另给原始记录；Antigravity 只读文件），材料给真实渲染出来的页面文字、成品包里的文件、records 和说法清单，不给自己拼的摘要；第一轮之后改，第二轮只给“改了哪里＋改前写的是什么”，不给对方结论，并要求扫同类问题（返回表当分布、公式极限当真实行为、“说法不一”、没写每个模型各几遍、通用化的字段含义、内部工作痕迹，包括任务书措辞）；已批准的旁白里的问题单列交用户定，不静默改（见 E136）。复审结果存 validation/research/publish_review/，写处置表。"
+    why: "第 3 课两轮共 32 条发现，阻断项 3 个都成立（来源卡工作记录、公式极限说成服务行为、练习里“怎么抽都是它”）；第二轮又查出第一轮改漏的同类句（练习五、练习一的“三十遍”）。Codex 另用脚本现算 46 格版本数、finish_reason、七张候选表，全部一致。"
+    from: [ext:agent第3课复盘]
+  - id: E133
+    stage: publish
+    level: 清单
+    rule: "链式命令先写 set -o pipefail：cmd 后面接 | tail 再 && 下一步，会吞掉 cmd 的失败（管道的退出码是 tail 的），后面的步骤照样用旧文件跑完。改了脚本后，要核对新内容真的出现在导出里（grep 一句新话），不能只看没报错。"
+    why: "第 3 课 publish_prep.py 的断言失败被 | tail 吞掉，finish_publish 导出了旧简介，我是最后 grep 新句子才发现，重做了导出和封面拼接。"
+    from: [ext:agent第3课复盘]
+  - id: E134
+    stage: publish
+    level: 默认
+    by: docs/whiteboard/starter-agent/scripts/
+    rule: "智能体篇起步模板的发布件：finish_publish.py 加了 --no-checkpoint（只导出，不写检查点；检查点由 write_publish_checkpoint.py 在复审、导出电子书、建成品包之后才写，读 validation/publish_export_log.json 和 review/publish/checkpoint_notes.json，要求整站检查通过）；sync_description_chapters.py 把简介末尾章节时间按 chapters.txt 对齐并断言三个文件一致（E105 的自动化）。不要改掉。"
+    why: "第 3 课发布阶段这三件事都是现场补的脚本；写检查点太早会让用户读到“等你审”而复审还没做完，章节时间不对齐在第 2 课就出过。"
+    from: [ext:agent第3课复盘]
+  - id: E135
+    stage: compose
+    level: 检查
+    by: docs/whiteboard_verify.py
+    rule: "whiteboard_verify.py local-ref 不写 --boards 时，默认比 K3、K6（有 K6 的课）；只有四块板的课比 K3 和最后一块，并打印选了哪几块。不要再靠记住写 --boards K3,K4。"
+    why: "第 3 课 local-ref 默认 K3、K6，本课没有 K6，K3 渲了约 10 分钟后报“no matching chunk file”，只能再跑一遍 K3,K4。"
+    from: [ext:agent第3课复盘]
+  - id: E136
+    stage: compose
+    level: 清单
+    rule: "已批准的旁白要改（用户在复审页选了 A）的完整链：备份到仓库外（检查点、approvals、决策记录、artifacts、scripts、code、配音、字幕、旧成片）→ 改作者文件（旁白、画面提示、数字登记、VERSION 与 NOTES）→ make_author_files.py → build_script.py（它会把脚本检查点写成 awaiting_human 并重写决策记录，跑完从备份恢复，再补一条决策和检查点 metadata 注记，gate status 仍是 approved）→ 画面提示相邻间隔不超过 10 秒，超了就给长句里加提示 → gen_tts.py 只重配被改的片段 → make_captions.py → ASSETS_REFRESH_ONLY=1 finish_assets.py → 改板书锚点和 scene_data（新句子要有画面事件，间隔不超过 9.5 秒）→ preflight_anchors.py → rebuild_edit.sh → whiteboard_sfx.py apply 全量 → 版面检查改动的块 → 渲染计划 → 整片远程渲染 → verify → stills → local-ref → 取全尺寸帧看改动处 → compose-notes 如实写“新旁白没人听过、没做样片、没再请 AI 复审” → finish_compose.py → 用户重说成片口令之后才写 publish 检查点。"
+    why: "第 3 课、第 2 课都走过这条链；第 3 课的坑：build_script 覆盖检查点、数字登记要给新句子里的数字和“一个”类词登记或豁免、提示间隔超限、场景数据与板书的锚点两处都要改、local-ref 默认块。"
+    from: [ext:agent第3课复盘]
+  - id: E137
+    stage: publish
+    level: 清单
+    rule: "官方引文卡上每一句话，都要在它标的存档页里逐字找到（脚本里用归一化空白后的子串断言）；一张卡引了两个存档页（英文原句在英文页、中文原句在中文页）时，两个编号都写，并在书里说明“存档 A… 是我们存档那几页的编号”；存档日期与重取核对日期如果不是同一天，两个日期都写。"
+    why: "第 3 课谷歌云那张卡的英文句其实在英文页存档 A61，却标在中文页 A62 下；存档是 11 月 3 日取的，11 月 4 日重取核对，书里原先只写了 11 月 4 日。"
+    from: [ext:agent第3课复盘]
+  - id: E138
+    stage: publish
+    level: 默认
+    by: docs/whiteboard_timeline.py
+    rule: "approvals.jsonl 里有托管的 start、halt、stop 事件行（没有 stage 和 gate），whiteboard_timeline.py 已跳过它们；同一道口令记录两次（旁白返工后重说成片口令）会各出一行，看时间表时知道第二行是返工。"
+    why: "第 3 课写复盘时 whiteboard_timeline.py 遇托管事件行抛 KeyError。"
+    from: [ext:agent第3课复盘]
+  - id: E139
+    stage: publish
+    level: 检查
+    by: tests/tools/test_ebook_blocks_l3.py
+    rule: "电子书平台每加一类新图，都要有测试：每种记录能渲、文字被转义、脚注标签对（实测、示意、引文）、诚实规则当规则测（橙色只在这一次选中的词元上、停止符永不“被选中”、示意图不盖实测章）、行图文字带“共几种”。第 3 课的七种图在 tests/tools/test_ebook_blocks_l3.py，第 2 课的在 test_ebook_blocks_records.py。"
+    why: "第 3 课给共用平台加了七种图和三处构建检查，第 1、2 章页面逐字节不变，是用构建前后对比和这些测试保证的。"
+    from: [ext:agent第3课复盘]
 
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
 narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7, Hvu-22, Hexp-24, Hexp-25]

@@ -1103,9 +1103,145 @@ def t_verify(slow):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def t_gate_delegate():
+    """托管 (2026-11-03): the user hands only the text gates to an Opus reviewer. A fake reviewer (WB_GATE_REVIEW_CMD) stands in, so no model is called.
+    Checks: the scope cannot be widened, a gate opens only on a pass whose artifacts are unchanged, the record never claims the user's words, the user's own
+    素材通过 still works afterwards, review limits halt, and the Stop hook blocks only the delegating session and lets go when it should."""
+    if not have("projects/c-clinic-cn/checkpoint_script.json"):
+        print("SKIP gate delegate (no lesson 43 checkpoints)")
+        return
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        verdict = tmp / "verdict.json"
+        fake = tmp / "fake_reviewer.py"
+        fake.write_text("import sys, pathlib\nsys.stdin.read()\nprint(pathlib.Path(sys.argv[1]).read_text())\n", encoding="utf-8")
+        env = dict(os.environ, WB_GATE_REVIEW_CMD=f"{sys.executable} {fake} {verdict}", CLAUDE_CODE_SESSION_ID="sess-A")
+        env.pop("WB_GATE_REVIEWER", None)
+
+        def say(v, blocking=0):
+            verdict.write_text(json.dumps({"verdict": v, "summary": f"fake {v}", "findings": [{"severity": "blocking", "where": "x", "issue": "y", "quote": "z"}] * blocking,
+                                           "needs_human_reason": "money" if v == "needs_human" else ""}), encoding="utf-8")
+
+        def setup(name):
+            P = tmp / "projects" / name
+            P.mkdir(parents=True)
+            S = ROOT / "projects/c-clinic-cn"
+            for f in list(S.glob("checkpoint_*.json")) + [S / "project.json"]:
+                shutil.copy2(f, P / f.name)
+            for st in ("script", "scene_plan", "assets", "edit", "compose", "publish"):
+                p = P / f"checkpoint_{st}.json"
+                c = json.loads(p.read_text(encoding="utf-8"))
+                c["status"], c["human_approved"] = "awaiting_human", False
+                c.get("metadata", {}).pop("approved_by_user", None)
+                p.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+            return P
+
+        g = lambda *a, e=None: sh(PY, "docs/whiteboard_gate.py", "--projects", tmp / "projects", *a, env=e or env)  # noqa: E731
+        P = setup("c-clinic-cn")
+        check("delegate: cannot delegate 素材 (assets)", g("delegate", "start", "c-clinic-cn", "assets", "托管到素材通过").returncode == 1)
+        check("delegate: cannot delegate 成片 (compose)", g("delegate", "start", "c-clinic-cn", "compose", "托管").returncode == 1)
+        check("delegate: the user's words must contain 托管", g("delegate", "start", "c-clinic-cn", "scene_plan", "好的继续").returncode == 1)
+        no_sid = {k: v for k, v in env.items() if k != "CLAUDE_CODE_SESSION_ID"}
+        check("delegate: refused when the session id is unknown", g("delegate", "start", "c-clinic-cn", "scene_plan", "托管到场景计划通过", e=no_sid).returncode == 1)
+        r = g("delegate", "start", "c-clinic-cn", "scene_plan", "托管到场景计划通过")
+        d = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
+        check("delegate: start records the words, the scope and the session", r.returncode == 0 and d["stages"] == ["plan", "proposal", "script", "scene_plan"]
+              and d["session_id"] == "sess-A" and d["said"] == "托管到场景计划通过", r.stdout.strip()[:60])
+        check("delegate: approve-by-review is refused before any review", g("approve-by-review", "c-clinic-cn", "script").returncode == 1)
+        say("fail", 1)
+        r = g("review", "c-clinic-cn", "script")
+        check("delegate: a failing review is recorded and leaves the gate shut", r.returncode == 0 and (P / "review/gate-review-script-1.json").exists()
+              and g("approve-by-review", "c-clinic-cn", "script").returncode == 1, r.stdout.strip()[:80])
+        rv1 = json.loads((P / "review/gate-review-script-1.json").read_text(encoding="utf-8"))
+        check("delegate: the review ran the script lint itself and kept its real output", rv1["scripted_checks"] and "whiteboard_script_lint.py" in rv1["scripted_checks"][0]["command"]
+              and (P / "review/gate-review-script-1.prompt.md").read_text(encoding="utf-8").count("脚本检查的真实输出") == 1)
+        say("pass")
+        check("delegate: second review passes", g("review", "c-clinic-cn", "script").returncode == 0)
+        cpf = P / "checkpoint_script.json"
+        orig = cpf.read_text(encoding="utf-8")
+        c = json.loads(orig)
+        c["artifacts"]["script"]["title"] = c["artifacts"]["script"].get("title", "") + "（改）"
+        cpf.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+        check("delegate: refused when the artifacts changed after the passing review", g("approve-by-review", "c-clinic-cn", "script").returncode == 1)
+        cpf.write_text(orig, encoding="utf-8")
+        r = g("approve-by-review", "c-clinic-cn", "script")
+        c = json.loads(cpf.read_text(encoding="utf-8"))
+        m = c.get("metadata", {})
+        check("delegate: a pass opens the gate; the record names the reviewer and the advance words, never approved_by_user",
+              r.returncode == 0 and c["status"] == "completed" and c["human_approved"] and "approved_by_user" not in m and m.get("approval_kind") == "delegated_review"
+              and m.get("delegated_by_user") == "托管到场景计划通过" and m.get("approved_by_review", {}).get("review_file") == "gate-review-script-2.json", r.stdout.strip()[:80])
+        check("delegate: after the gate it says go on (not the end yet)", "不要停" in r.stdout)
+        check("delegate: status shows 评审放行 for the script", "评审放行" in g("status").stdout)
+        say("pass")
+        g("review", "c-clinic-cn", "scene_plan")
+        r = g("approve-by-review", "c-clinic-cn", "scene_plan")
+        d = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
+        check("delegate: reaching the end gate finishes the delegation and says stop", r.returncode == 0 and d["status"] == "finished" and "到终点" in r.stdout)
+        check("delegate: assets cannot be approved by review", g("approve-by-review", "c-clinic-cn", "assets").returncode == 1)
+        r = g("approve", "c-clinic-cn", "assets", "素材通过")
+        check("delegate: the user's own 素材通过 works after review-approved stages", r.returncode == 0, r.stdout.strip()[:80])
+        lines = [json.loads(x) for x in (P / "approvals.jsonl").read_text(encoding="utf-8").splitlines()]
+        check("delegate: approvals.jsonl tells review approvals from the user's", [x.get("by", "user") for x in lines if x.get("stage")] == ["review", "review", "user"]
+              and all("said" not in x for x in lines if x.get("by") == "review"), str([x.get("by", x.get("event")) for x in lines]))
+
+        P2 = setup("c-two-cn")
+        g("delegate", "start", "c-two-cn", "script", "托管到脚本通过")
+        say("fail", 2)
+        g("review", "c-two-cn", "script")
+        r = g("review", "c-two-cn", "script")
+        d2 = json.loads((P2 / "delegation.json").read_text(encoding="utf-8"))
+        check("delegate: a second failing review halts the delegation", d2["status"] == "halted" and "没过" in d2.get("halt_reason", ""), r.stdout.strip()[-60:])
+        check("delegate: no review once halted", g("review", "c-two-cn", "script").returncode == 1)
+        P3 = setup("c-three-cn")
+        g("delegate", "start", "c-three-cn", "script", "托管到脚本通过")
+        say("needs_human")
+        g("review", "c-three-cn", "script")
+        check("delegate: needs_human halts at once", json.loads((P3 / "delegation.json").read_text(encoding="utf-8"))["status"] == "halted")
+        check("delegate: only one lesson at a time", g("delegate", "start", "c-clinic-cn", "script", "托管到脚本通过").returncode == 0
+              and g("delegate", "start", "c-two-cn", "script", "托管到脚本通过").returncode == 1)
+
+        # Stop hook: c-clinic-cn now has a fresh active delegation for sess-A (the line above)
+        tr = tmp / "transcript.jsonl"
+        tool_line = json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {}}]}})
+        tr.write_text(tool_line + "\n", encoding="utf-8")
+
+        def hook(sid="sess-A", bg=None, e=None, active=False):
+            inp = json.dumps({"session_id": sid, "transcript_path": str(tr), "hook_event_name": "Stop", "stop_hook_active": active, "background_tasks": bg or []})
+            return subprocess.run([PY, "docs/whiteboard_gate.py", "--projects", str(tmp / "projects"), "stop-hook"], input=inp, capture_output=True, text=True,
+                                  cwd=ROOT, env=e or env)
+
+        def blocks(r):
+            try:
+                return r.returncode == 0 and json.loads(r.stdout)["decision"] == "block"
+            except ValueError:
+                return False
+        check("stop-hook: another session is never blocked", hook("sess-B").stdout == "")
+        check("stop-hook: the reviewer process is never blocked", hook(e=dict(env, WB_GATE_REVIEWER="1")).stdout == "")
+        check("stop-hook: background work running -> let the turn end", hook(bg=[{"id": "t1", "type": "shell", "status": "running"}]).stdout == "")
+        r = hook()
+        check("stop-hook: the delegating session is told to go on (valid block JSON)", blocks(r) and "托管中" in json.loads(r.stdout)["reason"], r.stdout[:80])
+        tr.write_text(tool_line + "\n" + tool_line + "\n", encoding="utf-8")
+        r = hook(active=True)
+        check("stop-hook: tool calls since the last nudge (checkpoints unchanged) -> still blocks, no warning", blocks(r) and "没有调用任何工具" not in r.stdout)
+        r = hook(active=True)
+        check("stop-hook: no tool call since the last nudge -> blocks once more with a warning", blocks(r) and "没有调用任何工具" in r.stdout)
+        r = hook(active=True)
+        dd = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
+        check("stop-hook: no tool call twice in a row -> lets go and halts the delegation", r.stdout == "" and dd["status"] == "halted")
+        check("stop-hook: halted -> never blocks", hook().stdout == "")
+        empty = tmp / "empty_projects"
+        empty.mkdir()
+        r = subprocess.run([PY, "docs/whiteboard_gate.py", "--projects", str(empty), "stop-hook"], input='{"session_id":"sess-A"}', capture_output=True, text=True, cwd=ROOT, env=env)
+        check("stop-hook: no delegation anywhere -> silent", r.returncode == 0 and r.stdout == "")
+        r = subprocess.run([PY, "docs/whiteboard_gate.py", "--projects", str(empty), "stop-hook"], input='not json', capture_output=True, text=True, cwd=ROOT, env=env)
+        check("stop-hook: garbage input -> silent, exit 0", r.returncode == 0 and r.stdout == "")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test

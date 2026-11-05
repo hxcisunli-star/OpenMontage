@@ -2,6 +2,7 @@
 Everything is read from files that exist (timeline, captions, tts costs, approvals, picked images and their generation records); nothing is typed from an older lesson (E74).
 Run after: gen_tts.py -> make_captions.py -> the pictures are picked (gen_images.py pick ...)."""
 import json
+import os
 import re
 import subprocess
 import sys
@@ -109,4 +110,7 @@ manifest = {"version": "1.0", "assets": assets, "total_cost_usd": tts_cost, "met
 validate_artifact("asset_manifest", manifest)
 json.dump(manifest, open(A / "asset_manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print("total", tts_cost, "assets", len(assets), "pictures picked", len(picks), "not picked", missing)
-print(write_checkpoint(P.parent, PID, "assets", "awaiting_human", {"asset_manifest": manifest}, pipeline_type="animated-explainer", human_approval_required=True))
+if os.environ.get("ASSETS_REFRESH_ONLY"):   # a change the user asked for AFTER the gate was passed (lesson 3: a new partner voice): refresh the manifest, leave the approved checkpoint as it is, say so in the report
+    print("manifest refreshed; checkpoint_assets.json untouched (ASSETS_REFRESH_ONLY)")
+else:
+    print(write_checkpoint(P.parent, PID, "assets", "awaiting_human", {"asset_manifest": manifest}, pipeline_type="animated-explainer", human_approval_required=True))

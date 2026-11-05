@@ -27,6 +27,7 @@ def main():
     args = ap.parse_args()
     p = Path(args.project)
     rows = [json.loads(l) for l in (p / "approvals.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
+    rows = [r for r in rows if "gate" in r]      # delegation events (start / halt / stop of a 托管) are lines of the same file but not passwords: they have no stage and no gate
     if not rows:
         sys.exit("approvals.jsonl is empty")
     rows.sort(key=lambda r: r["time"])

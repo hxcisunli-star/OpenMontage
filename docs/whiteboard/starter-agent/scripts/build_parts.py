@@ -27,6 +27,8 @@ def main():
     if not boards:
         parser.error('没有找到板书文件 _board_s*.py；请先由作者创建板书' + (f'（{args.section}）' if args.section else ''))
     parts = [folder / '_build_head.py', folder / '_body_helpers.py']
+    if (folder / '_body_common.py').is_file():     # the lesson's shared board pieces (written once, frozen before the boards are written)
+        parts.append(folder / '_body_common.py')
     parts += [p for _, p in boards]
     parts += [folder / '_build_tail.py']
     for path in parts:

@@ -29,8 +29,15 @@ m = re.search(r"lint: (\d+) error\(s\), (\d+) warning\(s\)", lint.stdout + lint.
 rows = board_rows(P)
 margin = min(r["margin"] for r in rows)
 lay = json.loads((P / "validation/layout-check.json").read_text(encoding="utf-8"))
+# E107: the sound profile is read from what was applied, never typed: scripts/sfx_profile.txt (written before `whiteboard_sfx.py apply`) and the real cue list of that profile
+_profile = (P / "scripts/sfx_profile.txt").read_text(encoding="utf-8").strip()
+_cues = json.loads((P / "validation/sfx-cues.json").read_text(encoding="utf-8"))
+_by = {}
+for _c in _cues["cues"]:
+    _by[_c["name"]] = _by.get(_c["name"], 0) + 1
 props = json.loads((P / "render_props.json").read_text(encoding="utf-8"))
 narr_src = props["audio"]["narration"]["src"]
+SFX_TEXT = "profile '%s': %d cues %s, narration -> %s" % (_profile, len(_cues["cues"]), json.dumps(_by, ensure_ascii=False), narr_src.split("/")[-1])
 assert narr_src.endswith("narration_sfx.wav"), "run docs/whiteboard_sfx.py apply after the last build: render_props points to " + narr_src
 samples = sorted((P / "renders").glob("sample_*.mp4"))
 assert samples, "no sample clips in renders/"
@@ -47,7 +54,7 @@ meta = {"cuts": len(ed["cuts"]), "whiteboard_cuts": sum(1 for c in ed["cuts"] if
         "last_item_check": "min margin %.2f s over %d whiteboard cuts (needs >= 0.6)" % (margin, len(rows)),
         "layout_check": "%d findings in %d sample frames of %d whiteboard cuts; findings require this lesson's documented review; see edit_deviations" % (len(lay["findings"]), len(lay["frames"]), sum(1 for c in ed["cuts"] if c["source"].startswith("whiteboard:"))),
         "layout_findings": [{"rule": f["rule"], "cut": f["cut"], "t0": f["t0"], "t1": f["t1"], "msg": f["msg"]} for f in lay["findings"]],
-        "sfx": "answer-reveal chime only (default profile 'light'), narration -> " + narr_src.split("/")[-1],
+        "sfx": SFX_TEXT,
         "sample": sample_rows, "contact_sheets": contact, "contact_key_frames": n_still, "deviations_listed": len(devs)}
 assert m and m.group(1) == "0" and margin >= 0.6, meta
 (P / "validation").mkdir(exist_ok=True)

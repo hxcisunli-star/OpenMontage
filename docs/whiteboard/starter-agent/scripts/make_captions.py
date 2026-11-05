@@ -26,7 +26,8 @@ def clip_texts(sid):
     return parts + [text[pos:]]
 tokens = []
 for sec in tl["sections"]:
-    texts = clip_texts(sec["id"]); assert len(texts) == len(sec["clips"])
+    texts = [c["text"] for c in sec["clips"]]            # gen_tts.py stores each clip's text (two voices: clips are also cut at the partner's lines)
+    assert "".join(texts) == script[sec["id"]]["delivery_cues"]["provider_text"], sec["id"]
     for clip, text in zip(sec["clips"], texts):
         iv = speech_intervals(P / clip["file"], clip["seconds"]); total = sum(e - s for s, e in iv); W = sum(weight(c) for c in text)
         def to_time(frac):
