@@ -464,6 +464,164 @@ LESSON4_KINDS = {      # kind -> function(record, ctx) -> (body html, caption, t
 }
 
 
+# ------------------------------------------------------------ lesson 5 kinds: code/result panels and sequence diagrams
+CP_ROLE_LABELS = {
+    "key": "密钥",
+    "address": "地址",
+    "model": "模型名",
+    "messages": "消息",
+}
+CP_FIELD_ROLES = {"answer", "receipt", "stop", "error"}
+CP_FIELD_LABELS = {"answer": "答案", "receipt": "回执", "stop": "停止", "error": "错误"}
+SEQ_SOURCE_LABELS = {
+    "shice": "实测",
+    "shiyi": "示意",
+    "doc": "文档写的，不是我们测的",
+    "hypo": "假设",
+}
+
+
+def _cp_marked_code(code, marks):
+    """Escape a request code block while marking each requested raw substring once."""
+    raw = str(code)
+    intervals = []
+    for mark in marks or []:
+        if not isinstance(mark, dict):
+            raise ValueError("callpanel marks must be objects")
+        text = str(mark.get("text", ""))
+        role = str(mark.get("role", ""))
+        if not text:
+            raise ValueError("callpanel mark text must not be empty")
+        occurrences = sum(raw.startswith(text, index) for index in range(max(0, len(raw) - len(text) + 1)))
+        if occurrences != 1:
+            raise ValueError(f"callpanel mark {text!r} must occur exactly once in code")
+        if role not in CP_ROLE_LABELS:
+            raise ValueError(f"unknown callpanel mark role: {role!r}")
+        start = raw.index(text)
+        intervals.append((start, start + len(text), role))
+    intervals.sort()
+    for previous, current in zip(intervals, intervals[1:]):
+        if current[0] < previous[1]:
+            raise ValueError("callpanel marks must not overlap")
+    chunks = []
+    pos = 0
+    for start, end, role in intervals:
+        chunks.append(esc(raw[pos:start]))
+        chunks.append(f'<mark class="cp-mark cp-{role}">{esc(raw[start:end])}</mark>')
+        pos = end
+    chunks.append(esc(raw[pos:]))
+    return "".join(chunks)
+
+
+def callpanel(r):
+    request = r.get("request") or {}
+    result = r.get("result") or {}
+    lang = str(request.get("lang", ""))
+    lang_slug = re.sub(r"[^A-Za-z0-9_-]+", "-", lang).strip("-") or "text"
+    code = _cp_marked_code(request.get("code", ""), request.get("marks") or [])
+    legend = "".join(
+        f'<span class="cp-legend-item cp-{role}"><i aria-hidden="true"></i>{esc(CP_ROLE_LABELS[role])}</span>'
+        for role in dict.fromkeys(str(mark.get("role", "")) for mark in (request.get("marks") or []))
+        if role in CP_ROLE_LABELS
+    )
+    fields = []
+    for field in result.get("fields") or []:
+        role = field.get("role")
+        role_class = f" cp-{role}" if role in CP_FIELD_ROLES else ""
+        role_label = f' <span class="cp-field-kind" aria-hidden="true">{esc(CP_FIELD_LABELS[role])}</span>' if role in CP_FIELD_LABELS else ""
+        fields.append(
+            f'<div class="cp-field{role_class}"><dt>{esc(field.get("name", ""))}{role_label}</dt>'
+            f'<dd>{esc(field.get("value", ""))}</dd></div>'
+        )
+    status = "" if result.get("status") is None else f'<p class="cp-status">状态码：{esc(result.get("status"))}</p>'
+    return (
+        '<div class="cp-panel"><div class="cp-columns">'
+        f'<section class="cp-request"><h4>{esc(request.get("label", "请求"))}</h4>'
+        f'<pre class="cp-code cp-lang-{esc(lang_slug)}" aria-label="代码（语言：{esc(lang)}）"><code>{code}</code></pre>'
+        f'<div class="cp-legend" aria-label="代码标记图例">{legend}</div></section>'
+        f'<section class="cp-result"><h4>{esc(result.get("label", "结果"))}</h4>'
+        f'<dl class="cp-fields">{"".join(fields)}</dl>{status}</section>'
+        f'</div><p class="cp-note">{esc(r.get("note", ""))}</p></div>'
+    )
+
+
+def _seq_sentence(lanes, step):
+    source = SEQ_SOURCE_LABELS.get(step.get("source"), str(step.get("source", "")))
+    from_index, to_index = int(step.get("from", 0)), int(step.get("to", 0))
+    from_name = str(lanes[from_index]) if 0 <= from_index < len(lanes) else str(from_index)
+    to_name = str(lanes[to_index]) if 0 <= to_index < len(lanes) else str(to_index)
+    detail = str(step.get("detail")) if step.get("detail") is not None else ""
+    pieces = [f"{from_name} 到 {to_name}：{step.get('label', '')}", source]
+    if detail:
+        pieces.append(detail)
+    if step.get("blocked"):
+        pieces.append("被拦住")
+    return "；".join(str(x) for x in pieces) + "。"
+
+
+def sequence(r):
+    lanes = [str(x) for x in (r.get("lanes") or [])]
+    if len(lanes) != 2:
+        raise ValueError("sequence requires exactly two lanes")
+    visual_steps = []
+    text_steps = []
+    for number, step in enumerate(r.get("steps") or [], 1):
+        source = str(step.get("source", ""))
+        if source not in SEQ_SOURCE_LABELS:
+            raise ValueError(f"unknown sequence step source: {source!r}")
+        from_index, to_index = int(step.get("from", 0)), int(step.get("to", 0))
+        if from_index not in (0, 1) or to_index not in (0, 1):
+            raise ValueError("sequence step endpoints must be 0 or 1")
+        direction = "right" if from_index == 0 and to_index == 1 else "left" if from_index == 1 and to_index == 0 else "same"
+        classes = f"seq-step seq-step-{source} seq-from-{from_index} seq-to-{to_index} seq-{source} seq-{direction}"
+        if step.get("blocked"):
+            classes += " seq-blocked"
+        badge = f'<span class="seq-badge seq-source-{source} seq-badge-{source}">{esc(SEQ_SOURCE_LABELS[source])}</span>'
+        cross = '<span class="seq-cross" aria-hidden="true">×</span>' if step.get("blocked") else ""
+        blocked_text = '<span class="seq-blocked-text">被拦住</span>' if step.get("blocked") else ""
+        detail = f'<span class="seq-detail">{esc(step.get("detail"))}</span>' if step.get("detail") is not None else ""
+        arrow = {"right": "→", "left": "←", "same": "↻"}[direction]
+        # the two end cells always sit in lane order (left = lane 0, right = lane 1), like the lane heads above; the arrow shows the direction (a step that stays in one lane has no arrow, only the lane lit)
+        left_on = " seq-end-on" if 0 in (from_index, to_index) else ""
+        right_on = " seq-end-on" if 1 in (from_index, to_index) else ""
+        visual_steps.append(
+            f'<li class="{classes}" aria-hidden="true"><span class="seq-end seq-end-left{left_on}">{esc(lanes[0])}</span>'
+            f'<span class="seq-route"><span class="seq-arrow">{arrow}</span></span>'
+            f'<span class="seq-end seq-end-right{right_on}">{esc(lanes[1])}</span>'
+            f'<span class="seq-step-copy"><span class="seq-number">{number}</span>{badge}'
+            f'<span class="seq-label">{esc(step.get("label", ""))}</span>{detail}{cross}{blocked_text}</span></li>'
+        )
+        text_steps.append(f"<li>{esc(_seq_sentence(lanes, step))}</li>")
+    return (
+        f'<div class="seq-figure"><div class="seq-lane-head"><h4 class="seq-lane seq-lane-0"><span>0</span>{esc(lanes[0])}</h4><h4 class="seq-lane seq-lane-1"><span>1</span>{esc(lanes[1])}</h4></div>'
+        f'<ol class="seq-steps">{"".join(visual_steps)}</ol>'
+        f'<div class="seq-text"><h4>文字版（每步一句话）</h4><ol>{"".join(text_steps)}</ol></div>'
+        f'<p class="seq-note">{esc(r.get("note", ""))}</p></div>'
+    )
+
+
+def _lesson5_caption(r):
+    if r["kind"] == "callpanel":
+        if r.get("caption"):      # a record may say in its own words what the panel is (e.g. a local experiment, a return with a request id cut out); a 示意 record must still say 示意
+            assert r.get("honest") == "shice" or "示意" in str(r["caption"]), "a 示意 callpanel caption must say 示意"
+            return f'{r.get("date", "")} · {r["caption"]}'
+        return f'{r.get("date", "")} · ' + ("某一次的返回，原样" if r.get("honest") == "shice" else "是示意，不是实测")
+    caption = f'{r.get("date", "")} · 示意图：是示意，不是实测'
+    if any(step.get("source") == "doc" for step in (r.get("steps") or [])):
+        caption += " · 其中标‘文档写的’的步骤只是引文档"
+    return caption
+
+
+LESSON5_KINDS = {
+    "callpanel": lambda r, c: (
+        callpanel(r),
+        _lesson5_caption(r),
+        TAG_SHICE if r.get("honest") == "shice" else '<span class="tag tag-shiyi">示意</span>',
+    ),
+    "sequence": lambda r, c: (sequence(r), _lesson5_caption(r), '<span class="tag tag-shiyi">示意</span>'),
+}
+
+
 def show(b, ctx):
     r = ctx.records[b["id"]]
     ctx.used_records.append(b["id"])
@@ -497,6 +655,8 @@ def show(b, ctx):
         body, cap, tag = LESSON3_KINDS[r["kind"]](r, ctx)
     elif r["kind"] in LESSON4_KINDS:
         body, cap, tag = LESSON4_KINDS[r["kind"]](r, ctx)
+    elif r["kind"] in LESSON5_KINDS:
+        body, cap, tag = LESSON5_KINDS[r["kind"]](r, ctx)
     else:
         raise AssertionError(r["kind"])
     after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""

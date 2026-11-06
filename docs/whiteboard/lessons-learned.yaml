@@ -83,7 +83,7 @@ stages:
     steps:
       - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：先 `python3 docs/whiteboard_thumb_check.py projects/<课程> --list` 选 `THUMB_T`，再 `publish_prep.py`（不合格会停）→ `finish_publish.py --no-checkpoint`（只导出，检查点最后才写，E134）。链式命令先 `set -o pipefail`（E133）。
       - 封面：`docs/whiteboard_cover_maker.py` 的 LESSONS 加一行再运行（只对本课调用 make()，别用课号参数：它会连同号的 C 篇一起重建）；`docs/whiteboard_prepend_cover.py projects/<课程> --seconds 2`；`scripts/sync_description_chapters.py`（简介章节时间对齐）。
-      - 电子书章：`code/assemble_chapter.py` → `build_site.py --link-media` → `.venv/bin/python docs/whiteboard/ebook/check_site.py --site $PWD/projects/_ebook/site --repo $PWD`（全过）→ 真浏览器看页内小实验与每张新图。不再每课导出一份电子书副本：成品包里电子书只放一份整站（E151）。
+      - 电子书章：`code/assemble_chapter.py` → `build_site.py --link-media` → `.venv/bin/python docs/whiteboard/ebook/check_site.py --site $PWD/projects/_ebook/site --repo $PWD --report $PWD/projects/_ebook/site-check.json`（全过；成品包只认这份报告，且报告必须比站点里最新的文件新——站点每重建一次就要重跑一次）→ 真浏览器看页内小实验与每张新图。不再每课导出一份电子书副本：成品包里电子书只放一份整站（E151）。
       - 发布前交叉复审（E132）：两家各自独立两轮，处置表存 `validation/research/publish_review/`；已批准旁白里的问题单列交用户定（E136）。
       - 成品包与审阅：`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py --series agent`（整站检查必须是绿的；包根目录放一份“电子书（离线完整版）”，各课文件夹里没有电子书）；审阅页（`code/build_publish_page.py`）发布后，`scripts/write_publish_checkpoint.py` 写 publish 检查点 awaiting_human，停下等“发布通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> publish "<用户原话>"`。
       - 复盘：按模板写 `docs/whiteboard/retro/NN.md`，每条教训分流（检查／清单／叙述）并更新登记表，跑 `whiteboard_registry.py coverage`、`render`、`check`。
@@ -1055,6 +1055,64 @@ entries:
     rule: "给电子书平台的服务器和检查脚本做代码复审时，让小弟（和自己）对边界输入实际复现，不只读代码：空文件、畸形请求目标、客户端中途断开、被截断的 mp4、含 `..` 或符号链接的路径、记录里的 null 字段；复审后每个修复都配一个对旧代码会失败的回归测试（服务器测试可用环境变量 EBOOK_SERVE 指向旧副本，**每个会让旧进程崩溃的测试要单独对旧代码跑**——整套一起跑，进程死后的连接被拒会冒充成一堆“失败”；检查脚本把加固撤回再跑一遍）；对旧代码也通过的测试只算守卫，别当回归测试；测试里按规则名而不是下标取检查项。"
     why: "2026-11-06 对 serve.mjs、check_site.py、成品包做 Codex×2＋Antigravity×1 复审（55 条，改了 40 条）：旧服务器一个空文件的 GET 就让整个进程退出（站点里恰好没有空文件，所以跑了五天没出事）；test_video_probe_passes 按下标 14 断言，断的其实是 page-basics，测视频探测的测试永远通过；检查脚本的路径校验放过 `..` 和符号链接，mp4 盒扫描不验声明大小，截断文件能通过。三类都是“能跑通的主路径测试不会碰到的边界”，也是我自己写完后没发现的。"
     from: [ext:代码复审2026-11-06]
+
+  - id: E153
+    stage: publish
+    level: 清单
+    rule: "派 Codex 小弟写要放回真实仓库的脚本、测试、夹具时：任务书写明“路径按仓库真实路径写，不要写 ref/、TASK.md、out/ 这类工作区专属路径”；交回后先放回仓库原路径、从仓库根目录跑一遍再用（读文件的路径、根目录的找法、测试夹具的位置都要看）。"
+    why: "第 5 课四路小弟交回的页内练习脚本、练习生成器、平台测试、章脚本全都带着工作区路径（ref/labs.py、TASK.md 找根、out/example_records.json、scripts/narration_v1_text.py），放回仓库后逐个报 FileNotFoundError 或 StopIteration，我逐个改。"
+    from: [ext:agent第5课复盘]
+
+  - id: E154
+    stage: publish
+    level: 清单
+    rule: "电子书里图上画的代码，要对着原始记录的 route 字段（sdk／curl）写成真正发出那条请求的路线；示意写法要在图上写明“示意”和“实际发给哪里”；本机实验的图图注写成本机实验，不写“某一次的返回”。"
+    why: "第 5 课少 model、少 messages 的两组 400 是手写命令发的，用工具包少写这两项在本机就直接报 TypeError；章里最初画成了工具包代码，读者会以为工具包能把这样的请求寄出去。三张本机实验的图也被图注写成“某一次的返回”。我读真实页面文字时发现。"
+    from: [ext:agent第5课复盘]
+
+  - id: E155
+    stage: publish
+    level: 检查
+    by: tests/tools/test_ebook_blocks_l5.py（test_sequence_steps_follow_the_lane_order_and_the_arrow_direction）
+    rule: "时序图每一步的两端格子按泳道左右位置排（左格是泳道 0、右格是泳道 1），箭头指方向；不按“发出方、接收方”的先后排。"
+    why: "第 5 课时序图最初把每步的发出方放左格、接收方放右格，“中转服务回给本机程序”的箭头在页面上画成了反方向；Antigravity 第 1 轮复审靠读页面文字发现，我在 CSS 里核实后改成按泳道排并加了测试。"
+    from: [ext:agent第5课复盘]
+
+  - id: E156
+    stage: publish
+    level: 检查
+    by: projects/agent-first-call-cn/scripts/run_exercises.sh（题面不得出现 .json、records、samples. 等学生没有的文件名）
+    rule: "练习题面不能让学生去读他们拿不到的文件（records.json、samples.xxx）：要用到的数据直接附在题面里；间隔复习与“讲给同学听”不能带上一课的残留（指向本课没有的题）。"
+    why: "第 5 课练习小弟交回的第 3 题让学生“从 records.json 看两个模型的输入词元数”，间隔复习写“把第 3 题里一个错默写一遍”（本课第 3 题没有错）；我读成品发现，把第 3 题改成自含，并在 run_exercises.sh 里加了检查。"
+    from: [ext:agent第5课复盘]
+
+  - id: E157
+    stage: compose
+    level: 清单
+    rule: "合成核对除了 4 秒一帧的联系表，每块板的“最后一笔写完之后的一帧”都要打开全尺寸帧看：小字压框线、同一信息写两遍，在联系表里看不出。"
+    why: "第 5 课 K3 约 300 秒“取页日期”小字压在引文卡下边框上、还和卡里的“A92 2026-11-06”重复，联系表和样片都没发现；我取全尺寸帧才看到，改成荧光标卡内日期、只重渲 K3（远程 96 秒）。"
+    from: [ext:agent第5课复盘]
+
+  - id: E158
+    stage: compose
+    level: 清单
+    rule: "后台等待循环（until grep 日志里的结束标记）启动前，先删掉或换掉旧日志：被杀掉的旧运行会在日志里留下“结束”标记，等待循环会立刻提前结束。"
+    why: "第 5 课等本机对照渲时，我杀掉了第一次的运行，它留在日志里的“localref rc=143”让新的等待循环立刻结束，我差点把没跑完的结果当成已完成；靠看进程和日志时间才发现。"
+    from: [ext:agent第5课复盘]
+
+  - id: E159
+    stage: publish
+    level: 清单
+    rule: "交叉复审之后改了练习、记录、简介或页内练习，每次都重走：重生成（练习→章源→简介）→章源跑两次逐字相同→重建站→整站检查→旧页面逐字节比对；章里的练习逐字取 exercises.txt，改了练习必须重跑 assemble_chapter。"
+    why: "第 5 课交叉复审后改了十几处；有一次改完练习只重生成了 exercises.txt、没重跑 assemble_chapter，整站检查的 ch-exercises（题面不得含年份）拦下了章里旧的第 6 题。"
+    from: [ext:agent第5课复盘]
+
+  - id: E160
+    stage: publish
+    level: 清单
+    rule: "前几课共用并已发布的文件（起步脚本）的说法不准时，不静默改（各课有逐字拷贝、检查脚本逐字比对）：在本课的练习与书里写准确说法，并列进验收汇报的待用户项，由用户定要不要改、怎么同步。"
+    why: "第 5 课发现起步脚本 call_model.py 的注释说三个环境变量名“都不是官方名字”，其实 DASHSCOPE_API_KEY 就是百炼文档示例里的名字（A91）；脚本在第 1–3 课练习与章里有逐字拷贝，本课没改，只在第 6 题和书里写了准确说法。"
+    from: [ext:agent第5课复盘]
 
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
 narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7, Hvu-22, Hexp-24, Hexp-25]

@@ -1,0 +1,62 @@
+{
+  "CP_shice": {
+    "kind": "callpanel",
+    "title": "一次真实请求的代码和回执",
+    "date": "2026-11-06",
+    "honest": "shice",
+    "request": {
+      "label": "发送请求",
+      "lang": "json",
+      "code": "{\n  \"api_key\": \"sk-example\",\n  \"model\": \"demo-model\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}]\n}",
+      "marks": [
+        {"text": "sk-example", "role": "key"},
+        {"text": "demo-model", "role": "model"},
+        {"text": "messages", "role": "messages"}
+      ]
+    },
+    "result": {
+      "label": "返回结果",
+      "fields": [
+        {"name": "回答", "value": "你好！", "role": "answer"},
+        {"name": "请求编号", "value": "req-example", "role": "receipt"}
+      ],
+      "status": 200
+    },
+    "note": "原样摘出这一请求的一次返回。"
+  },
+  "CP_shiyi": {
+    "kind": "callpanel",
+    "title": "接口调用的结构示意",
+    "date": "2026-11-06",
+    "honest": "shiyi",
+    "request": {
+      "label": "请求结构",
+      "lang": "python",
+      "code": "client.get(\"https://example.invalid/v1/models\")",
+      "marks": [
+        {"text": "https://example.invalid/v1/models", "role": "address"}
+      ]
+    },
+    "result": {
+      "label": "可能的结果",
+      "fields": [
+        {"name": "说明", "value": "这里只画结构", "role": null}
+      ],
+      "status": null
+    },
+    "note": "字段是示意，不是某一次接口返回。"
+  },
+  "SEQ_mixed": {
+    "kind": "sequence",
+    "title": "请求经过网关的时序",
+    "date": "2026-11-06",
+    "lanes": ["调用方", "模型服务"],
+    "steps": [
+      {"from": 0, "to": 1, "label": "提交请求", "source": "shice", "blocked": false, "detail": "记录中的一次调用"},
+      {"from": 1, "to": 0, "label": "读取接口说明", "source": "doc", "blocked": false, "detail": "页面这样写"},
+      {"from": 0, "to": 1, "label": "重试请求", "source": "hypo", "blocked": true, "detail": "假设的分支"},
+      {"from": 1, "to": 0, "label": "返回回答", "source": "shiyi", "blocked": false, "detail": null}
+    ],
+    "note": "整张图用于说明可能的顺序。"
+  }
+}

@@ -1,0 +1,3 @@
+<figure class="show" data-record="F_mt5"><div class="fh">最大长度取 5：话没写完就停了（某一次的返回）</div><div class="finish"><p class="pq">问：请用一段话介绍大学图书馆的作用，大约八十个字。</p><pre class="req">max_tokens: 5
+temperature: 0</pre><p class="ret">大学图书馆是知识的殿堂</p><pre class="req">completion_tokens: 5
+<span class="fr">finish_reason: length</span></pre><p class="pnote muted">十遍里有 10 遍的 finish_reason 是 length、输出正好 5 个词元；这一次的文字是十遍里出现最多的那一种。</p></div><figcaption class="rec"><span class="tag tag-shice">实测</span> （网关标称名，转发身份无法独立验证）deepseek/deepseek-v4.1-flash-1017 · 2026-11-04 · 关闭思考 · 温度 0 · 某一次的返回（同样的请求发了 10 遍，这是其中一遍）</figcaption></figure>

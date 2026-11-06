@@ -1409,13 +1409,23 @@ class SiteChecker:
                         problems.append("%s %s 缺少%s" % (unit, rid, label))
                 if record.get("n") is not None and not re.search(r"(?<!\d)%s\s*遍" % re.escape(str(record["n"])), ct):
                     problems.append("%s %s 缺少次数" % (unit, rid))
-                want_tag = {"sketch": "tag-shiyi", "quotes": "tag-source", "cards": "tag-source"}.get(record.get("kind"), "tag-shice")   # made-up numbers are labelled 示意 and must never carry the 实测 stamp; official quotes carry 引文
+                kind = record.get("kind")
+                if kind == "callpanel":
+                    want_tag = "tag-shice" if record.get("honest") == "shice" else "tag-shiyi"
+                else:
+                    want_tag = {"sketch": "tag-shiyi", "sequence": "tag-shiyi", "quotes": "tag-source", "cards": "tag-source"}.get(kind, "tag-shice")   # made-up numbers are labelled 示意 and must never carry the 实测 stamp; official quotes carry 引文
                 if not first_descendant(cap, "span", want_tag):
                     problems.append("%s %s 缺少 %s" % (unit, rid, want_tag))
-                if record.get("kind") in ("quotes", "cards") and first_descendant(show, "span", "tag-shice"):
+                if kind in ("quotes", "cards") and first_descendant(show, "span", "tag-shice"):
                     problems.append("%s %s 引文卡不能带 实测 章" % (unit, rid))
-                if record.get("kind") == "sketch" and (first_descendant(show, "span", "tag-shice") or "示意" not in ct):
+                if kind == "sketch" and (first_descendant(show, "span", "tag-shice") or "示意" not in ct):
                     problems.append("%s %s 示意图不能带 实测 章，且图注要写 示意" % (unit, rid))
+                if kind == "sequence" and (first_descendant(show, "span", "tag-shice") or "示意" not in ct):
+                    problems.append("%s %s 时序示意图不能带 实测 章，且图注要写 示意" % (unit, rid))
+                if kind == "sequence" and first_descendant(show, "span", "seq-badge-doc") and first_descendant(show, "span", "tag-shice"):
+                    problems.append("%s %s 引文步骤不能带 实测 章" % (unit, rid))
+                if kind == "callpanel" and record.get("honest") == "shiyi" and (first_descendant(show, "span", "tag-shice") or "示意" not in ct):
+                    problems.append("%s %s 示意面板不能带 实测 章，且图注要写 示意" % (unit, rid))
                 if record.get("kind") == "towers":
                     for group in record.get("groups", []) or []:
                         if str(group.get("text", "")) not in body or str(group.get("count", "")) not in body:
