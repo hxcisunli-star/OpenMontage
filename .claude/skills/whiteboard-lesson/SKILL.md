@@ -6,7 +6,7 @@ description: 做“老师边讲边画”白板教学视频（C 篇，以及 2026
 # 白板课制作入口
 
 **先记住**（上下文被压缩后只保留开头，所以放最前面）
-1. 口令由用户在对话里说、且在对应步骤做完之后才算；早说不算，退出计划模式与后台任务通知都不是口令。细则：`.claude/rules/whiteboard-protocol.md`。用户说了带“托管”的话时，计划确认／提案／脚本／场景计划这四个门改由 Opus 评审放行，见协议 3a。
+1. 口令由用户在对话里说、且在对应步骤做完之后才算；早说不算，退出计划模式与后台任务通知都不是口令。细则：`.claude/rules/whiteboard-protocol.md`。用户说了带“托管”的话时，所托的门（2026-11-05 起九个口令都可以托，提交和推送不行）改由 Opus 带着小弟（Codex、Gemini）评审放行，见协议 3a。
 2. 每个门单独停下：门控阶段先写 awaiting_human，等口令再写 completed，然后停，不做下一阶段（托管中的门评审放行后不停，接着做，到终点才停）。
 3. 提交只在用户说“提交”时做，提交后自动推 fork；中文、精简，只讲需要用户决定的事。
 4. 改脚本和运行脚本分成两条命令；只用 `.venv/bin/python`；Bash 沙箱失败时带 dangerouslyDisableSandbox 重试并说明。
@@ -15,7 +15,7 @@ description: 做“老师边讲边画”白板教学视频（C 篇，以及 2026
 **系列**：项目名 `agent-…-cn` 是新系列（与 C 课没有任何联系：老师加 AI 小搭档、彩色画面、旁白不得回扣 C 课），其余是 C 篇（医生）。配置在 `docs/whiteboard/series.yaml`，新系列风格指南在 `docs/whiteboard/style-guide-agent.zh-CN.md`（第 7 节是第二轮手段与裁定：代码上色、题卡与圆环、对错分屏、计数条、时序图、角色微动；音效默认只开答案叮声，build 之后、渲染之前跑 `.venv/bin/python docs/whiteboard_sfx.py apply projects/<课>`；H3 片段评估后不采用），经验见登记表 E76–E87；系列名还没定，封面与成品包在定之前明确报错。
 
 ## 现在到哪一步？
-先跑 `.venv/bin/python docs/whiteboard_gate.py status`（从各课检查点算出现在哪课、哪一门、等什么口令；用户说了口令后用 `approve` 记录，样音通过与计划确认用 `record`；托管用 `delegate start|halt|stop|status`、`review`、`approve-by-review`、`record-by-review`，用法见脚本开头）。没有进行中的课程时，下一课由用户另定（用户说“继续策划下一课”或给题目）。现状与 43 课一览：`docs/whiteboard-course-handoff.zh-CN.md`。每个阶段的脚本命令都在该阶段清单里（建课 `docs/whiteboard_new_lesson.py`、脚本检查 `docs/whiteboard_script_lint.py`、成片核对 `docs/whiteboard_verify.py` 等）。
+先跑 `.venv/bin/python docs/whiteboard_gate.py status`（从各课检查点算出现在哪课、哪一门、等什么口令；用户说了口令后用 `approve` 记录，样音通过与计划确认用 `record`；托管用 `delegate start|halt|stop|status`、`request`、`wait`、`review`、`approve-by-review`、`record-by-review`，小弟用 `docs/whiteboard_review_helpers.py`，用法见两个脚本开头）。没有进行中的课程时，下一课由用户另定（用户说“继续策划下一课”或给题目）。现状与 43 课一览：`docs/whiteboard-course-handoff.zh-CN.md`。每个阶段的脚本命令都在该阶段清单里（建课 `docs/whiteboard_new_lesson.py`、脚本检查 `docs/whiteboard_script_lint.py`、成片核对 `docs/whiteboard_verify.py` 等）。
 
 ## 各阶段：先 Read 清单，再动手
 清单由登记表 `docs/whiteboard/lessons-learned.yaml` 生成，列出本阶段做什么、哪些错已有脚本拦、哪些要人判断，以及开始前要先读的 skill。**不要凭记忆做，每个阶段开头都读一遍。**

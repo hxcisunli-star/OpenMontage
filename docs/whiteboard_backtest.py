@@ -1138,8 +1138,8 @@ def t_gate_delegate():
 
         g = lambda *a, e=None: sh(PY, "docs/whiteboard_gate.py", "--projects", tmp / "projects", *a, env=e or env)  # noqa: E731
         P = setup("c-clinic-cn")
-        check("delegate: cannot delegate 素材 (assets)", g("delegate", "start", "c-clinic-cn", "assets", "托管到素材通过").returncode == 1)
-        check("delegate: cannot delegate 成片 (compose)", g("delegate", "start", "c-clinic-cn", "compose", "托管").returncode == 1)
+        check("delegate: 提交 is not a delegable gate", g("delegate", "start", "c-clinic-cn", "commit", "托管").returncode == 1)
+        check("delegate: nor is 推送", g("delegate", "start", "c-clinic-cn", "push", "托管").returncode == 1)
         check("delegate: the user's words must contain 托管", g("delegate", "start", "c-clinic-cn", "scene_plan", "好的继续").returncode == 1)
         no_sid = {k: v for k, v in env.items() if k != "CLAUDE_CODE_SESSION_ID"}
         check("delegate: refused when the session id is unknown", g("delegate", "start", "c-clinic-cn", "scene_plan", "托管到场景计划通过", e=no_sid).returncode == 1)
@@ -1177,7 +1177,7 @@ def t_gate_delegate():
         r = g("approve-by-review", "c-clinic-cn", "scene_plan")
         d = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
         check("delegate: reaching the end gate finishes the delegation and says stop", r.returncode == 0 and d["status"] == "finished" and "到终点" in r.stdout)
-        check("delegate: assets cannot be approved by review", g("approve-by-review", "c-clinic-cn", "assets").returncode == 1)
+        check("delegate: a finished delegation approves nothing more by review", g("approve-by-review", "c-clinic-cn", "assets").returncode == 1)
         r = g("approve", "c-clinic-cn", "assets", "素材通过")
         check("delegate: the user's own 素材通过 works after review-approved stages", r.returncode == 0, r.stdout.strip()[:80])
         lines = [json.loads(x) for x in (P / "approvals.jsonl").read_text(encoding="utf-8").splitlines()]
@@ -1239,9 +1239,195 @@ def t_gate_delegate():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def t_gate_delegate_all_gates():
+    """托管 widened to every gate (2026-11-05). A fake reviewer and fake helpers stand in (no model is called). Checks: 提交/推送 are not delegable; a request needs the stage's material;
+    a sound/picture gate is refused without helpers or with failed helpers (and then costs no review); stale material is refused; the verdict must say which pictures the reviewer
+    opened; wait returns on pass/fail/timeout; the gates without a checkpoint (样音通过) open with record-by-review only once; the record never claims the user's words."""
+    if not have("projects/c-clinic-cn/checkpoint_script.json"):
+        print("SKIP gate delegate all gates (no lesson 43 checkpoints)")
+        return
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        scratch, fakeh, verdict = tmp / "scratch", tmp / "fakeh", tmp / "verdict.json"
+        scratch.mkdir()
+        fakeh.mkdir()
+        fake = tmp / "fake_reviewer.py"
+        fake.write_text("import sys, pathlib\nsys.stdin.read()\nprint(pathlib.Path(sys.argv[1]).read_text())\n", encoding="utf-8")
+        (fakeh / "fake_gemini.json").write_text(json.dumps({"can_hear": True, "can_see": True, "clips": [], "events": [], "hard_sentences": []}), encoding="utf-8")
+        (fakeh / "fake_codex.json").write_text(json.dumps({"findings": [], "checked": ["x"], "not_checked": []}), encoding="utf-8")
+        env = dict(os.environ, WB_GATE_REVIEW_CMD=f"{sys.executable} {fake} {verdict}", CLAUDE_CODE_SESSION_ID="sess-H", WB_HELPER_FAKE_DIR=str(fakeh), WB_HELPER_SCRATCH=str(scratch))
+        env.pop("WB_GATE_REVIEWER", None)
+
+        def say(v, inspected=None):
+            verdict.write_text(json.dumps({"verdict": v, "summary": f"fake {v}", "findings": [], "inspected": inspected or []}), encoding="utf-8")
+        pid = "c-clinic-cn"       # the checkpoints carry their project id, so the scratch copy keeps the name
+        P = tmp / "projects" / pid
+        P.mkdir(parents=True)
+        S = ROOT / "projects/c-clinic-cn"
+        for f in list(S.glob("checkpoint_*.json")) + [S / "project.json"]:
+            shutil.copy2(f, P / f.name)
+        for st in ("assets", "edit", "compose", "publish"):
+            p = P / f"checkpoint_{st}.json"
+            c = json.loads(p.read_text(encoding="utf-8"))
+            c["status"], c["human_approved"] = "awaiting_human", False
+            c.get("metadata", {}).pop("approved_by_user", None)
+            p.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+
+        def ff(*a):
+            return subprocess.run(["ffmpeg", "-v", "error", "-y", *a], capture_output=True, text=True)
+
+        def put(rel, text=None):
+            q = P / rel
+            q.parent.mkdir(parents=True, exist_ok=True)
+            if text is not None:
+                q.write_text(text, encoding="utf-8")
+            return q
+        g = lambda *a, e=None: sh(PY, "docs/whiteboard_gate.py", "--projects", tmp / "projects", *a, env=e or env)  # noqa: E731
+        hp = lambda *a: sh(PY, "docs/whiteboard_review_helpers.py", "--projects", tmp / "projects", *a, env=env)  # noqa: E731
+        check("all gates: 提交 is not delegable", g("delegate", "start", pid, "commit", "托管").returncode == 1)
+        r = g("delegate", "start", pid, "publish", "托管到发布通过")
+        d = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
+        check("all gates: delegation can run to 发布通过 (nine gates)", r.returncode == 0 and d["stages"][-1] == "publish" and len(d["stages"]) == 9, r.stdout.strip()[:60])
+        check("all gates: request refused while the material is missing", g("request", pid, "compose").returncode == 1)
+
+        # ---- 计划确认 (no checkpoint, a plan file outside the project)
+        plan_md = tmp / "plan.md"
+        plan_md.write_text("# 计划\n选题与难点表\n", encoding="utf-8")
+        check("all gates: a plan request without any file is refused", g("request", pid, "plan").returncode == 1)
+        check("all gates: a plan request with the plan file is recorded", g("request", pid, "plan", "--files", plan_md).returncode == 0)
+        r = hp("run", pid, "plan")
+        say("pass")
+        g("review", pid, "plan", "--helpers", P / "review/gate-helpers-plan-1")
+        r2 = g("record-by-review", pid, "plan")
+        check("all gates: 计划确认 opens with record-by-review after a pass (plan file copied into the helpers' workspace)", r.returncode == 0 and r2.returncode == 0, (r.stdout + r2.stdout).strip()[:100])
+
+        # ---- 素材通过 (sound): needs helpers
+        ff("-f", "lavfi", "-i", "sine=frequency=440:duration=2", str(put("assets/audio/narration/c1_x.wav")))
+        put("assets/audio/narration_timeline.json", json.dumps({"total_seconds": 3, "sections": [{"id": "s1", "clips": [{"clip": "c1", "speaker": "teacher", "voice": "Cherry", "text": "你好世界今天开始",
+                                                                                                                 "seconds": 2.0, "file": "assets/audio/narration/c1_x.wav"}]}]}))
+        put("assets/subtitles.srt", "1\n00:00:00,000 --> 00:00:02,000\n你好世界\n")
+        put("assets/audio/voices.json", "{}")
+        put("artifacts/script.json", "{}")
+        r = g("request", pid, "assets")
+        check("all gates: request records the material and a fingerprint", r.returncode == 0 and json.loads((P / "review/gate-request-assets.json").read_text(encoding="utf-8"))["fingerprint"], r.stdout.strip()[:80])
+        say("pass")
+        r = g("review", pid, "assets")
+        d = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
+        check("all gates: a sound gate is refused without helpers and costs no review", r.returncode == 1 and "assets" not in d.get("reviews", {}), r.stdout.strip()[:60])
+        r = hp("run", pid, "assets")
+        man = json.loads((P / "review/gate-helpers-assets-1/manifest.json").read_text(encoding="utf-8"))
+        check("helpers: fake run writes an ok manifest with the material fingerprint and removes its workspace",
+              r.returncode == 0 and man["gemini"]["status"] == "ok" and man["codex"]["status"] == "ok" and man["fingerprint"] and not list(scratch.iterdir()), r.stdout.strip()[:80] + str(list(scratch.iterdir())))
+        r = g("review", pid, "assets", "--helpers", P / "review/gate-helpers-assets-1")
+        rv = json.loads((P / "review/gate-review-assets-1.json").read_text(encoding="utf-8")) if (P / "review/gate-review-assets-1.json").exists() else {}
+        check("all gates: with helpers the review runs; its record carries the media checks and the helper manifest",
+              r.returncode == 0 and rv.get("verdict") == "pass" and rv["helpers"]["manifest"]["gemini"]["status"] == "ok" and any("配音片段" in c["command"] for c in rv["scripted_checks"]), r.stdout.strip()[:100])
+        srt = P / "assets/subtitles.srt"
+        orig = srt.read_text(encoding="utf-8")
+        srt.write_text(orig + "\n2\n00:00:02,000 --> 00:00:03,000\n多一句\n", encoding="utf-8")
+        check("all gates: approve-by-review refused after the material changed", g("approve-by-review", pid, "assets").returncode == 1)
+        srt.write_text(orig, encoding="utf-8")
+        r = g("approve-by-review", pid, "assets")
+        c = json.loads((P / "checkpoint_assets.json").read_text(encoding="utf-8"))
+        check("all gates: 素材通过 by review: completed, delegated_review, never approved_by_user",
+              r.returncode == 0 and c["status"] == "completed" and c["human_approved"] and "approved_by_user" not in c["metadata"] and c["metadata"]["approval_kind"] == "delegated_review", r.stdout.strip()[:80])
+
+        # ---- 样音通过 (no checkpoint): record-by-review
+        ff("-f", "lavfi", "-i", "sine=frequency=330:duration=2", str(put("assets/audio/samples/voice_sample_P_x.wav")))
+        put("assets/audio/samples/voice_sample_texts.json", "{}")
+        g("request", pid, "sample")
+        hp("run", pid, "sample")
+        say("pass")
+        g("review", pid, "sample", "--helpers", P / "review/gate-helpers-sample-1")
+        r = g("record-by-review", pid, "sample")
+        r2 = g("record-by-review", pid, "sample")
+        lines = [json.loads(x) for x in (P / "approvals.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+        check("all gates: 样音通过 opens with record-by-review, once, as a review record without the user's words",
+              r.returncode == 0 and r2.returncode == 1 and any(x.get("stage") == "sample" and x.get("by") == "review" and "said" not in x for x in lines), r.stdout.strip()[:80])
+
+        # ---- 样片通过 (picture): failed helpers block the review and cost nothing
+        ff("-f", "lavfi", "-i", "testsrc=duration=2:size=320x240:rate=10", "-f", "lavfi", "-i", "sine=duration=2", "-shortest", "-pix_fmt", "yuv420p", str(put("renders/sample_1-3.mp4")))
+        ff("-f", "lavfi", "-i", "color=c=red:s=64x64", "-frames:v", "1", str(put("renders/contact/c1.png")))
+        put("validation/edit-report.json", "{}")
+        g("request", pid, "edit")
+        (fakeh / "fake_gemini.json").rename(fakeh / "fake_gemini.off")
+        r = hp("run", pid, "edit")
+        man = json.loads((P / "review/gate-helpers-edit-1/manifest.json").read_text(encoding="utf-8"))
+        check("helpers: a crashed Gemini run leaves a manifest that says failed", man["gemini"]["status"] == "failed", str(man["gemini"])[:100])
+        r = g("review", pid, "edit", "--helpers", P / "review/gate-helpers-edit-1")
+        d = json.loads((P / "delegation.json").read_text(encoding="utf-8"))
+        check("all gates: failed helpers -> no review, no review used", r.returncode == 1 and "edit" not in d.get("reviews", {}), r.stdout.strip()[:80])
+        (fakeh / "fake_gemini.off").rename(fakeh / "fake_gemini.json")
+        hp("run", pid, "edit")
+
+        # ---- 成片通过: the reviewer must say which pictures it opened
+        ff("-f", "lavfi", "-i", "testsrc=duration=2:size=320x240:rate=10", "-f", "lavfi", "-i", "sine=duration=2", "-shortest", "-pix_fmt", "yuv420p", str(put("renders/final.mp4")))
+        put("validation/compose-notes.json", "{}")
+        for i in (1, 2):
+            ff("-f", "lavfi", "-i", f"color=c=blue:s=64x{64 + i}", "-frames:v", "1", str(put(f"renders/review_dense/sheet_{i}.png")))
+        g("request", pid, "compose")
+        hp("run", pid, "compose")
+        say("pass")
+        g("review", pid, "compose", "--helpers", P / "review/gate-helpers-compose-1")
+        rv = json.loads((P / "review/gate-review-compose-1.json").read_text(encoding="utf-8"))
+        check("all gates: a pass that opened none of the pictures is turned into a fail by the script", rv["verdict"] == "fail" and "inspected" in json.dumps(rv["findings"], ensure_ascii=False), rv["summary"][:80])
+        r = sh(PY, "docs/whiteboard_gate.py", "--projects", tmp / "projects", "wait", pid, "compose", "--timeout", "2", "--poll", "0.2", env=env)
+        check("wait: a fail comes back as exit 3 with the rework hint", r.returncode == 3 and "request" in r.stdout, r.stdout.strip()[-80:])
+        g("request", pid, "compose")
+        hp("run", pid, "compose")
+        r = sh(PY, "docs/whiteboard_gate.py", "--projects", tmp / "projects", "wait", pid, "compose", "--timeout", "1", "--poll", "0.2", env=env)
+        check("wait: no verdict in time -> exit 5 (a lost message is visible, nothing is decided)", r.returncode == 5, r.stdout.strip()[-80:])
+        say("pass", ["sheet_1.png", "sheet_2.png"])
+        g("review", pid, "compose", "--helpers", P / "review/gate-helpers-compose-2")
+        r = sh(PY, "docs/whiteboard_gate.py", "--projects", tmp / "projects", "wait", pid, "compose", "--timeout", "2", "--poll", "0.2", env=env)
+        check("wait: a pass comes back as exit 0 with the next step", r.returncode == 0 and "approve-by-review" in r.stdout, r.stdout.strip()[-80:])
+        g("review", pid, "compose", "--helpers", P / "review/gate-helpers-compose-2")
+        check("all gates: a third review of the same gate is refused", json.loads((P / "delegation.json").read_text(encoding="utf-8")).get("reviews", {}).get("compose") == 2)
+        check("all gates: 成片通过 needs the earlier gates (edit is still awaiting)", g("approve-by-review", pid, "compose").returncode == 1)
+
+        # ---- manual override (user 2026-11-05: "如果评审不通过，你手动放行通过")
+        check("override: refused before the user allowed it", g("override", pid, "edit", "理由").returncode == 1)
+        g("delegate", "start", pid, "publish", "继续托管")          # the third compose review above halted the delegation; the user restarts it
+        check("override: allow-override records the user's words", g("delegate", "allow-override", pid, "如果评审不通过，你手动放行通过").returncode == 0)
+        say("pass")
+        g("review", pid, "edit", "--helpers", P / "review/gate-helpers-edit-1")        # helpers of edit-1 failed earlier -> refused, no review used
+        hp("run", pid, "edit")
+        verdict.write_text(json.dumps({"verdict": "fail", "summary": "fake fail", "findings": [{"severity": "blocking", "where": "x", "issue": "y", "quote": "z"}], "inspected": []}), encoding="utf-8")
+        g("review", pid, "edit", "--helpers", P / "review/gate-helpers-edit-1")
+        r = g("override", pid, "edit", "一句话的小问题，带到合成阶段改")
+        m = re.search(r"记录 (gate-review-edit-\d+\.json)，原 fail 是 (gate-review-edit-\d+\.json)", r.stdout)
+        rv = json.loads((P / "review" / m.group(1)).read_text(encoding="utf-8")) if m else {}
+        check("override: a failed review becomes a pass record naming the override, blocking kept as carried minor",
+              r.returncode == 0 and rv.get("verdict") == "pass" and rv.get("override_of") == m.group(2) and all(f["severity"] == "minor" for f in rv["findings"]), r.stdout.strip()[:100])
+        check("override: approve-by-review then opens the gate", g("approve-by-review", pid, "edit").returncode == 0)
+        check("override: a pass cannot be overridden again", g("override", pid, "edit", "再来").returncode == 1)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def t_review_helpers_compare():
+    """The transcript check of the review helpers (2026-11-05 trial: machine speech-to-text mishears one character of a short clip, 课→颗, which must not count as a misreading)."""
+    import whiteboard_review_helpers as H
+    exp = {"a.wav": "下一课，接着拆。", "b.wav": "在请求里多开一个选项，让它把候选和各自的可能性列成一张表。"}
+
+    def run(tr):
+        return {"result": {"clips": [{"file": f"m/{k}", "transcript": v} for k, v in tr.items()]}}
+    same = H.compare_transcripts(run({"a.wav": "下一课接着拆", "b.wav": "在请求里多开一个选项，让它把候选和各自的可能性，列成一张表。"}), exp)
+    check("helpers: identical text (punctuation aside) is not flagged", same == [], str(same)[:80])
+    one = H.compare_transcripts(run({"a.wav": "下一颗接着拆"}), exp)
+    check("helpers: one wrong character is only soft", len(one) == 1 and one[0]["severity"] == "soft", str(one)[:80])
+    big = H.compare_transcripts(run({"b.wav": "再请秋里多开一个选项，让他把候选和各自的可能性列成一张表。", "a.wav": "今天天气很好"}), exp)
+    num = H.compare_transcripts(run({"b.wav": "在请求里多开一个选项，让它把候选和各自的可能性列成一张表。"}), {"b.wav": "在请求里多开一个选项，让它把候选和各自的可能性列成一张表。"})
+    exp2 = {"c.wav": "大约八十个字。创意写作用一点五，温度零。", "d.wav": "现在请来两个模型。先交代范围：这是一个小测试，日期写在卡片上。"}
+    dig = H.compare_transcripts(run({"c.wav": "大约80个字，创意写作用1.5，温度0。", "d.wav": "现在请来两个模型，先交代范围"}), exp2)
+    check("helpers: digits vs spelled numbers and a transcript that stops early are not misreadings", num == [] and all(f["severity"] == "soft" for f in dig) and len([f for f in dig if f["severity"] == "major"]) == 0, str(dig)[:120])
+    check("helpers: 3 or more differing characters, or a very low similarity, is major", {f["file"]: f["severity"] for f in big}.get("m/a.wav") == "major"
+          and {f["file"]: f["severity"] for f in big}.get("m/b.wav") == "major", str(big)[:100])
+
+
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test

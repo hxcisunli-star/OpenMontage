@@ -813,8 +813,8 @@ entries:
   - id: E116
     stage: any
     level: 检查
-    by: docs/whiteboard_gate.py（delegate 只允许四个文字类门；approve-by-review 只在最近一次评审 pass 且产物未改时放行；stop-hook 只催发起托管的会话）
-    rule: "托管：只有文字类的门（计划确认、提案、脚本、场景计划）能交给评审；评审由脚本另起只读的 Opus，在后台跑，结论写 review/gate-review-<阶段>-<n>.json；每个门最多审两次；needs_human、两次没过、要花计划外的钱、要改已批准内容、被自动模式拦、要提交推送，都先 delegate halt 再停。评审放行不冒充用户原话。"
+    by: docs/whiteboard_gate.py（approve-by-review 只在最近一次评审 pass 且产物未改时放行；stop-hook 只催发起托管的会话；范围 2026-11-05 起放宽，见 E140）
+    rule: "托管（2026-11-03 定文字类四门，2026-11-05 起范围放宽到九个口令，见 E140）：门可以交给评审；评审由脚本另起只读的 Opus，在后台跑，结论写 review/gate-review-<阶段>-<n>.json；每个门最多审两次；needs_human、两次没过、要花计划外的钱、要改已批准内容、被自动模式拦、要提交推送，都先 delegate halt 再停。评审放行不冒充用户原话。"
     why: "2026-11-03 用户要无人值守：第 3 课会话每过一个门都停下等口令；用户选了文字类门交给 Claude Opus 评审，听和看的门、对外的门仍由自己定。staging 实测：Opus 审第 2 课旧版脚本，独立找出了用户后来在 v1.2 里改的三处。"
     from: [ext:用户2026-11-03托管决定]
 
@@ -968,6 +968,77 @@ entries:
     rule: "电子书平台每加一类新图，都要有测试：每种记录能渲、文字被转义、脚注标签对（实测、示意、引文）、诚实规则当规则测（橙色只在这一次选中的词元上、停止符永不“被选中”、示意图不盖实测章）、行图文字带“共几种”。第 3 课的七种图在 tests/tools/test_ebook_blocks_l3.py，第 2 课的在 test_ebook_blocks_records.py。"
     why: "第 3 课给共用平台加了七种图和三处构建检查，第 1、2 章页面逐字节不变，是用构建前后对比和这些测试保证的。"
     from: [ext:agent第3课复盘]
+
+  - id: E140
+    stage: any
+    level: 检查
+    by: docs/whiteboard_gate.py（DELEGABLE、REQUIRED_MATERIALS、request／wait、--helpers、inspected 规则）；docs/whiteboard_review_helpers.py；测试 docs/whiteboard_backtest.py t_gate_delegate_all_gates
+    rule: "托管范围放宽到九个口令的每一个（计划确认、提案、脚本、场景计划、样音、素材、样片、成片、发布；提交和推送不属于门，始终由用户说）。做法：做课会话（主持）到门先写 awaiting_human，`request` 登记材料（缺材料会被拒，登记时记指纹），发消息请“复审主持”会话来审，后台挂 `wait`；复审主持会话跑 `whiteboard_review_helpers.py full`：Gemini 盲听转写并由脚本对旁白原文、看 480p 代理视频，Codex sol 按清单核并看图（-i），再起只读 Opus 评审；评审要在 `inspected` 里写出亲自打开的图（不足 5 张的 pass 被脚本改判 fail）；视听门小弟没跑成就不评审、不占评审次数；材料指纹对不上（评审后被改）就拒绝。**消息不是放行**，只有裁决文件算；放行记录写 delegated_review，不写 approved_by_user。评审判不了的口味（音色、语气、动画节奏）进“请你抽查”清单，不冒充用户听过。"
+    why: "2026-11-05 第 3 课实测：25.4 小时里 Claude 干活 7.4、等后台 3.1、等用户 14.3（含素材通过后过夜 8.1）。用户要把全部门交给“Opus 带小弟复审”。探针（第 3 课真实材料）：Gemini Flash 盲听 16 秒配音，逐字转写与稿子一致，被换掉的三处词（北京→上海、百分之百→百分之九十、咖啡店→书店）三处全报、没有误报；看 14 秒样片，画面内容和旁白都对，但秒数偏快、有几处细节是编的（所以只当“去哪一帧看”的线索）；Codex sol 用 -i 直接看全尺寸帧，读出小字并指出笔压住字。读音错、音色好不好听没有被证明测得出。试跑（第 3 课真实成片，Gemini 5 段、Codex 2 批、Opus 1 次）：小弟约 22 分钟、Opus 约 6 分钟；Opus 打开了 13 张图，把小弟的两条假阻断（Codex 把代理视频当“缺整片”、Gemini 把 90 秒切点当“声音断了”）逐条驳回，并抓到小弟听出的一处可能口误（“不管话说没说完”）列进抽查。踩到的坑：Gemini 有一次把 can_hear 填 false 却转写了 8 个片段（改为看有没有转写结果）；机器转写会听错一个字（课→颗），差 3 字以上才算问题；任务书里要写明代理视频的切点和姿势叠化是设计。"
+    from: [ext:用户2026-11-05托管决定]
+  - id: E141
+    stage: assets
+    level: 清单
+    rule: "托管时的材料（request 前备齐）：样音通过＝`assets/audio/samples/voice_sample_*.wav`（不含 _raw）和 `voice_sample*texts.json`，候选页的角色设定依据放进 --files；素材通过＝`assets/audio/narration/*.wav`、`narration_timeline.json`、`subtitles.srt`，姿势图和插画用 --files 加进去。评审会：Gemini 盲听转写、脚本对旁白原文（相似度低于 0.88 的片段点名）；Codex 核清单与图；Opus 重跑 ffprobe／音量检查并亲自打开图。"
+    why: "托管放宽后，听觉门的依据是“盲听转写对原文”而不是主持会话自己说“听过了”。"
+    from: [ext:用户2026-11-05托管决定]
+  - id: E142
+    stage: edit
+    level: 清单
+    rule: "托管时的材料：`renders/sample_*.mp4`、`renders/contact/*`、`validation/edit-report.json`（缺一拒绝），再用 --files 加上最挤最复杂的十几个时刻的全尺寸帧（E121）、排版检查结果、sfx apply 输出。评审脚本自己会重跑 lint 与最后一笔检查，有搭档的课再跑搭档检查。Gemini 看每段样片（480p 代理，90 秒一段）列事件和毛病：秒数不准、细节会编，只当线索；Codex 每批 8 张图最多 3 批；Opus 至少亲自打开 5 张全尺寸图。"
+    why: "托管放宽后样片门由评审放行；联系表缩略后看不出框线和图层关系（E112、E121），所以要求评审看全尺寸帧并声明看了哪几张。"
+    from: [ext:用户2026-11-05托管决定]
+  - id: E143
+    stage: compose
+    level: 清单
+    rule: "托管时的材料：`renders/final.mp4`、`validation/compose-notes.json`、`renders/review_dense/sheet_*.png`（缺一拒绝），再用 --files 加 `renders/review_cues/`、verify／stills／local-ref 的日志与结果。Gemini 把成片切成 90 秒一段看并听；Codex 对着帧核 compose-notes 每一条（E112）；Opus 重跑 ffprobe／音量、亲自打开至少 5 张拼图或帧。配音语气、音色、动画节奏进“请你抽查”清单。"
+    why: "托管放宽后成片门由评审放行；成片用户从没从头到尾看过时，评审通过不等于用户听过，要在结束时把最拿不准的时刻列给用户抽查。"
+    from: [ext:用户2026-11-05托管决定]
+  - id: E144
+    stage: publish
+    level: 清单
+    rule: "托管时的材料：`publish_meta.json`、`exports/video/*.mp4`、`exports/metadata/*`（缺一拒绝），再用 --files 加简介、练习与答案、电子书真实页面文字（E102）、check_site 报告、E132 交叉复审记录、records。Codex 核简介和书里的数字对原始记录（E96）、“每次、总是、一定”类词（E101）、“人工、真人”字样（E108）。发布通过由评审放行后，仍等用户说“提交”。"
+    why: "托管放宽后发布门由评审放行；提交和推送是对外的，始终由用户说。"
+    from: [ext:用户2026-11-05托管决定]
+
+  - id: E145
+    stage: any
+    level: 清单
+    rule: "写给子智能体或学生的任务书、练习、玩具规则，派活前把每个设定对着已有数据逐条核一遍：做“去掉某一张”的题，先确认被考的信息只在被去掉的那一张里；写“放在某处才管用”的玩具规则，对照实测里别的放法（本课暗号写在用户那一张也是 10/10）；练习只问测过的请求，没测的要写明没测。派活前请 advisor 或另一家模型专门找“任务书与数据矛盾”。"
+    why: "第 4 课三处同类错：实验二玩具只认助手那一张、练习一问了没测的“只删最上面一张”、练习四答案说“读不到蓝莓”而蓝莓写在用户那一句；advisor 派活前抓到两处，发布前两家审稿各自独立抓到第三处。"
+    from: [ext:agent第4课复盘]
+  - id: E146
+    stage: compose
+    level: 检查
+    by: docs/whiteboard_finish_compose.py
+    rule: "成片检查点里“整条配音由谁确认”按 approvals.jsonl 里素材门的 by 来写：评审放行写“没有真人从头试听整条配音（素材门由评审放行）”，用户亲口放行才写“由用户试听确认”；汇报只写“评审放行”，不写“用户听过”。"
+    why: "第 4 课成片门第 1 次评审 fail：工具里写死了“由用户在素材阶段试听确认”，而样音、素材两门都是评审放行；检查点按指纹锁定，不改就永久留在记录里。"
+    from: [ext:agent第4课复盘]
+  - id: E147
+    stage: edit
+    level: 清单
+    rule: "样片门放行之后，只要再改板书（版面小问题、箭头标签位置、颜色），就要重建、重套音效、重跑真实排版检查（约 6–12 分钟）再渲整片，渲整片之前不能只看联系表；改位置时先想它会不会压到别的字或面板。"
+    why: "第 4 课合成前为评审的小意见改了箭头标签位置，真实排版检查抓到 2 个新重叠错误（箭头标签穿过 404 面板文字），改完只重渲 K4 才修好。"
+    from: [ext:agent第4课复盘]
+  - id: E148
+    stage: scene
+    level: 清单
+    rule: "板上的官方引文卡：①存档日期按每张卡所指存档页自己的日期写（MANIFEST.tsv），与重取核对日期不同时两个都写；②中文原话下面的中文说明写“大意：”，英文原话下面才写“译：”；③搭档气泡不能压住小注（真实排版检查目前不查气泡对标注，拟补）。"
+    why: "第 4 课视频 K4 的引文卡中文原话下写了“译：”，百炼那张卡写 11-05（存档实为 10-23，11-05 是重取核对）；K1 约 117–120 秒搭档气泡下沿压到一行小注，排版检查 0 警告没抓到。视频已放行未改，书里写对。"
+    from: [ext:agent第4课复盘]
+  - id: E149
+    stage: publish
+    level: 检查
+    by: projects/_ebook/site_check/out/check_site.py
+    rule: "电子书整站检查：①每加一类图，要在 ch-shice 里登记它该盖的章（本课加 cards→引文，且引文卡不许盖“实测”章）；②章里文字不得出现 IPv4 地址（写“本机”，不写 127.0.0.1）；③练习题面不得出现年份与旧答案关键字（日期放答案里）；④整站上限 300 MB 写死在 size-limits：每个章视频约 80–90 MB，第 4 章起撑破，书里改用网页版小视频（code/make_book_video.sh：1280×720、crf 31、单声道 64k，约 10 MB；原画质仍在成品包），第 5 课起怎么办（一律网页版、调上限、或压前三章）由用户定。"
+    why: "第 4 章建好后整站检查红了四项：no-secret-or-path、size-limits、ch-shice、ch-exercises；前三项是新章或新图类型暴露的检查缺口或疏漏，第四项是平台设计的上限。"
+    from: [ext:agent第4课复盘]
+  - id: E150
+    stage: publish
+    level: 清单
+    rule: "校验脚本（run_exercises.sh 一类）要对真实文件跑：不要把整个项目拷进临时目录、不要为让检查通过而造“临时夹具”（假存档页）；需要写文件的步骤用环境变量改输出路径（EBOOK_RECORDS_OUT、EXERCISES_OUT、MULTI_TURN_OUT），读真实存档与重取核对表。子智能体在隔离工作区里看不到真实存档，交回的校验脚本必须由我改成读真实文件再收。"
+    why: "第 4 课练习脚本交回时，run_exercises.sh 拷了整个项目（含 90 MB 视频），并按引文自己造了存档页，引文检查必然通过；还因目录已存在而抛 traceback，却照样打出“identical”。"
+    from: [ext:agent第4课复盘]
 
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
 narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7, Hvu-22, Hexp-24, Hexp-25]

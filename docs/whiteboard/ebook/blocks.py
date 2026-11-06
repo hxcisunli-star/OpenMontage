@@ -283,6 +283,186 @@ LESSON3_KINDS = {      # kind -> function(record, ctx) -> (body html, caption, t
 }
 
 
+# ------------------------------------------------------------ lesson 4 kinds: message stacks, ten-answer grids, quotations, token bars, and a probe
+L4_GRID_CLASSES = {
+    "correct": "correct",
+    "admit": "admit",
+    "fabricated": "fabricated",
+    "other": "other",
+    "suffix": "suffix",
+    "none": "none",
+}
+
+
+def _l4_model_names(r):
+    models = r.get("models")
+    if isinstance(models, dict):
+        return [str(v) for v in models.values()]
+    names = []
+    for item in r.get("items", []):
+        if item.get("model") and item["model"] not in names:
+            names.append(str(item["model"]))
+    return names
+
+
+def _l4_caliber(r):
+    models = _l4_model_names(r)
+    model_part = f"模型名：{'、'.join(str(x) for x in models)} · " if models else ""
+    date = str(r.get("date", ""))
+    setting = str(r.get("setting") or "关闭思考 · 没设温度（默认值不知道）· 每格问十遍")
+    return f"{model_part}（网关标称名，转发身份无法独立验证） · {date} · {setting}"
+
+
+def stack(r):
+    papers = []
+    role_classes = {"user": "user", "assistant": "assistant", "system": "system"}
+    role_fallback = {"user": "用户", "assistant": "助手", "system": "系统"}
+    for note in r.get("notes", []):
+        role = str(note.get("role", ""))
+        role_class = role_classes.get(role, "other")
+        role_text = note.get("role_cn") or role_fallback.get(role, role)
+        # The stamp describes how the request was assembled.  It belongs on assistant papers only.
+        stamp = '<span class="l4-stamp">事先写好</span>' if role == "assistant" else ""
+        papers.append(
+            f'<div class="l4-paper l4-paper-{role_class}">'
+            f'<div class="l4-paper-head"><span class="l4-role">{esc(role_text)}</span>{stamp}</div>'
+            f'<div class="l4-paper-text">{esc(note.get("text", ""))}</div></div>'
+        )
+    note_text = f'<p class="l4-note">{esc(r["note"])}</p>' if r.get("note") else ""
+    return (
+        f'<div class="l4-stack"><div class="l4-caller">{esc(r.get("caller_label", "调用的人这一侧的纸条摞"))}</div>'
+        f'<div class="l4-papers">{"".join(papers)}</div>{note_text}</div>'
+    )
+
+
+def _l4_grid_labeler(r):
+    # Keep the distinction visible without copying a source phrase that says “真人标注”.
+    if any(cell.get("class") in ("suffix", "none") for row in r.get("rows", []) for cell in row.get("cells", [])):
+        return "程序判"
+    return "两个 AI 模型分别标注，不是真人"
+
+
+def grids(r):
+    legend = []
+    for item in r.get("legend", []):
+        cls = L4_GRID_CLASSES.get(item.get("class"), "other")
+        legend.append(
+            f'<span class="l4-legend-item"><i class="l4-legend-swatch l4-grid-{cls}"></i>{esc(item.get("text", ""))}</span>'
+        )
+    model_lines = []
+    for label, model in (r.get("models") or {}).items():
+        model_lines.append(f'<span class="l4-model-line"><b>{esc(label)}</b>：{esc(model)}</span>')
+    rows_html = []
+    for row in r.get("rows", []):
+        cells = []
+        for cell in row.get("cells", []):
+            cls = L4_GRID_CLASSES.get(cell.get("class"), "other")
+            dot = '<i class="l4-grid-dot" aria-hidden="true"></i>' if cell.get("dot") is True else ""
+            cells.append(f'<i class="l4-grid-cell l4-grid-{cls}">{dot}</i>')
+        tally = row.get("tally") or {}
+        n = tally.get("n", sum(1 for cell in row.get("cells", []) if cell.get("class") == tally.get("class")))
+        total = tally.get("total", len(row.get("cells", [])))
+        short = tally.get("short", tally.get("class", ""))
+        tally_cls = L4_GRID_CLASSES.get(tally.get("class"), "other")
+        rows_html.append(
+            f'<div class="l4-grid-row"><div class="l4-grid-label">{esc(row.get("label", ""))} · {esc(row.get("model", ""))}</div>'
+            f'<div class="l4-grid-cells">{"".join(cells)}</div>'
+            f'<div class="l4-grid-tally"><i class="l4-legend-swatch l4-grid-{tally_cls}"></i>{esc(short)} {esc(n)} / {esc(total)}</div></div>'
+        )
+    dot_legend = f'<p class="l4-dot-legend">{esc(r["dot_legend"])}</p>' if r.get("dot_legend") else ""
+    return (
+        f'<div class="l4-grid-figure"><div class="l4-grid-meta"><div class="l4-legend">{"".join(legend)}</div>'
+        f'<div class="l4-labeler">标注：{esc(_l4_grid_labeler(r))}</div><div class="l4-models">{"".join(model_lines)}</div>'
+        f'<div class="l4-setting">{esc(r.get("setting", ""))} · {esc(r.get("date", ""))}</div>{dot_legend}</div>'
+        f'<div class="l4-grid-rows">{"".join(rows_html)}</div><p class="l4-note">{esc(r.get("note", ""))}</p></div>'
+    )
+
+
+def answers(r):
+    items = []
+    for item in r.get("items", []):
+        items.append(
+            f'<article class="l4-answer"><blockquote>“{esc(item.get("text", ""))}”</blockquote>'
+            f'<div class="l4-answer-meta"><span>{esc(item.get("model", ""))}</span> · '
+            f'<span>{esc(item.get("cell", ""))}</span> · <code>{esc(item.get("file", ""))}</code></div></article>'
+        )
+    return f'<div class="l4-answers">{"".join(items)}</div><p class="l4-note">{esc(r.get("note", ""))}</p>'
+
+
+def tokenbars(r):
+    model_items = list((r.get("models") or {}).items())
+    value_keys = ["ds", "qw"]
+    legend = []
+    for index, (label, model) in enumerate(model_items):
+        color = "first" if index == 0 else "second"
+        legend.append(f'<span class="l4-token-legend"><i class="l4-token-swatch l4-token-{color}"></i>{esc(label)}：{esc(model)}</span>')
+    rows_html = []
+    # bar length is proportional to the number of tokens at every screen width: the longest bar of the figure fills the track, every other bar is value / longest of it (a fixed pixel width would be cut short on a narrow screen and spoil the proportions)
+    longest = max([row.get(key, 0) for row in r.get("rows", []) for key in value_keys[:len(model_items)]] or [1]) or 1
+    for row in r.get("rows", []):
+        bars_html = []
+        for index, key in enumerate(value_keys[:len(model_items)]):
+            value = row.get(key, 0)
+            color = "first" if index == 0 else "second"
+            width = f"{value / longest * 100:.1f}%"
+            bars_html.append(
+                f'<div class="l4-token-line"><span class="l4-token-name">{esc(model_items[index][0])}</span>'
+                f'<div class="l4-token-track"><i class="l4-token-fill l4-token-{color}" style="width:{esc(width)}" aria-label="{esc(str(value) + " 个输入词元")}"></i></div>'
+                f'<span class="l4-token-value">{esc(value)}</span></div>'
+            )
+        rows_html.append(f'<div class="l4-token-row"><b>{esc(row.get("label", ""))}</b>{"".join(bars_html)}</div>')
+    return (
+        f'<div class="l4-tokenbars"><div class="l4-token-legend">{"".join(legend)}</div>'
+        f'<div class="l4-token-rows">{"".join(rows_html)}</div><p class="l4-note">{esc(r.get("note", ""))}</p></div>'
+    )
+
+
+def _has_cjk(text):
+    return bool(re.search(r"[\u3400-\u9fff]", str(text)))
+
+
+def cards(r):
+    cards_html = []
+    for card in r.get("cards", []):
+        quote = card.get("quote", "")
+        lang = ' lang="en"' if not _has_cjk(quote) else ""
+        gloss = ""
+        if card.get("gloss"):
+            gloss = f'<p class="l4-gloss">{esc(card.get("gloss_kind", "大意"))}：{esc(card["gloss"])}</p>'
+        ours = ""
+        if card.get("ours"):
+            ours = f'<p class="l4-ours">我们的说明（不是页面原话）：{esc(card["ours"])}</p>'
+        if card.get("recheck_date"):
+            archive_line = f'存档 {esc(card.get("archive", ""))}（{esc(card.get("archive_date", ""))} 存档，{esc(card["recheck_date"])} 重取原页核对）'
+        else:
+            archive_line = f'存档 {esc(card.get("archive", ""))} · 取页 {esc(r.get("date", ""))}'
+        cards_html.append(
+            f'<article class="l4-source-card"><h4>{esc(card.get("who", ""))}</h4><p class="l4-iface">接口：{esc(card.get("iface", ""))}</p>'
+            f'<blockquote class="l4-quote"{lang}>“{esc(quote)}”</blockquote>{gloss}{ours}'
+            f'<p class="l4-archive">{archive_line}</p></article>'
+        )
+    return f'<div class="l4-source-cards">{"".join(cards_html)}</div><p class="l4-note">{esc(r.get("note", ""))}</p>'
+
+
+def probe(r):
+    calls = int(r.get("calls", 0))
+    call_rows = "".join(
+        f'<div class="l4-probe-call"><code>{esc(r.get("request", ""))}</code><span>status {esc(r.get("status", ""))}</span><span>message: {esc(r.get("message", ""))}</span></div>'
+        for _ in range(calls)
+    )
+    return f'<div class="l4-probe"><div class="l4-probe-request">请求：{esc(r.get("request", ""))}</div>{call_rows}<p class="l4-note">{esc(r.get("note", ""))}</p></div>'
+
+
+LESSON4_KINDS = {      # kind -> function(record, ctx) -> (body html, caption, tag html)
+    "stack": lambda r, c: (stack(r), f"{r.get('date', '')} · 关闭思考 · 没设温度（默认值不知道） · 纸条在调用的人一侧", TAG_SHICE),
+    "grids": lambda r, c: (grids(r), _l4_caliber(r), TAG_SHICE),
+    "answers": lambda r, c: (answers(r), _l4_caliber(r) + " · 原话摘引", TAG_SHICE),
+    "tokenbars": lambda r, c: (tokenbars(r), _l4_caliber(r), TAG_SHICE),
+    "cards": lambda r, c: (cards(r), f"取页日期：{r.get('date', '')} · 每张卡只对名下的接口成立", '<span class="tag tag-source">引文</span>'),
+    "probe": lambda r, c: (probe(r), f"{r.get('date', '')} · 单独一次探测，没有控制思考，不是正式实验", TAG_SHICE),
+}
+
+
 def show(b, ctx):
     r = ctx.records[b["id"]]
     ctx.used_records.append(b["id"])
@@ -314,6 +494,8 @@ def show(b, ctx):
         body, cap = docs(r), f"取页日期：{dates} · 三页是各自场景里大致的参考，说法互不相同，这里不判谁对"
     elif r["kind"] in LESSON3_KINDS:
         body, cap, tag = LESSON3_KINDS[r["kind"]](r, ctx)
+    elif r["kind"] in LESSON4_KINDS:
+        body, cap, tag = LESSON4_KINDS[r["kind"]](r, ctx)
     else:
         raise AssertionError(r["kind"])
     after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""

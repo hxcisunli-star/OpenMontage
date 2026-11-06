@@ -315,15 +315,18 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     mixed = any(ctx.records[i].get("kind") in ("cuts", "docs") for i in ctx.used_records)      # lesson 2: a local reproduction of two public cutting rules and quotes from archived pages are records too
     evidence_lead = ("这一章的“实测”里，模型调用的记录都是经模型网关调用的；切法示意是在本机用公开规则复现的；文档摘引取自存档页面（日期见各自的来源）。" if mixed else "这一章的“实测”都是经模型网关调用的记录，")
     kinds = [ctx.records[i].get("kind") for i in dict.fromkeys(ctx.used_records)]
-    if "sketch" in kinds or "quotes" in kinds:      # lesson 3: made-up sketches and official quotes are in the drawer too, and must not sit under a heading that says 实测
-        n_sk, n_qt = kinds.count("sketch"), kinds.count("quotes")
-        rec_head = f"图和记录（共 {len(kinds)} 条：实测 {len(kinds) - n_sk - n_qt} 条、示意 {n_sk} 条、官方引文 {n_qt} 条）"
-        evidence_lead = "这一章标“实测”的图，都是经模型网关调用的记录；标“示意”的图，数是我们自编的，不是任何一次返回；官方引文取自存档页面（日期见各自的来源）。"
+    if "sketch" in kinds or "quotes" in kinds or "cards" in kinds:      # lesson 3: made-up sketches and official quotes are in the drawer too, and must not sit under a heading that says 实测; lesson 4: its quote cards (kind cards) count as official quotes
+        n_sk, n_qt = kinds.count("sketch"), kinds.count("quotes") + kinds.count("cards")
+        sk_part = f"、示意 {n_sk} 条" if (n_sk or "quotes" in kinds) else ""
+        rec_head = f"图和记录（共 {len(kinds)} 条：实测 {len(kinds) - n_sk - n_qt} 条{sk_part}、官方引文 {n_qt} 条）"
+        evidence_lead = ("这一章标“实测”的图，都是经模型网关调用的记录；标“示意”的图，数是我们自编的，不是任何一次返回；官方引文取自存档页面（日期见各自的来源）。" if sk_part else
+                         "这一章标“实测”的图，都是经模型网关调用的记录；官方引文取自存档页面（日期见各自的来源）。")
     else:
         rec_head = f"实测记录（{len(set(ctx.used_records))} 条）"
     evidence = ('<details id="evidence" class="evidence"><summary>证据抽屉：这一章的数字和说法从哪里来</summary>'
                 f'<h4>{rec_head}</h4><ul>{rec_rows}</ul>'
                 f"<p>{evidence_lead}录制日期是 {'、'.join(sorted({ctx.records[i]['date'] for i in ctx.used_records if ctx.records[i].get('date')}))}（每条记录上都标了）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
+                + (f"<p>{esc(ch['evidence_extra'])}</p>" if ch.get("evidence_extra") else "") +
                 f'<h4>来源说（{len(used_claims)} 条）</h4><ul>{src_rows}</ul></details>')
     side = ""
     if vid:

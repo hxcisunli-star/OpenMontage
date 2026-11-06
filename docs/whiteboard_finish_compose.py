@@ -42,6 +42,20 @@ def main():
 
     m = jload(proj / "validation/compose-measured.json")
     notes = jload(proj / "validation/compose-notes.json")
+    # who approved the narration (the assets gate): the record must not say a user listened when the gate was passed by review (protocol 3a; lesson 4 compose-gate review)
+    _ap = []
+    _apf = proj / "approvals.jsonl"
+    if _apf.exists():
+        for _l in _apf.read_text(encoding="utf-8").splitlines():
+            try:
+                _ap.append(json.loads(_l))
+            except ValueError:
+                pass
+    _assets_ap = [a for a in _ap if a.get("stage") == "assets"]
+    _by_review = bool(_assets_ap) and _assets_ap[-1].get("by") == "review"
+    LISTEN_ISSUE = ("整条配音的读音和问答停顿节奏：素材门由评审放行（评审的 Gemini 小弟盲听转写、Opus 核对），没有真人从头试听整条配音"
+                    if _by_review else "整条配音的读音和问答停顿节奏由用户在素材阶段试听确认")
+    LISTEN_WARN = ("整条配音没有真人从头试听（素材门由评审放行）" if _by_review else "整条配音由用户在素材阶段试听确认")
     if not m:
         sys.exit("finish_compose: validation/compose-measured.json is missing - run docs/whiteboard_verify.py verify first")
     if not m.get("pass"):
@@ -104,7 +118,7 @@ def main():
                                  "runtime_swap_check": "ok — proposal and edit agree" if runtime == prop_rt else f"MISMATCH proposal {prop_rt} vs edit {runtime}", "silent_downgrade_detected": False, "issues": []},
         "subtitle_check": {"subtitles_expected": True, "subtitles_present": True, "coverage_ratio": 1.0, "timing_drift_detected": False, "issues": ["抽样帧字幕与旁白对应；覆盖率为抽样比例", "字幕逐字时间是估计的，未用语音识别核对"]},
         "transcript_comparison": {"transcript_matches_script": None, "word_accuracy": None, "issues": ["本机无语音识别，未做转写核对"]}},
-        "issues_found": ["字幕时间是估计的，未做转写核对", "整条配音的读音和问答停顿节奏由用户在素材阶段试听确认"] + ([f"核对工具原本判为意外静音的停顿，用户已决定保留{allowed_note}"] if allowed_sil else []) +
+        "issues_found": ["字幕时间是估计的，未做转写核对", LISTEN_ISSUE] + ([f"核对工具原本判为意外静音的停顿，用户已决定保留{allowed_note}"] if allowed_sil else []) +
                         ([f"freezedetect（-50 dB、8 秒）报出 {len(m['freeze'])} 段近似静止：{freeze_txt}；{notes.get('freeze_explanation', '（未写说明）')}"] if m["freeze"] else []) +
                         list(notes.get("extra_issues", [])) + ["画面细节待用户观看确认"],
         "recommended_action": "present_to_user"}
@@ -113,7 +127,7 @@ def main():
     rr = {"version": "1.0", "outputs": [{"path": "renders/final.mp4", "format": "mp4", "codec": v["codec"], "audio_codec": a["codec"], "resolution": f"{v['width']}x{v['height']}", "fps": float(v["fps"]),
                                          "duration_seconds": dur, "file_size_bytes": size, "platform_target": "generic"}],
           "render_time_seconds": secs or 0,
-          "warnings": ["字幕逐字时间是估计的，没有语音识别转写核对", "整条配音由用户在素材阶段试听确认"] + ([f"freezedetect 在 -50 dB 下报出 {len(m['freeze'])} 段超过 8 秒几乎不变的画面（{freeze_txt}）：{notes.get('freeze_explanation', '')}"] if m["freeze"] else []),
+          "warnings": ["字幕逐字时间是估计的，没有语音识别转写核对", LISTEN_WARN] + ([f"freezedetect 在 -50 dB 下报出 {len(m['freeze'])} 段超过 8 秒几乎不变的画面（{freeze_txt}）：{notes.get('freeze_explanation', '')}"] if m["freeze"] else []),
           "verification_notes": [
               f"ffprobe：{v['width']}x{v['height']}、{v['fps']:.0f}fps、{v['codec']} + {a['codec']}、视频 {v['duration']:.3f} 秒（{frames} 帧）、音频 {a['duration']:.3f} 秒、{size / 1e6:.1f} MB（md5 {md5}）",
               f"响度 {loud['I']} LUFS，LRA {loud['LRA']} LU，峰值 {loud['peak_dbfs']} dBFS；blackdetect {m['black_frames']} 处黑帧；freezedetect：-50 dB、8 秒下有 {len(m['freeze'])} 段近似静止（见 warnings）",
