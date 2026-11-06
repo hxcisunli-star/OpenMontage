@@ -1,0 +1,18 @@
+{
+  "samples": 31,
+  "full_course_samples": 30,
+  "gpu_health_requests": 5540,
+  "gpu_health_errors": 0,
+  "gpu_health_busy_readings": 0,
+  "max_memory_gib": 127.254,
+  "max_threads": 27431,
+  "repeat_seconds": [
+    127.929,
+    127.614,
+    128.463
+  ],
+  "median_seconds": 127.929,
+  "fresh_baseline_seconds": 144.86,
+  "all_own_successful_jobs_cleaned": true,
+  "source_sha256": "d12471fdfe9f891d65e5fd3539a1b5217c66d36cbf45fbaa22fec729c449e822"
+}

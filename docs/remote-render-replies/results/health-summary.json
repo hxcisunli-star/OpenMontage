@@ -1,0 +1,30 @@
+{
+  "samples": 1928,
+  "errors": 0,
+  "ports": {
+    "7865": {
+      "samples": 482,
+      "median_ms": 2.76,
+      "max_ms": 10.04,
+      "running_max": 0
+    },
+    "7866": {
+      "samples": 482,
+      "median_ms": 2.39,
+      "max_ms": 7.28,
+      "running_max": 0
+    },
+    "7867": {
+      "samples": 482,
+      "median_ms": 2.18,
+      "max_ms": 7.4,
+      "running_max": 0
+    },
+    "7878": {
+      "samples": 482,
+      "median_ms": 1.96,
+      "max_ms": 5.95,
+      "running_max": 0
+    }
+  }
+}

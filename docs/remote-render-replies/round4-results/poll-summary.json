@@ -1,0 +1,14 @@
+{
+  "rounds": 44,
+  "requests": 88,
+  "errors": [],
+  "interval_min": 2.9989393959986046,
+  "interval_max": 3.000094993971288,
+  "rtt_mean": 4.187577572423669,
+  "rtt_max": 5.04919968592003,
+  "states": [
+    "completed",
+    "running"
+  ],
+  "terminal_seen": true
+}
