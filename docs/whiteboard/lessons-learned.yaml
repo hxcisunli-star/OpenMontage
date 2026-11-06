@@ -83,9 +83,9 @@ stages:
     steps:
       - 练习：`make_exercises.py` + `run_exercises.sh`；缩略图与简介：先 `python3 docs/whiteboard_thumb_check.py projects/<课程> --list` 选 `THUMB_T`，再 `publish_prep.py`（不合格会停）→ `finish_publish.py --no-checkpoint`（只导出，检查点最后才写，E134）。链式命令先 `set -o pipefail`（E133）。
       - 封面：`docs/whiteboard_cover_maker.py` 的 LESSONS 加一行再运行（只对本课调用 make()，别用课号参数：它会连同号的 C 篇一起重建）；`docs/whiteboard_prepend_cover.py projects/<课程> --seconds 2`；`scripts/sync_description_chapters.py`（简介章节时间对齐）。
-      - 电子书章：`code/assemble_chapter.py` → `build_site.py --link-media` → `check_site.py`（全过）→ 真浏览器看页内小实验与每张新图 → `build_site.py --link-media --export projects/<课程>/exports/ebook`。
+      - 电子书章：`code/assemble_chapter.py` → `build_site.py --link-media` → `.venv/bin/python docs/whiteboard/ebook/check_site.py --site $PWD/projects/_ebook/site --repo $PWD`（全过）→ 真浏览器看页内小实验与每张新图。不再每课导出一份电子书副本：成品包里电子书只放一份整站（E151）。
       - 发布前交叉复审（E132）：两家各自独立两轮，处置表存 `validation/research/publish_review/`；已批准旁白里的问题单列交用户定（E136）。
-      - 成品包与审阅：`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py --series agent`；审阅页（`code/build_publish_page.py`）发布后，`scripts/write_publish_checkpoint.py` 写 publish 检查点 awaiting_human，停下等“发布通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> publish "<用户原话>"`。
+      - 成品包与审阅：`PYTHONPATH=. .venv/bin/python docs/whiteboard_release_pack.py --series agent`（整站检查必须是绿的；包根目录放一份“电子书（离线完整版）”，各课文件夹里没有电子书）；审阅页（`code/build_publish_page.py`）发布后，`scripts/write_publish_checkpoint.py` 写 publish 检查点 awaiting_human，停下等“发布通过”；用户说了之后：`docs/whiteboard_gate.py approve <项目> publish "<用户原话>"`。
       - 复盘：按模板写 `docs/whiteboard/retro/NN.md`，每条教训分流（检查／清单／叙述）并更新登记表，跑 `whiteboard_registry.py coverage`、`render`、`check`。
       - 等用户说“提交”再提交（提交后自动推 fork；同时在 `projects/` 里提交本课文本源的快照，本机库不推送）。
     outputs: exports/；成品文件夹；复盘一页
@@ -932,7 +932,7 @@ entries:
     stage: publish
     level: 默认
     by: docs/whiteboard/starter-agent/scripts/
-    rule: "智能体篇起步模板的发布件：finish_publish.py 加了 --no-checkpoint（只导出，不写检查点；检查点由 write_publish_checkpoint.py 在复审、导出电子书、建成品包之后才写，读 validation/publish_export_log.json 和 review/publish/checkpoint_notes.json，要求整站检查通过）；sync_description_chapters.py 把简介末尾章节时间按 chapters.txt 对齐并断言三个文件一致（E105 的自动化）。不要改掉。"
+    rule: "智能体篇起步模板的发布件：finish_publish.py 加了 --no-checkpoint（只导出，不写检查点；检查点由 write_publish_checkpoint.py 在复审、建站与整站检查、建成品包之后才写，读 validation/publish_export_log.json 和 review/publish/checkpoint_notes.json，要求整站检查通过）；sync_description_chapters.py 把简介末尾章节时间按 chapters.txt 对齐并断言三个文件一致（E105 的自动化）。不要改掉。"
     why: "第 3 课发布阶段这三件事都是现场补的脚本；写检查点太早会让用户读到“等你审”而复审还没做完，章节时间不对齐在第 2 课就出过。"
     from: [ext:agent第3课复盘]
   - id: E135
@@ -1029,9 +1029,9 @@ entries:
   - id: E149
     stage: publish
     level: 检查
-    by: projects/_ebook/site_check/out/check_site.py
-    rule: "电子书整站检查：①每加一类图，要在 ch-shice 里登记它该盖的章（本课加 cards→引文，且引文卡不许盖“实测”章）；②章里文字不得出现 IPv4 地址（写“本机”，不写 127.0.0.1）；③练习题面不得出现年份与旧答案关键字（日期放答案里）；④整站上限 300 MB 写死在 size-limits：每个章视频约 80–90 MB，第 4 章起撑破，书里改用网页版小视频（code/make_book_video.sh：1280×720、crf 31、单声道 64k，约 10 MB；原画质仍在成品包），第 5 课起怎么办（一律网页版、调上限、或压前三章）由用户定。"
-    why: "第 4 章建好后整站检查红了四项：no-secret-or-path、size-limits、ch-shice、ch-exercises；前三项是新章或新图类型暴露的检查缺口或疏漏，第四项是平台设计的上限。"
+    by: docs/whiteboard/ebook/check_site.py
+    rule: "电子书整站检查：①每加一类图，要在 ch-shice 里登记它该盖的章（本课加 cards→引文，且引文卡不许盖“实测”章）；②章里文字不得出现 IPv4 地址（写“本机”，不写 127.0.0.1）；③练习题面不得出现年份与旧答案关键字（日期放答案里）；④整站大小不设上限（用户 2026-11-06 取消原来的 300 MB），整站与 media/ 的大小只在结果里报告，视频质量由 ch-video-stream 保证（E151）。检查脚本和它的测试现在在版本库里：docs/whiteboard/ebook/check_site.py、tests/tools/test_ebook_site_check.py。"
+    why: "第 4 章建好后整站检查红了四项：no-secret-or-path、size-limits、ch-shice、ch-exercises；前三项是新章或新图类型暴露的检查缺口或疏漏，第四项是写死的整站 300 MB 上限，用户随后取消（E151）。"
     from: [ext:agent第4课复盘]
   - id: E150
     stage: publish
@@ -1039,6 +1039,22 @@ entries:
     rule: "校验脚本（run_exercises.sh 一类）要对真实文件跑：不要把整个项目拷进临时目录、不要为让检查通过而造“临时夹具”（假存档页）；需要写文件的步骤用环境变量改输出路径（EBOOK_RECORDS_OUT、EXERCISES_OUT、MULTI_TURN_OUT），读真实存档与重取核对表。子智能体在隔离工作区里看不到真实存档，交回的校验脚本必须由我改成读真实文件再收。"
     why: "第 4 课练习脚本交回时，run_exercises.sh 拷了整个项目（含 90 MB 视频），并按引文自己造了存档页，引文检查必然通过；还因目录已存在而抛 traceback，却照样打出“identical”。"
     from: [ext:agent第4课复盘]
+
+  - id: E151
+    stage: publish
+    level: 检查
+    by: docs/whiteboard/ebook/check_site.py（ch-video-stream、size-limits）；docs/whiteboard_release_pack.py（add_offline_site）；tests/tools/test_ebook_site_check.py；docs/whiteboard_backtest.py（t_release_pack_offline_site）
+    rule: "电子书（线上学生看）里的视频一律是该课原件 exports/video/output.mp4：建站用硬链接，不重编码，不做“网页版”小视频；整站不设大小上限；质量由 ch-video-stream 保证（章源 video.file 必须是 projects/<课>/exports/video/output.mp4 且站点里播放的就是它本身；mp4 的 moov 在 mdat 之前；H.264＋AAC）。成品包里电子书只放一份整站（包根目录“电子书（离线完整版）”，整站检查绿了才建；各课文件夹不放电子书副本）。线上部署（媒体地址可配置、文件名带哈希长期缓存、生产用 nginx／caddy 或 CDN、必要时才做分段自适应流）见 docs/whiteboard/ebook/ONLINE-DELIVERY.md。"
+    why: "用户 2026-11-06：项目最终是线上平台，学生打开网站看，线上不能压缩画质，300 MB 上限去掉。第 4 章发布时我为了过 300 MB 上限做过 10.6 MB 的网页版小视频，被否决；另外每课文件夹各带一份整站的做法使成品包随课数平方增长（电子书副本 106、177、262、274 MB，压缩包 1190 MB），改成一份后压缩包 704 MB 且线性增长。"
+    from: [ext:用户2026-11-06线上平台决定]
+
+  - id: E152
+    stage: publish
+    level: 检查
+    by: tests/tools/test_ebook_server.py；tests/tools/test_ebook_site_check.py（test_chapter_video_must_be_the_streamable_original、test_mp4_box_scan_…）
+    rule: "给电子书平台的服务器和检查脚本做代码复审时，让小弟（和自己）对边界输入实际复现，不只读代码：空文件、畸形请求目标、客户端中途断开、被截断的 mp4、含 `..` 或符号链接的路径、记录里的 null 字段；复审后每个修复都配一个对旧代码会失败的回归测试（服务器测试可用环境变量 EBOOK_SERVE 指向旧副本，**每个会让旧进程崩溃的测试要单独对旧代码跑**——整套一起跑，进程死后的连接被拒会冒充成一堆“失败”；检查脚本把加固撤回再跑一遍）；对旧代码也通过的测试只算守卫，别当回归测试；测试里按规则名而不是下标取检查项。"
+    why: "2026-11-06 对 serve.mjs、check_site.py、成品包做 Codex×2＋Antigravity×1 复审（55 条，改了 40 条）：旧服务器一个空文件的 GET 就让整个进程退出（站点里恰好没有空文件，所以跑了五天没出事）；test_video_probe_passes 按下标 14 断言，断的其实是 page-basics，测视频探测的测试永远通过；检查脚本的路径校验放过 `..` 和符号链接，mp4 盒扫描不验声明大小，截断文件能通过。三类都是“能跑通的主路径测试不会碰到的边界”，也是我自己写完后没发现的。"
+    from: [ext:代码复审2026-11-06]
 
 # 只对应某一课的事实或来龙去脉，不提升为规则（整课渲染耗时流水、留给后面课复用的例子、路线候选等）
 narrative: [P6-16, H17-5, H19-1, H19-3, H20-1, H20-5, H21-5, H22-7, H23-5, H24-7, H24-8, H25-7, H26-7, H27-5, H28-7, H29-7, H30-5, H31-8, H32-8, H42-7, Hvu-22, Hexp-24, Hexp-25]

@@ -394,7 +394,7 @@ code { font-family: var(--font-mono); font-size: .92em; background: var(--note-b
 .l4-grid-dot { position: absolute; right: 2px; bottom: 2px; width: 5px; height: 5px; border-radius: 50%; background: var(--fg); }
 .l4-grid-tally { display: flex; align-items: center; gap: 5px; color: var(--muted); font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
 .l4-grid-tally .l4-legend-swatch { width: 13px; height: 13px; }
-.l4-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.l4-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 10px; }
 .l4-answer { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); background: var(--note-bg); display: flex; flex-direction: column; gap: 6px; }
 .l4-answer blockquote, .l4-quote { margin: 0; overflow-wrap: anywhere; }
 .l4-answer-meta { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -407,10 +407,11 @@ code { font-family: var(--font-mono); font-size: .92em; background: var(--note-b
 .l4-token-name { color: var(--muted); overflow-wrap: anywhere; }
 .l4-token-track { min-width: 0; height: 23px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); overflow: hidden; }
 .l4-token-fill { display: block; height: 100%; max-width: 100%; min-width: 2px; border-right: 2px solid var(--model-line); }
+.l4-token-fill[style*="width:0.0%"] { min-width: 0; border-right-width: 0; }       /* a bar of value 0 is no bar at all */
 .l4-token-first { background: var(--model); }
 .l4-token-second { background: var(--sticky); border-right-color: var(--hl-fg); }
 .l4-token-value { color: var(--fg); font-family: var(--font-mono); text-align: right; }
-.l4-source-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 11px; }
+.l4-source-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 11px; }
 .l4-source-card { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 13px 12px; border: 1px solid var(--line); border-top: 4px solid var(--accent); background: var(--note-bg); }
 .l4-source-card h4 { font-size: 15px; line-height: 1.5; }
 .l4-iface { color: var(--muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }

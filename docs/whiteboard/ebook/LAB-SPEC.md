@@ -9,7 +9,7 @@
 | `docs/whiteboard/ebook/labs.py`（新）、`docs/whiteboard/ebook/blocks.py`、`docs/whiteboard/ebook/build_site.py`、`docs/whiteboard/ebook/book.css`（只在末尾追加练习样式）、`docs/whiteboard/ebook/set_labs.py`（新）、`docs/whiteboard/ebook/LAB-AUTHORING.md`（新）、`projects/agent-what-is-llm-cn/code/assemble_chapter.py`、`projects/agent-what-is-llm-cn/code/lab_section.json`（新）、`tests/tools/test_lab_build.py`、`tests/tools/test_set_labs.py` | T2 |
 | `docs/whiteboard/ebook/lab-runner.py`、`docs/whiteboard/ebook/lab-worker.js`、`docs/whiteboard/ebook/lab-guard.js`、`tests/labs/test_lab_runner.py`、`tests/labs/test_lab_guard.mjs` | T3 |
 | `docs/whiteboard/ebook/lab-core.js`、`docs/whiteboard/ebook/lab.js`、`tests/labs/test_lab_core.mjs` | T4 |
-| `projects/_ebook/site_check/out/check_site.py`、`projects/_ebook/site_check/out/test_check_site.py`、`projects/_ebook/site_check/mutate_real.py` | T5 |
+| `docs/whiteboard/ebook/check_site.py`、`tests/tools/test_ebook_site_check.py`、`docs/whiteboard/ebook/mutate_real_site.py`（2026-11-06 从 `projects/_ebook/site_check/` 移进版本库） | T5 |
 
 ## 1. 章节源里的练习块（T2 校验并渲染）
 放在 `sections[].blocks[]` 里，块类型字段叫 `t`（和现有块一致）：

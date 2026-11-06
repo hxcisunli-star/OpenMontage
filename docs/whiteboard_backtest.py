@@ -1425,9 +1425,62 @@ def t_review_helpers_compare():
           and {f["file"]: f["severity"] for f in big}.get("m/b.wav") == "major", str(big)[:100])
 
 
+def t_release_pack_offline_site():
+    """2026-11-06: the whole site goes into the pack ONCE, at the root, not into every lesson's folder (that grew with the square of the lesson count); a missing or red whole-site check refuses."""
+    import importlib.util, json, os, shutil, tempfile
+    sp = importlib.util.spec_from_file_location("rp_offline", ROOT / "docs/whiteboard_release_pack.py")
+    RP = importlib.util.module_from_spec(sp); sp.loader.exec_module(RP)
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        site = tmp / "site"
+        (site / "media").mkdir(parents=True)
+        (site / "index.html").write_text("<html></html>", encoding="utf-8")
+        (site / "media/big.mp4").write_bytes(b"\0" * int(6e6))
+        RP.SITE_DIR, RP.SITE_CHECK = site, tmp / "site-check.json"
+        dest = tmp / "pack"
+        dest.mkdir()
+        index = ["head"]
+
+        def refused():
+            try:
+                RP.add_offline_site(dest, index)
+                return False
+            except SystemExit as e:
+                return "missing or red" in str(e)
+        missing = refused()
+        RP.SITE_CHECK.write_text(json.dumps({"pass": False}), encoding="utf-8")
+        red = refused()
+        RP.SITE_CHECK.write_text(json.dumps({"pass": True}), encoding="utf-8")
+        newest = max(p.stat().st_mtime for p in site.rglob("*") if p.is_file())
+        os.utime(RP.SITE_CHECK, (newest - 100, newest - 100))          # a green report written BEFORE the site was last touched
+        try:
+            RP.add_offline_site(dest, index)
+            stale = False
+        except SystemExit as e:
+            stale = "older than the site" in str(e)
+        os.utime(RP.SITE_CHECK, (newest + 100, newest + 100))
+        (site / "leak.txt").symlink_to(tmp / "site-check.json")                  # a link in the site would be followed by copytree
+        os.utime(RP.SITE_CHECK, (newest + 200, newest + 200))
+        try:
+            RP.add_offline_site(dest, index)
+            linked = False
+        except SystemExit as e:
+            linked = "symbolic links" in str(e)
+        (site / "leak.txt").unlink()
+        RP.add_offline_site(dest, index)
+        copy = dest / RP.OFFLINE
+        check("release pack: a missing or red whole-site check refuses the offline e-book", missing and red)
+        check("release pack: a green whole-site check that is older than the site is not trusted", stale)
+        check("release pack: a symbolic link inside the site refuses the offline e-book", linked)
+        check("release pack: the offline e-book is one copy at the pack root, the big video is hard-linked, and the index says there is only one",
+              (copy / "index.html").exists() and os.path.samefile(copy / "media/big.mp4", site / "media/big.mp4") and "整个成品包里只有这一份" in index[-1], str(index)[:120])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test

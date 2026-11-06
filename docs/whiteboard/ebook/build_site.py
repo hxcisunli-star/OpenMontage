@@ -301,7 +301,10 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     if ch.get("glossary"):
         glossary = '<details id="glossary" class="evidence"><summary>几个词的大白话</summary><ul>' + "".join(f'<li><b>{esc(w)}</b>：{esc(d)}</li>' for w, d in ch["glossary"]) + "</ul></details>"
     def model_names(r):      # one model, or (the bars record of lesson 2) the list of models it compares
-        return esc(r["model"].split("/")[-1]) if r.get("model") else esc("、".join(m["model"].split("/")[-1] for m in r["models"]))
+        if r.get("model"):
+            return esc(r["model"].split("/")[-1])
+        ms = r["models"].values() if isinstance(r["models"], dict) else r["models"]          # a list of {"model": …} (lesson 2) or a {label: model name} map (lesson 4)
+        return esc("、".join((m["model"] if isinstance(m, dict) else m).split("/")[-1] for m in ms))
     rec_rows = "".join(f'<li><b>{esc(i)}</b>：{esc(ctx.records[i]["title"])}' + (f'　<span class="mono">{model_names(ctx.records[i])} · {esc(ctx.records[i]["date"])} · {esc(ctx.records[i]["mode"])} · {ctx.records[i]["n"]} 遍</span>' if ctx.records[i].get("n") else "") + "</li>"
                        for i in dict.fromkeys(ctx.used_records))
     _used = set(ctx.used_records)

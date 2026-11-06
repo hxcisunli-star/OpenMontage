@@ -7,8 +7,9 @@ Needs per lesson: exports/video/output.mp4 (cover intro already added by whitebo
 exports/thumbnails/cover.png, exports/metadata/{metadata.json,chapters.txt}.
 Output: projects/C语言白板课_成品/第NN课_课名/{第NN课_课名.mp4, .srt, _封面.png, _简介.txt, _课后练习.txt（第 11 课起）} + 目录.txt, and projects/C语言白板课_成品.zip.
 File names avoid shell-sensitive characters such as '&'.
+The agent series also gets ONE offline copy of the whole e-book site at the root of the pack (电子书（离线完整版）); the lesson folders hold no e-book copy (a refused build: the whole-site check is missing or red).
 """
-import importlib.util, json, shutil, subprocess, sys, zipfile
+import importlib.util, json, os, shutil, subprocess, sys, zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -32,6 +33,39 @@ def duration(p):
     return float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)], capture_output=True, text=True).stdout)
 
 
+OFFLINE = "电子书（离线完整版）"
+SITE_DIR, SITE_CHECK = ROOT / "_ebook/site", ROOT / "_ebook/site-check.json"
+
+
+def add_offline_site(dest, index):
+    """The offline e-book as ONE copy of the whole site at the root of the pack.  (It used to be one copy inside every lesson's folder; each of those held all the videos made so far,
+    so the pack grew with the square of the lesson count: 106, 177, 262, 274 MB for lessons 1 to 4.)  Refuses when the whole-site check is missing or red."""
+    if not (SITE_DIR / "index.html").exists():
+        print("no e-book site is built yet: the pack has no offline e-book")
+        return
+    chk = json.loads(SITE_CHECK.read_text(encoding="utf-8")) if SITE_CHECK.exists() else {}
+    if not chk.get("pass"):
+        raise SystemExit("projects/_ebook/site-check.json is missing or red: run docs/whiteboard/ebook/check_site.py until it passes, then build the pack")
+    links = [p for p in SITE_DIR.rglob("*") if p.is_symlink()]
+    if links:       # copytree would copy what a link points at, from anywhere on the disk
+        raise SystemExit("the e-book site contains symbolic links (%s …): the offline copy takes only real files" % links[0])
+    newest = max((p.stat().st_mtime for p in SITE_DIR.rglob("*") if p.is_file()), default=0)
+    if SITE_CHECK.stat().st_mtime < newest:       # the site was rebuilt (or a file replaced) after the check ran: its green says nothing about this site
+        raise SystemExit("projects/_ebook/site-check.json is older than the site: run docs/whiteboard/ebook/check_site.py on the current site until it passes, then build the pack")
+
+    def link_or_copy(src, dst, **kw):          # big files (the videos) are hard-linked: one file on disk, however many folders name it
+        if Path(src).stat().st_size > 5e6:
+            try:
+                return os.link(src, dst)
+            except OSError:
+                pass
+        return shutil.copy2(src, dst)
+
+    shutil.copytree(SITE_DIR, dest / OFFLINE, copy_function=link_or_copy)
+    index += ["", f"{OFFLINE}：用浏览器打开 {OFFLINE}/index.html（不用联网）；含所有已做完的章节和各章视频（原画质原件）；每出一课重建一次；整个成品包里只有这一份，各课文件夹里没有电子书副本。"]
+    print(OFFLINE, "added once at the root of the pack")
+
+
 def main(series="c"):
     cfg, DEST, zp = pack_paths(series)
     shutil.rmtree(DEST, ignore_errors=True); DEST.mkdir()
@@ -52,12 +86,11 @@ def main(series="c"):
         (d / f"{base}_简介.txt").write_text(f"{m['title']}\n\n{desc}\n{ch}\n\n标签：{'、'.join(m['tags'])}\n{' '.join(m['hashtags'])}\n", encoding="utf-8")
         if (E / "metadata/exercises.txt").exists():   # from lesson 11 on: homework (read, modify, find the bug, write), answers from real runs
             shutil.copy(E / "metadata/exercises.txt", d / f"{base}_课后练习.txt")
-        has_book = (E / "ebook/index.html").exists()   # the offline ebook of the lesson (agent series): a self-contained folder; the video inside it is its own copy
-        if has_book:
-            shutil.copytree(E / "ebook", d / f"{base}_电子书")
         dur = duration(d / f"{base}.mp4")
-        index.append(f"第{no:02d}课 {name}  时长 {int(dur // 60)}分{int(dur % 60):02d}秒  文件夹：{base}" + ("　含电子书（用浏览器打开 电子书 文件夹里的 index.html）" if has_book else ""))
+        index.append(f"第{no:02d}课 {name}  时长 {int(dur // 60)}分{int(dur % 60):02d}秒  文件夹：{base}")
         print(base, f"{dur:.1f}s")
+    if series == "agent":
+        add_offline_site(DEST, index)
     (DEST / "目录.txt").write_text("\n".join(index) + "\n", encoding="utf-8")
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_STORED) as z:
         for f in sorted(DEST.rglob("*")):

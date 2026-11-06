@@ -54,6 +54,12 @@ function run(a) {
   const root = fs.realpathSync(cfg.root);
   const salt = Buffer.from(cfg.salt, 'hex'), want = Buffer.from(cfg.hash, 'hex');
   const fails = new Map(), hits = new Map();
+  setInterval(() => {          // the per-address tables must not grow for ever: drop windows and locks that are over, and cap what is left
+    const now = Date.now();
+    for (const [ip, w] of hits) if (now - w.t > 60000) hits.delete(ip);
+    for (const [ip, g] of fails) if (g.until < now && now - (g.last || 0) > cfg.lockSeconds * 1000) fails.delete(ip);
+    for (const m of [hits, fails]) while (m.size > 50000) m.delete(m.keys().next().value);
+  }, 60000).unref();
   const logFd = cfg.log ? fs.openSync(cfg.log, 'a', 0o600) : null;
   const log = (req, status, bytes) => {
     if (logFd === null) return;
@@ -65,7 +71,8 @@ function run(a) {
     ...extra,
   });
   const send = (req, res, status, body, extra = {}) => {
-    const buf = Buffer.from(body); res.writeHead(status, headers({ 'Content-Type': 'text/plain; charset=utf-8', 'Content-Length': buf.length, 'Cache-Control': 'no-store', ...extra }));
+    const buf = Buffer.from(body); const hasBody = (req.headers['content-length'] && req.headers['content-length'] !== '0') || req.headers['transfer-encoding'];
+    res.writeHead(status, headers({ 'Content-Type': 'text/plain; charset=utf-8', 'Content-Length': buf.length, 'Cache-Control': 'no-store', ...(hasBody ? { Connection: 'close' } : {}), ...extra }));
     res.end(req.method === 'HEAD' ? undefined : buf); log(req, status, buf.length);
   };
   const okCache = new Map();         // sha256(Authorization header) -> expiry: a header that was verified lately is not run through scrypt again (a page has dozens of requests)
@@ -96,11 +103,31 @@ function run(a) {
       if (st.isDirectory()) { file = path.join(file, 'index.html'); st = fs.statSync(file); }
       const real = fs.realpathSync(file);
       if (real !== root && !real.startsWith(root + path.sep)) return { code: 404 };
+      if (path.relative(root, real).split(path.sep).some((x) => x.startsWith('.'))) return { code: 404 };     // a plain-named link to a hidden file is still hidden
       if (!st.isFile()) return { code: 404 };
-      return { code: 200, file: real, st };
+      return { code: 200, file: real };
     } catch (e) { return { code: 404 }; }
   };
-  const server = https.createServer({ key: fs.readFileSync(cfg.key), cert: fs.readFileSync(cfg.cert), minVersion: 'TLSv1.2', maxHeaderSize: 8192 }, (req, res) => {
+  // Open the file ONCE and describe and stream that very file (a rebuild or a swapped link between "check" and "open" can neither leave the root nor make the headers disagree with the bytes).
+  const openChecked = (file) => {
+    let fd = null;
+    try {
+      fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+      const st = fs.fstatSync(fd);
+      if (!st.isFile()) throw new Error('not a file');
+      let now = null; try { now = fs.realpathSync(`/proc/self/fd/${fd}`); } catch (e) { /* no /proc: skip the re-check */ }
+      if (now !== null && (!(now === root || now.startsWith(root + path.sep)) || path.relative(root, now).split(path.sep).some((x) => x.startsWith('.')))) throw new Error('left the root');
+      return { fd, st };
+    } catch (e) { if (fd !== null) { try { fs.closeSync(fd); } catch (e2) { /* closed */ } } return null; }
+  };
+  const fail = (req, res, e) => {       // nothing a request does may take the process down
+    try {
+      if (res.headersSent) return res.destroy();
+      const bad = e && e.code === 'ERR_INVALID_URL';
+      send(req, res, bad ? 400 : 500, bad ? 'bad request\n' : 'server error\n');
+    } catch (e2) { try { res.destroy(); } catch (e3) { /* gone */ } }
+  };
+  const handle = (req, res) => {
     const ip = req.socket.remoteAddress, now = Date.now();
     // per-address request limit (a minute window) and the lock after wrong passwords
     const w = hits.get(ip) || { t: now, n: 0 }; if (now - w.t > 60000) { w.t = now; w.n = 0; } w.n++; hits.set(ip, w);
@@ -108,7 +135,7 @@ function run(a) {
     const f = fails.get(ip);
     if (f && f.until > now) return send(req, res, 429, 'locked for a while after too many wrong passwords\n', { 'Retry-After': String(Math.ceil((f.until - now) / 1000)) });
     if (!authOk(req)) {
-      const g = fails.get(ip) || { n: 0, until: 0 }; if (req.headers.authorization) g.n++; if (g.n >= cfg.maxFail) { g.until = now + cfg.lockSeconds * 1000; g.n = 0; } fails.set(ip, g);
+      const g = fails.get(ip) || { n: 0, until: 0, last: 0 }; if (now - g.last > cfg.lockSeconds * 1000) g.n = 0; if (req.headers.authorization) { g.n++; g.last = now; } if (g.n >= cfg.maxFail) { g.until = now + cfg.lockSeconds * 1000; g.n = 0; } fails.set(ip, g);
       return send(req, res, 401, 'authentication required\n', { 'WWW-Authenticate': 'Basic realm="ebook", charset="UTF-8"' });
     }
     fails.delete(ip);
@@ -116,17 +143,24 @@ function run(a) {
     const pathname = new URL(req.url, 'https:' + '//x').pathname;
     const r = resolve(pathname);
     if (r.code !== 200) return send(req, res, r.code, r.code === 400 ? 'bad request\n' : 'not found\n');
-    const ext = path.extname(r.file).toLowerCase(), type = MIME[ext] || 'application/octet-stream', size = r.st.size;
-    const etag = `W/"${size.toString(16)}-${Math.floor(r.st.mtimeMs).toString(16)}"`;
-    const base = { 'Content-Type': type, 'Accept-Ranges': 'bytes', ETag: etag, 'Last-Modified': r.st.mtime.toUTCString(), 'Cache-Control': ext === '.html' ? 'no-cache' : ext === '.mp4' ? 'private, max-age=86400' : 'private, max-age=3600' };
+    const opened = openChecked(r.file);
+    if (!opened) return send(req, res, 404, 'not found\n');
+    let fd = opened.fd; const st = opened.st;          // the headers below describe the file that was opened
+    res.on('close', () => { if (fd !== null) { try { fs.closeSync(fd); } catch (e) { /* closed */ } fd = null; } });
+    const ext = path.extname(r.file).toLowerCase(), type = MIME[ext] || 'application/octet-stream', size = st.size;
+    const etag = `W/"${size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
+    const base = { 'Content-Type': type, 'Accept-Ranges': 'bytes', ETag: etag, 'Last-Modified': st.mtime.toUTCString(), 'Cache-Control': ext === '.html' ? 'no-cache' : ext === '.mp4' ? 'private, max-age=86400' : 'private, max-age=3600' };
     const assetPath = decodeURIComponent(pathname).replace(/\/+/g, '/');
     if (assetPath === '/assets/lab-config.json') base['Cache-Control'] = 'no-store';
     else if (assetPath.startsWith('/assets/vendor/')) base['Cache-Control'] = 'public, max-age=86400';
-    if (ext === '.py') base['Content-Disposition'] = `attachment; filename="${path.basename(r.file)}"`;
-    if (req.headers['if-none-match'] === etag) { res.writeHead(304, headers(base)); res.end(); return log(req, 304, 0); }
+    if (ext === '.py') { const name = path.basename(r.file); base['Content-Disposition'] = `attachment; filename="${name.replace(/[^\x20-\x7e]|["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`; }
+    const inm = req.headers['if-none-match'], weak = (t) => t.trim().replace(/^W\//, '');
+    if (inm && (inm.trim() === '*' || inm.split(',').some((t) => weak(t) === weak(etag)))) { res.writeHead(304, headers(base)); res.end(); return log(req, 304, 0); }
     let start = 0, end = size - 1, status = 200;
-    const range = req.headers.range;
-    if (range) {
+    const range = req.headers.range, ifRange = req.headers['if-range'];
+    // RFC 7233: only GET answers a Range; an unknown unit or several ranges are ignored (the whole file comes back); If-Range must match the validator we sent (the date; a weak ETag never matches), else the whole file
+    const wantsRange = req.method === 'GET' && range && /^bytes=/i.test(range.trim()) && !/^bytes=[^,]*,/i.test(range.trim()) && (!ifRange || ifRange.trim() === base['Last-Modified']);
+    if (wantsRange) {
       const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
       if (!m || (m[1] === '' && m[2] === '')) return send(req, res, 416, 'bad range\n', { 'Content-Range': `bytes */${size}` });
       if (m[1] === '') { const n = Number(m[2]); start = Math.max(0, size - n); } else { start = Number(m[1]); end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1); }
@@ -135,16 +169,18 @@ function run(a) {
     }
     base['Content-Length'] = end - start + 1;
     res.writeHead(status, headers(base));
-    if (req.method === 'HEAD') { res.end(); return log(req, status, 0); }
-    const stream = fs.createReadStream(r.file, { start, end });
+    if (req.method === 'HEAD' || size === 0) { res.end(); return log(req, status, 0); }
+    const stream = fs.createReadStream(null, { fd, start, end, autoClose: true });
+    fd = null;          // the stream owns the descriptor now
     stream.on('error', () => res.destroy());
     res.on('close', () => stream.destroy());
     stream.pipe(res); log(req, status, end - start + 1);
-  });
-  server.headersTimeout = 15000; server.requestTimeout = 30000; server.keepAliveTimeout = 5000; server.maxConnections = cfg.maxConnections;
+  };
+  const server = https.createServer({ key: fs.readFileSync(cfg.key), cert: fs.readFileSync(cfg.cert), minVersion: 'TLSv1.2', maxHeaderSize: 8192 }, (req, res) => { try { handle(req, res); } catch (e) { fail(req, res, e); } });
+  server.timeout = 120000; server.headersTimeout = 15000; server.requestTimeout = 30000; server.keepAliveTimeout = 5000; server.maxConnections = cfg.maxConnections;
   server.on('clientError', (err, socket) => { try { socket.end('HTTP/1.1 431 Request Header Fields Too Large\r\nConnection: close\r\n\r\n'); } catch (e) { socket.destroy(); } });
   server.listen(cfg.port, cfg.host, () => process.stdout.write(`listening ${cfg.host}:${cfg.port} root=${root}\n`));
-  for (const s of ['SIGTERM', 'SIGINT']) process.on(s, () => server.close(() => process.exit(0)));
+  for (const s of ['SIGTERM', 'SIGINT']) process.on(s, () => { server.close(() => process.exit(0)); if (server.closeIdleConnections) server.closeIdleConnections(); setTimeout(() => process.exit(0), 10000).unref(); });      // idle keep-alive sockets are closed at once; a download still running gets 10 s
 }
 
 const a = args(process.argv.slice(2));

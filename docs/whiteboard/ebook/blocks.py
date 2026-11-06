@@ -299,7 +299,7 @@ def _l4_model_names(r):
     if isinstance(models, dict):
         return [str(v) for v in models.values()]
     names = []
-    for item in r.get("items", []):
+    for item in (r.get("items") or []):
         if item.get("model") and item["model"] not in names:
             names.append(str(item["model"]))
     return names
@@ -317,12 +317,13 @@ def stack(r):
     papers = []
     role_classes = {"user": "user", "assistant": "assistant", "system": "system"}
     role_fallback = {"user": "用户", "assistant": "助手", "system": "系统"}
-    for note in r.get("notes", []):
+    for note in (r.get("notes") or []):
         role = str(note.get("role", ""))
         role_class = role_classes.get(role, "other")
         role_text = note.get("role_cn") or role_fallback.get(role, role)
         # The stamp describes how the request was assembled.  It belongs on assistant papers only.
-        stamp = '<span class="l4-stamp">事先写好</span>' if role == "assistant" else ""
+        stamped = note["stamp"] if "stamp" in note else role == "assistant"          # the record says whether the paper was written beforehand; without the field only assistant papers are
+        stamp = '<span class="l4-stamp">事先写好</span>' if stamped else ""
         papers.append(
             f'<div class="l4-paper l4-paper-{role_class}">'
             f'<div class="l4-paper-head"><span class="l4-role">{esc(role_text)}</span>{stamp}</div>'
@@ -337,14 +338,14 @@ def stack(r):
 
 def _l4_grid_labeler(r):
     # Keep the distinction visible without copying a source phrase that says “真人标注”.
-    if any(cell.get("class") in ("suffix", "none") for row in r.get("rows", []) for cell in row.get("cells", [])):
+    if any(cell.get("class") in ("suffix", "none") for row in (r.get("rows") or []) for cell in (row.get("cells") or [])):
         return "程序判"
     return "两个 AI 模型分别标注，不是真人"
 
 
 def grids(r):
     legend = []
-    for item in r.get("legend", []):
+    for item in (r.get("legend") or []):
         cls = L4_GRID_CLASSES.get(item.get("class"), "other")
         legend.append(
             f'<span class="l4-legend-item"><i class="l4-legend-swatch l4-grid-{cls}"></i>{esc(item.get("text", ""))}</span>'
@@ -353,15 +354,15 @@ def grids(r):
     for label, model in (r.get("models") or {}).items():
         model_lines.append(f'<span class="l4-model-line"><b>{esc(label)}</b>：{esc(model)}</span>')
     rows_html = []
-    for row in r.get("rows", []):
+    for row in (r.get("rows") or []):
         cells = []
-        for cell in row.get("cells", []):
+        for cell in (row.get("cells") or []):
             cls = L4_GRID_CLASSES.get(cell.get("class"), "other")
             dot = '<i class="l4-grid-dot" aria-hidden="true"></i>' if cell.get("dot") is True else ""
             cells.append(f'<i class="l4-grid-cell l4-grid-{cls}">{dot}</i>')
         tally = row.get("tally") or {}
-        n = tally.get("n", sum(1 for cell in row.get("cells", []) if cell.get("class") == tally.get("class")))
-        total = tally.get("total", len(row.get("cells", [])))
+        n = tally.get("n", sum(1 for cell in (row.get("cells") or []) if cell.get("class") == tally.get("class")))
+        total = tally.get("total", len((row.get("cells") or [])))
         short = tally.get("short", tally.get("class", ""))
         tally_cls = L4_GRID_CLASSES.get(tally.get("class"), "other")
         rows_html.append(
@@ -380,7 +381,7 @@ def grids(r):
 
 def answers(r):
     items = []
-    for item in r.get("items", []):
+    for item in (r.get("items") or []):
         items.append(
             f'<article class="l4-answer"><blockquote>“{esc(item.get("text", ""))}”</blockquote>'
             f'<div class="l4-answer-meta"><span>{esc(item.get("model", ""))}</span> · '
@@ -398,8 +399,8 @@ def tokenbars(r):
         legend.append(f'<span class="l4-token-legend"><i class="l4-token-swatch l4-token-{color}"></i>{esc(label)}：{esc(model)}</span>')
     rows_html = []
     # bar length is proportional to the number of tokens at every screen width: the longest bar of the figure fills the track, every other bar is value / longest of it (a fixed pixel width would be cut short on a narrow screen and spoil the proportions)
-    longest = max([row.get(key, 0) for row in r.get("rows", []) for key in value_keys[:len(model_items)]] or [1]) or 1
-    for row in r.get("rows", []):
+    longest = max([row.get(key, 0) for row in (r.get("rows") or []) for key in value_keys[:len(model_items)]] or [1]) or 1
+    for row in (r.get("rows") or []):
         bars_html = []
         for index, key in enumerate(value_keys[:len(model_items)]):
             value = row.get(key, 0)
@@ -423,7 +424,7 @@ def _has_cjk(text):
 
 def cards(r):
     cards_html = []
-    for card in r.get("cards", []):
+    for card in (r.get("cards") or []):
         quote = card.get("quote", "")
         lang = ' lang="en"' if not _has_cjk(quote) else ""
         gloss = ""
@@ -445,7 +446,7 @@ def cards(r):
 
 
 def probe(r):
-    calls = int(r.get("calls", 0))
+    calls = int(r.get("calls") or 0)         # a record with "calls": null draws no call rows instead of crashing the build
     call_rows = "".join(
         f'<div class="l4-probe-call"><code>{esc(r.get("request", ""))}</code><span>status {esc(r.get("status", ""))}</span><span>message: {esc(r.get("message", ""))}</span></div>'
         for _ in range(calls)

@@ -44,6 +44,13 @@ def server(tmp_path_factory):
     (site / "robots.txt").write_text("User-agent: *\nDisallow: /\n", encoding="utf-8")
     (site / "big.bin").write_bytes(bytes(range(256)) * 40)          # 10240 bytes
     (site / ".env").write_text("SECRET=1", encoding="utf-8")
+    (site / "zero.txt").write_bytes(b"")                                       # an empty file used to crash the process (end = size - 1 = -1)
+    with open(site / "large.bin", "wb") as f:
+        f.truncate(30 * 1024 * 1024)                                           # sparse: a stream over it stays open while a client walks away
+    (site / "alias.txt").symlink_to(site / ".env")                             # a plain name that points at a hidden file inside the site
+    (site / 'q"uote.py').write_text("print(1)", encoding="utf-8")
+    (site / "line\nbreak.py").write_text("print(2)", encoding="utf-8")
+    (site / "课.py").write_text("print(3)", encoding="utf-8")
     (site / ".git").mkdir()
     (site / ".git/config").write_text("secret", encoding="utf-8")
     (site / "empty").mkdir()
@@ -63,7 +70,7 @@ def server(tmp_path_factory):
             break
         except OSError:
             time.sleep(0.1)
-    yield {"port": port, "password": password, "cfg": cfg, "local": local, "site": site}
+    yield {"port": port, "password": password, "cfg": cfg, "local": local, "site": site, "pid": proc.pid}
     proc.terminate()
     proc.wait(timeout=5)
 
@@ -144,6 +151,83 @@ def test_range_requests_for_video_seeking(server):
     assert req(server, path="/big.bin", headers={"Range": "bytes=20000-30000"})[0] == 416
     assert req(server, path="/big.bin", headers={"Range": "bytes=abc"})[0] == 416
     assert req(server, path="/big.bin")[0] == 200
+
+
+def test_range_follows_rfc_7233_where_players_and_caches_depend_on_it(server):
+    """2026-11-06 (found in the code review of the online-delivery work, then reproduced): HEAD never answers a Range; several ranges and an unknown unit are ignored (the whole file comes back);
+    If-Range must match the date we sent, otherwise the whole file (a re-rendered video must never be completed with a piece of the new file)."""
+    full = bytes(range(256)) * 40
+    status, h, body = req(server, "HEAD", "/big.bin", headers={"Range": "bytes=0-9"})
+    assert status == 200 and h["content-length"] == "10240" and "content-range" not in h and body == b""
+    status, h, body = req(server, path="/big.bin", headers={"Range": "bytes=0-1,5-9"})
+    assert status == 200 and body == full and "content-range" not in h
+    status, h, body = req(server, path="/big.bin", headers={"Range": "items=0-5"})
+    assert status == 200 and body == full
+    modified = req(server, "HEAD", "/big.bin")[1]["last-modified"]
+    etag = req(server, "HEAD", "/big.bin")[1]["etag"]
+    status, h, body = req(server, path="/big.bin", headers={"Range": "bytes=0-9", "If-Range": modified})
+    assert status == 206 and body == full[:10] and h["content-range"] == "bytes 0-9/10240"
+    status, h, body = req(server, path="/big.bin", headers={"Range": "bytes=0-9", "If-Range": "Thu, 01 Jan 1970 00:00:00 GMT"})
+    assert status == 200 and body == full
+    status, h, body = req(server, path="/big.bin", headers={"Range": "bytes=0-9", "If-Range": etag})          # a weak ETag never matches an If-Range
+    assert status == 200 and body == full
+
+
+def test_if_none_match_takes_lists_and_star(server):
+    etag = req(server, "HEAD", "/big.bin")[1]["etag"]
+    assert req(server, path="/big.bin", headers={"If-None-Match": etag})[0] == 304
+    assert req(server, path="/big.bin", headers={"If-None-Match": f'"zzz", {etag}'})[0] == 304
+    assert req(server, path="/big.bin", headers={"If-None-Match": etag[2:]})[0] == 304          # weak comparison: W/ may be missing
+    assert req(server, path="/big.bin", headers={"If-None-Match": "*"})[0] == 304
+    assert req(server, path="/big.bin", headers={"If-None-Match": '"zzz"'})[0] == 200
+
+
+def test_an_empty_file_is_served_and_does_not_take_the_process_down(server):
+    status, h, body = req(server, path="/zero.txt")
+    assert status == 200 and body == b"" and h["content-length"] == "0"
+    assert req(server, "HEAD", "/zero.txt")[0] == 200
+    assert req(server, path="/zero.txt", headers={"Range": "bytes=0-"})[0] == 416
+    assert req(server, path="/index.html")[0] == 200                       # still alive
+
+
+@pytest.mark.parametrize("name", ["q%22uote.py", "line%0Abreak.py", "%E8%AF%BE.py"])
+def test_download_names_cannot_break_the_header_or_the_server(server, name):
+    status, h, body = req(server, path=f"/{name}")
+    assert status == 200 and body.startswith(b"print(")
+    disp = h["content-disposition"]
+    assert disp.startswith("attachment; filename=") and "\n" not in disp and "\r" not in disp and "filename*=UTF-8''" in disp
+    assert req(server, path="/index.html")[0] == 200
+
+
+def test_a_plain_name_cannot_alias_a_hidden_file(server):
+    assert req(server, path="/alias.txt")[0] == 404
+    assert req(server, path="/.env")[0] == 404
+
+
+def test_a_malformed_request_target_answers_400_and_the_process_stays_up(server):
+    data = raw(server, ("GET //[ HTTP/1.1\r\nHost: x\r\n" + basic(server) + "\r\nConnection: close\r\n\r\n").encode())
+    assert b" 400 " in data.split(b"\r\n", 1)[0] or data == b""           # a parser that refuses it earlier closes the socket: also fine
+    assert req(server, path="/index.html")[0] == 200
+
+
+def test_a_request_with_a_body_we_do_not_read_closes_the_connection(server):
+    status, h, _ = req(server, "POST", "/index.html", body=b"x", headers={"Content-Length": "1"})
+    assert status == 405 and h.get("connection", "").lower() == "close"
+
+
+def test_clients_that_walk_away_mid_video_do_not_leak_descriptors(server):
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    fds = lambda: len(os.listdir(f"/proc/{server['pid']}/fd"))
+    before = fds()
+    for _ in range(30):
+        c = http.client.HTTPSConnection("127.0.0.1", server["port"], context=ctx, timeout=10)
+        c.request("GET", "/large.bin", headers={"Authorization": "Basic " + base64.b64encode(f"reader:{server['password']}".encode()).decode(), "Range": "bytes=0-"})
+        c.getresponse().read(65536)
+        c.sock.close()
+    time.sleep(1.5)
+    assert fds() <= before + 3, (before, fds())
 
 
 @pytest.mark.parametrize("p", ["/../secret.txt", "/%2e%2e/secret.txt", "/..%2fsecret.txt", "/books/../../secret.txt", "/%2e%2e%2f%2e%2e%2fsecret.txt", "/books/..%5c..%5csecret.txt", "/%00", "/index.html%00.png"])
