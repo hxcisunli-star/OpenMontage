@@ -454,7 +454,7 @@ code { font-family: var(--font-mono); font-size: .92em; background: var(--note-b
 .cp-legend-item { display: inline-flex; align-items: center; gap: 5px; }
 .cp-legend-item i { display: inline-block; width: 13px; height: 13px; border: 1px solid var(--fg); border-radius: 2px; }
 .cp-fields { display: flex; flex-direction: column; gap: 7px; margin: 0; }
-.cp-field { display: grid; grid-template-columns: minmax(5em, auto) minmax(0, 1fr); gap: 8px; padding: 6px 8px; border-left: 4px solid var(--line); background: var(--surface); overflow-wrap: anywhere; }
+.cp-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 6px 8px; border-left: 4px solid var(--line); background: var(--surface); overflow-wrap: anywhere; }
 .cp-field dt { color: var(--muted); font-size: 13px; }
 .cp-field-kind { display: block; color: var(--fg); font-size: 11px; font-weight: 700; }
 .cp-field dd { margin: 0; }
