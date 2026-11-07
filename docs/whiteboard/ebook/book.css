@@ -497,3 +497,57 @@ code { font-family: var(--font-mono); font-size: .92em; background: var(--note-b
   .seq-end { font-size: 11px; }
   .seq-label { font-size: 14px; }
 }
+
+/* 第 6 课：纸条窗口、逐轮横条、类别格。符号、边框和文字与颜色一起表达状态。 */
+.l6-window, .l6-turnbars, .l6-classgrid { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.l6-note { margin-top: 10px; color: var(--muted); font-size: 14px; }
+.l6-window-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 10em); gap: 14px; align-items: start; }
+.l6-window-papers { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.l6-window-paper { position: relative; min-width: 0; padding: 10px 13px; border: 1px solid var(--line); background: var(--surface); break-inside: avoid; }
+.l6-window-paper p { white-space: pre-wrap; }
+.l6-window-paper code, .l6-window-text code { font-family: var(--font-mono); font-size: .95em; white-space: normal; overflow-wrap: anywhere; }
+.l6-window-pinned { padding-left: 32px; background: var(--sticky); color: var(--sticky-fg); }
+.l6-pin { position: absolute; left: 11px; top: 13px; width: 11px; height: 11px; border-radius: 50%; background: var(--red); }
+.l6-pin::after { content: ""; position: absolute; width: 2px; height: 10px; top: 8px; left: 5px; background: var(--red); transform: rotate(-18deg); }
+.l6-window-frame { display: flex; flex-direction: column; gap: 9px; padding: 9px; border: 2px dashed var(--good); min-width: 0; }
+.l6-window-torn { border: 2px dashed var(--muted); color: var(--muted); background: var(--note-bg); }
+.l6-window-missing { border: 2px dashed var(--red); }
+.l6-window-missing .l6-window-state { color: var(--red); font-weight: 700; }
+.l6-window-state, .l6-window-mark { display: block; margin-top: 3px; font-size: 13px; }
+.l6-window-mark { border-left: 3px solid var(--good); padding-left: 7px; }
+.l6-folder { min-width: 0; position: relative; margin-top: 12px; padding: 13px 10px 10px; border: 2px solid var(--accent); border-radius: 0 5px 5px; background: var(--note-bg); font-size: 14px; }
+.l6-folder::before { content: ""; position: absolute; top: -11px; left: -2px; height: 11px; width: 48%; border: 2px solid var(--accent); border-bottom: 0; border-radius: 5px 5px 0 0; background: var(--note-bg); }
+.l6-window-text { margin-top: 12px; padding: 9px 12px; border: 1px dashed var(--line); background: var(--note-bg); font-size: 14px; }
+.l6-window-text h4 { font-size: 14px; }
+.l6-window-text ol { padding-left: 1.6em; }
+.l6-turnbars > h4 { font-family: var(--font-body); font-size: 15px; }
+.l6-bar-legend { margin: 6px 0; font-size: 13px; }
+.l6-turn, .l6-cumulative { min-width: 0; margin-top: 10px; }
+.l6-turn h4, .l6-cumulative h4 { font-size: 14px; }
+.l6-bar-line { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) 7em; gap: 7px; align-items: center; margin: 4px 0; min-width: 0; font-size: 13px; }
+.l6-bar-full { --bar-color: var(--accent); }
+.l6-bar-trim { --bar-color: var(--good); }
+.l6-bar-track { position: relative; height: 24px; min-width: 0; background: var(--note-bg); }
+.l6-bar-solid, .l6-bar-range { display: block; position: absolute; top: 5px; height: 14px; }
+.l6-bar-solid { background: var(--bar-color); }
+.l6-bar-range { border: 2px solid var(--bar-color); }
+.l6-plateau-band { display: block; position: absolute; top: 0; height: 100%; background: var(--good); opacity: .18; border-left: 1px dashed var(--good); border-right: 1px dashed var(--good); }
+.l6-plateau-label { grid-column: 2 / -1; color: var(--muted); font-size: 12px; }
+.l6-bar-value { font-family: var(--font-mono); }
+.l6-cumulative { padding-top: 8px; border-top: 1px solid var(--line); }
+.l6-labeler { font-size: 14px; }
+.l6-grid-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 8px 0; font-size: 13px; }
+.l6-grid-row { min-width: 0; margin-top: 12px; font-size: 14px; }
+.l6-grid-cells { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; max-width: 340px; margin: 5px 0; }
+.l6-grid-cell, .l6-grid-symbol { display: inline-flex; align-items: center; justify-content: center; border: 1px solid currentColor; border-radius: 3px; font-family: var(--font-body); font-style: normal; font-weight: 700; line-height: 1.2; }
+.l6-grid-cell { min-width: 0; height: 28px; }
+.l6-grid-symbol { width: 20px; height: 20px; }
+.l6-grid-correct, .l6-grid-named { background: var(--good); color: var(--bg); }
+.l6-grid-unknown, .l6-grid-not_named { background: var(--note-bg); color: var(--muted); }
+@media (max-width: 600px) {
+  .l6-window-layout { grid-template-columns: minmax(0, 1fr); }
+  .l6-folder { max-width: 100%; }
+  .l6-bar-line { grid-template-columns: 5.5em minmax(0, 1fr); }
+  .l6-bar-value, .l6-plateau-label { grid-column: 2; }
+  .l6-grid-cells { gap: 2px; }
+}

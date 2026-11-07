@@ -5,7 +5,7 @@ The folder is named after the series (docs/whiteboard/series.yaml: pack_dir, def
 Rebuilding a pack empties and recreates ITS folder only.
 Needs per lesson: exports/video/output.mp4 (cover intro already added by whiteboard_prepend_cover.py), exports/video/subtitles.srt,
 exports/thumbnails/cover.png, exports/metadata/{metadata.json,chapters.txt}.
-Output: projects/C语言白板课_成品/第NN课_课名/{第NN课_课名.mp4, .srt, _封面.png, _简介.txt, _课后练习.txt（第 11 课起）} + 目录.txt, and projects/C语言白板课_成品.zip.
+Output: projects/C语言白板课_成品/第NN课_课名/{第NN课_课名.mp4, .srt, _封面.png, _简介.txt, _课后练习.txt（第 11 课起）, _随课勘误.txt（有 exports/metadata/errata.txt 才有）} + 目录.txt, and projects/C语言白板课_成品.zip.
 File names avoid shell-sensitive characters such as '&'.
 The agent series also gets ONE offline copy of the whole e-book site at the root of the pack (电子书（离线完整版）); the lesson folders hold no e-book copy (a refused build: the whole-site check is missing or red).
 """
@@ -84,6 +84,8 @@ def main(series="c"):
         if not desc.endswith("章节时间轴："):
             desc += "\n\n章节时间轴："
         (d / f"{base}_简介.txt").write_text(f"{m['title']}\n\n{desc}\n{ch}\n\n标签：{'、'.join(m['tags'])}\n{' '.join(m['hashtags'])}\n", encoding="utf-8")
+        if (E / "metadata/errata.txt").exists():   # optional: a note for students about something in the video that differs from the delivered files; lessons without the file are packed exactly as before
+            shutil.copy(E / "metadata/errata.txt", d / f"{base}_随课勘误.txt")
         if (E / "metadata/exercises.txt").exists():   # from lesson 11 on: homework (read, modify, find the bug, write), answers from real runs
             shutil.copy(E / "metadata/exercises.txt", d / f"{base}_课后练习.txt")
         dur = duration(d / f"{base}.mp4")

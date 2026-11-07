@@ -622,6 +622,209 @@ LESSON5_KINDS = {
 }
 
 
+# ------------------------------------------------------------ lesson 6 kinds
+L6_STATES = {"pinned": "固定", "kept": "保留", "torn": "撕下", "missing": "缺"}
+L6_CLASSES = {"correct": "答对", "unknown": "没有看到", "named": "说出名字", "not_named": "没有说出名字"}
+
+
+def _l6_required(obj, key):
+    value = obj[key]
+    assert value is not None and value != "" and value != [], f"{key} 不能为空"
+    return value
+
+
+def _l6_int(obj, key, minimum=0):
+    value = _l6_required(obj, key)
+    if type(value) is not int or value < minimum:
+        raise ValueError(f"{key} must be an integer >= {minimum}")
+    return value
+
+
+def _l6_number_text(text):
+    """Escape raw chunks, wrapping only ASCII digit runs (never HTML entities)."""
+    return "".join(f"<code>{part}</code>" if re.fullmatch(r"[0-9]+", part) else esc(part)
+                   for part in re.split(r"([0-9]+)", str(text)))
+
+
+def window(r):
+    notes = _l6_required(r, "notes")
+    folder = r["folder"]
+    torn = sum(note["state"] == "torn" for note in notes)
+    if folder is not None and _l6_int(folder, "count") != torn:
+        raise ValueError("window folder.count must equal the number of torn notes")
+    papers, sentences = [], []
+    in_window = False
+    for number, note in enumerate(notes, 1):
+        state, role = note["state"], note["role"]
+        if state not in L6_STATES or role not in ("system", "user", "assistant"):
+            raise ValueError("unknown window state or role")
+        if state == "pinned" and role != "system":
+            raise ValueError("a pinned note must be a system message")
+        if state == "missing" and r["honest"] != "shiyi":
+            raise ValueError("missing notes are only allowed in a shiyi window")
+        if state == "kept" and not in_window:
+            papers.append('<div class="l6-window-frame" role="group" aria-label="在窗口里">')
+            in_window = True
+        elif state != "kept" and in_window:
+            papers.append('</div>')
+            in_window = False
+        role_cn = _l6_required(note, "role_cn")
+        text = _l6_required(note, "text")
+        state_text = {"pinned": "系统消息，固定在摞上", "kept": "在窗口里", "torn": "这一次不在信封里", "missing": "缺"}[state]
+        pin = '<i class="l6-pin" aria-hidden="true"></i>' if state == "pinned" else ""
+        mark = f'<p class="l6-window-mark">{esc(note["mark"])}</p>' if note["mark"] else ""
+        papers.append(f'<div class="l6-window-paper l6-window-{state}">{pin}'
+                      f'<b>{esc(role_cn)}</b><p>{_l6_number_text(text)}</p>'
+                      f'<span class="l6-window-state">{state_text}</span>{mark}</div>')
+        shown = text[:-1] if (note["mark"] and text.endswith("。")) else text          # the paper's own full stop would meet the semicolon of the mark ("。；")
+        sentence = f'第 {number} 条，{role_cn}，{L6_STATES[state]}，{shown}'
+        if note["mark"]:
+            sentence += f'；{note["mark"]}'
+        end = "" if sentence.rstrip()[-1:] in "。？！" else "。"          # a paper's own sentence-final mark is kept (no "。。" or "？。" in the text version)
+        sentences.append(f'<li>{_l6_number_text(sentence)}{end}</li>')
+    if in_window:
+        papers.append('</div>')
+    folder_html = (f'<aside class="l6-folder"><b>{esc(_l6_required(folder, "label"))}</b>'
+                   f'<p>撕下的 {esc(folder["count"])} 张在这里，没有消失</p></aside>') if folder is not None else ""
+    return (f'<div class="l6-window"><div class="l6-window-layout">'
+            f'<div class="l6-window-papers" aria-hidden="true">{"".join(papers)}</div>{folder_html}</div>'
+            f'<div class="l6-window-text"><h4>文字版（每张纸条一句话）</h4><ol>{"".join(sentences)}</ol></div>'
+            f'<p class="l6-note">{esc(r["note"])}</p></div>')
+
+
+def _l6_interval(value):
+    lo, hi = _l6_int(value, "lo"), _l6_int(value, "hi")
+    if lo > hi:
+        raise ValueError("range requires lo <= hi")
+    display = _l6_required(value, "display")
+    number = r"([0-9]+(?:,[0-9]{3})*)"
+    match = re.fullmatch(r"\s*" + number + r"\s*(?:[–—\-~～至到]\s*" + number + r")?\s*", str(display))
+    shown = [int(x.replace(",", "")) for x in match.groups() if x is not None] if match else []
+    if shown != ([lo] if lo == hi else [lo, hi]):
+        raise ValueError("display must match lo/hi and distinguish a point from a range")
+    return lo, hi
+
+
+def _l6_bar(value, label, color, maximum, plateau=None):
+    lo, hi = _l6_interval(value)
+    solid = f'<i class="l6-bar-solid" style="width:{lo / maximum * 100:.6f}%"></i>'
+    outline = (f'<i class="l6-bar-range" style="left:{lo / maximum * 100:.6f}%;width:{(hi - lo) / maximum * 100:.6f}%"></i>'
+               if lo < hi else "")
+    band = ""
+    if plateau is not None:
+        low, high = _l6_interval(plateau)
+        band = (f'<i class="l6-plateau-band" style="left:{low / maximum * 100:.6f}%;width:{(high - low) / maximum * 100:.6f}%"></i>')
+    plateau_text = f'<span class="l6-plateau-label">淡绿色带：{esc(plateau["display"])}</span>' if plateau is not None else ""
+    return (f'<div class="l6-bar-line l6-bar-{color}"><span>{label}</span>'
+            f'<div class="l6-bar-track" aria-hidden="true">{band}{solid}{outline}</div>'
+            f'<span class="l6-bar-value">{esc(value["display"])}</span>{plateau_text}</div>')
+
+
+def turnbars(r):
+    turns = _l6_required(r, "turns")
+    plateau, cumulative = r["plateau"], r["cumulative"]
+    values = [turn[key] for turn in turns for key in ("full", "trim")]
+    numbers = [_l6_int(turn, "turn", 1) for turn in turns]
+    if numbers != sorted(set(numbers)):
+        raise ValueError("turn numbers must be unique and increasing")
+    if plateau is not None:
+        if _l6_int(plateau, "from_turn", 1) not in numbers:
+            raise ValueError("plateau.from_turn must name a plotted turn")
+        values.append(plateau)
+    if cumulative is not None:
+        values.extend(cumulative[key] for key in ("full", "trim"))
+        _l6_interval(cumulative["saved"])
+    # All plotted bars and bands use one scale, including the cumulative bars.
+    maximum = max(_l6_interval(value)[1] for value in values) or 1
+    rows_html = []
+    for turn in turns:
+        band = plateau if plateau is not None and turn["turn"] >= plateau["from_turn"] else None
+        rows_html.append(f'<section class="l6-turn"><h4>第 {esc(turn["turn"])} 轮</h4>'
+                         + _l6_bar(turn["full"], "整摞", "full", maximum)
+                         + _l6_bar(turn["trim"], "只留六条", "trim", maximum, band) + '</section>')
+    cumulative_html = ""
+    if cumulative is not None:
+        cumulative_html = ('<section class="l6-cumulative"><h4>累计（把各轮的数加起来）</h4>'
+                           + _l6_bar(cumulative["full"], "整摞", "full", maximum)
+                           + _l6_bar(cumulative["trim"], "只留六条", "trim", maximum)
+                           + f'<p>少了 {esc(cumulative["saved"]["display"])}</p></section>')
+    return (f'<div class="l6-turnbars"><h4>{esc(_l6_required(r, "model"))}</h4>'
+            '<p class="l6-bar-legend">整摞 · 只留六条；实心到下限，描边到上限</p>'
+            f'{"".join(rows_html)}{cumulative_html}<p class="l6-note">{esc(r["note"])}</p></div>')
+
+
+def classgrid(r):
+    labeler = _l6_required(r, "labeler")
+    if "真人" in labeler or "人工" in labeler or "AI" not in labeler:
+        raise ValueError("classgrid labeler must describe AI model annotation")
+    legend = {}
+    legend_html = []
+    for item in _l6_required(r, "legend"):
+        cls = item["class"]
+        if cls not in L6_CLASSES or cls in legend:
+            raise ValueError("unknown or duplicate classgrid legend class")
+        legend[cls] = _l6_required(item, "text")
+        symbol = "✓" if cls in ("correct", "named") else "·"
+        legend_html.append(f'<span><i class="l6-grid-symbol l6-grid-{cls}" aria-hidden="true">{symbol}</i> {esc(legend[cls])}</span>')
+    rows_html = []
+    for row in _l6_required(r, "rows"):
+        cells, tally = _l6_required(row, "cells"), row["tally"]
+        total, n = _l6_int(tally, "total", 1), _l6_int(tally, "n")
+        if total != 10 or len(cells) != total:
+            raise ValueError("classgrid requires ten cells and cells length == tally.total")
+        if tally["class"] not in legend or n != sum(c["class"] == tally["class"] for c in cells):
+            raise ValueError("classgrid tally.n must equal the count of tally.class")
+        cells_html = []
+        for number, cell in enumerate(cells, 1):
+            cls = cell["class"]
+            if cls not in legend:
+                raise ValueError("classgrid cells must use a declared legend class")
+            symbol = "✓" if cls in ("correct", "named") else "·"
+            cells_html.append(f'<span class="l6-grid-cell l6-grid-{cls}" role="img" '
+                              f'aria-label="{esc(f"第 {number} 遍，{legend[cls]}")}">{symbol}</span>')
+        rows_html.append(f'<div class="l6-grid-row"><div>{esc(_l6_required(row, "label"))} · {esc(_l6_required(row, "model"))}</div>'
+                         f'<div class="l6-grid-cells">{"".join(cells_html)}</div>'
+                         f'<p class="l6-grid-tally">{esc(_l6_required(tally, "short"))} {n} / {total}</p></div>')
+    return (f'<div class="l6-classgrid"><h4 class="l6-labeler">标注：{esc(labeler)}</h4>'
+            f'<div class="l6-grid-legend">{"".join(legend_html)}</div>{"".join(rows_html)}'
+            f'<p class="l6-note">{esc(r["note"])}</p></div>')
+
+
+def _lesson6_record(r, renderer):
+    honest = _l6_required(r, "honest")
+    if honest not in ("shice", "shiyi") or (r["kind"] != "window" and honest != "shice"):
+        raise ValueError("invalid lesson 6 honest value")
+    date = r["date"] if honest == "shiyi" else _l6_required(r, "date")
+    if date is not None:
+        from datetime import date as calendar_date
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date):
+            raise ValueError("date must be YYYY-MM-DD")
+        calendar_date.fromisoformat(date)
+    elif honest == "shice":
+        raise ValueError("a measured lesson 6 record requires a date")
+    cap = _l6_required(r, "caliber")
+    if date is not None:
+        cap = f"{_l6_required(r, 'date')} · {cap}"
+    if r["kind"] == "turnbars":
+        cap += f" · {_l6_required(r, 'model')} · {_l6_int(r, 'runs', 1)} 遍"
+    body = renderer(r)
+    if honest == "shice":
+        if "示意" in str(_l6_required(r, "title")) + body + cap:
+            raise ValueError("a measured lesson 6 figure must not say 示意")
+        tag = TAG_SHICE
+    else:
+        # the badge already says 示意 (the whole-site check reads it from the caption element, badge included); the caption does not say it again
+        tag = '<span class="tag tag-shiyi">示意</span>'
+    return body, cap, tag
+
+
+LESSON6_KINDS = {
+    "window": lambda r, c: _lesson6_record(r, window),
+    "turnbars": lambda r, c: _lesson6_record(r, turnbars),
+    "classgrid": lambda r, c: _lesson6_record(r, classgrid),
+}
+
+
 def show(b, ctx):
     r = ctx.records[b["id"]]
     ctx.used_records.append(b["id"])
@@ -657,6 +860,8 @@ def show(b, ctx):
         body, cap, tag = LESSON4_KINDS[r["kind"]](r, ctx)
     elif r["kind"] in LESSON5_KINDS:
         body, cap, tag = LESSON5_KINDS[r["kind"]](r, ctx)
+    elif r["kind"] in LESSON6_KINDS:
+        body, cap, tag = LESSON6_KINDS[r["kind"]](r, ctx)
     else:
         raise AssertionError(r["kind"])
     after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""

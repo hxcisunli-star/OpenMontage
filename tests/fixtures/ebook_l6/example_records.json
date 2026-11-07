@@ -1,0 +1,590 @@
+{
+  "WIN_shice": {
+    "kind": "window",
+    "title": "这次发出的纸条",
+    "date": "2026-11-07",
+    "honest": "shice",
+    "caliber": "只代表我们用的中转服务，2026-11-07，两个标称模型（deepseek/deepseek-v4.1-flash-1017、qwen/qwen3.8-max，背后是谁无法核实），关了思考，历史里的助手回复是固定的话，用户短句字数相同；只限这一天、这两个模型和这一句固定问法。",
+    "notes": [
+      {
+        "role": "system",
+        "role_cn": "系统",
+        "text": "你是小满，一个耐心的学习助手。",
+        "state": "pinned",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "对了，我的取件码是5086。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "好的，我看到了，请接着往下说吧。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "这个周末打算去公园里转一转。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "听起来不错，天气好的话会很舒服。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "我还想顺路买点新鲜的水果呢。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "好主意，当季的水果又甜又不太贵。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "傍晚回家以后准备自己做晚饭。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "自己动手做饭，吃得放心也能省钱。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "晚饭想煮一碗简单的西红柿面。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "西红柿面做起来快，味道也很家常。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "吃完饭想看一会儿喜欢的电影。",
+        "state": "kept",
+        "mark": "窗口里最早的用户消息"
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "看电影放松一下，晚上心情会更好。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "电影看完就早点洗个澡去睡觉。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "早点休息，第二天精神也会更足些。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "我之前说的取件码是多少？",
+        "state": "kept",
+        "mark": null
+      }
+    ],
+    "folder": {
+      "label": "程序手里",
+      "count": 9
+    },
+    "note": "取件码是造的号码，不是个人信息。截断就是从这次发出的纸条摞里去掉一段。"
+  },
+  "WIN_shiyi": {
+    "kind": "window",
+    "title": "缺了一张纸条的示意",
+    "date": null,
+    "honest": "shiyi",
+    "caliber": "只画纸条的位置，缺的纸条是占位。",
+    "notes": [
+      {
+        "role": "system",
+        "role_cn": "系统",
+        "text": "你是小满，一个耐心的学习助手。",
+        "state": "pinned",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "对了，我的取件码是5086。",
+        "state": "missing",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "好的，我看到了，请接着往下说吧。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "这个周末打算去公园里转一转。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "听起来不错，天气好的话会很舒服。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "我还想顺路买点新鲜的水果呢。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "好主意，当季的水果又甜又不太贵。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "傍晚回家以后准备自己做晚饭。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "自己动手做饭，吃得放心也能省钱。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "晚饭想煮一碗简单的西红柿面。",
+        "state": "torn",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "西红柿面做起来快，味道也很家常。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "吃完饭想看一会儿喜欢的电影。",
+        "state": "kept",
+        "mark": "窗口里最早的用户消息"
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "看电影放松一下，晚上心情会更好。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "电影看完就早点洗个澡去睡觉。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "assistant",
+        "role_cn": "助手",
+        "text": "早点休息，第二天精神也会更足些。",
+        "state": "kept",
+        "mark": null
+      },
+      {
+        "role": "user",
+        "role_cn": "用户",
+        "text": "我之前说的取件码是多少？",
+        "state": "kept",
+        "mark": null
+      }
+    ],
+    "folder": {
+      "label": "程序手里",
+      "count": 8
+    },
+    "note": "示意图：缺的纸条只是占位。"
+  },
+  "TURN_input": {
+    "kind": "turnbars",
+    "title": "每轮发了多少词元",
+    "date": "2026-11-07",
+    "honest": "shice",
+    "caliber": "只代表我们用的中转服务，2026-11-07，两个标称模型（deepseek/deepseek-v4.1-flash-1017、qwen/qwen3.8-max，背后是谁无法核实），关了思考，历史里的助手回复是固定的话，用户短句字数相同；只限这一天、这两个模型和这一句固定问法。",
+    "model": "deepseek/deepseek-v4.1-flash-1017",
+    "turns": [
+      {
+        "turn": 1,
+        "full": {
+          "lo": 23,
+          "hi": 23,
+          "display": "23"
+        },
+        "trim": {
+          "lo": 23,
+          "hi": 23,
+          "display": "23"
+        }
+      },
+      {
+        "turn": 2,
+        "full": {
+          "lo": 46,
+          "hi": 46,
+          "display": "46"
+        },
+        "trim": {
+          "lo": 46,
+          "hi": 46,
+          "display": "46"
+        }
+      },
+      {
+        "turn": 3,
+        "full": {
+          "lo": 69,
+          "hi": 69,
+          "display": "69"
+        },
+        "trim": {
+          "lo": 69,
+          "hi": 69,
+          "display": "69"
+        }
+      },
+      {
+        "turn": 4,
+        "full": {
+          "lo": 90,
+          "hi": 90,
+          "display": "90"
+        },
+        "trim": {
+          "lo": 80,
+          "hi": 80,
+          "display": "80"
+        }
+      },
+      {
+        "turn": 5,
+        "full": {
+          "lo": 110,
+          "hi": 110,
+          "display": "110"
+        },
+        "trim": {
+          "lo": 75,
+          "hi": 77,
+          "display": "75–77"
+        }
+      },
+      {
+        "turn": 6,
+        "full": {
+          "lo": 133,
+          "hi": 133,
+          "display": "133"
+        },
+        "trim": {
+          "lo": 77,
+          "hi": 77,
+          "display": "77"
+        }
+      },
+      {
+        "turn": 7,
+        "full": {
+          "lo": 155,
+          "hi": 155,
+          "display": "155"
+        },
+        "trim": {
+          "lo": 76,
+          "hi": 78,
+          "display": "76–78"
+        }
+      },
+      {
+        "turn": 8,
+        "full": {
+          "lo": 182,
+          "hi": 182,
+          "display": "182"
+        },
+        "trim": {
+          "lo": 85,
+          "hi": 85,
+          "display": "85"
+        }
+      }
+    ],
+    "plateau": {
+      "from_turn": 4,
+      "lo": 75,
+      "hi": 85,
+      "display": "75–85"
+    },
+    "cumulative": {
+      "full": {
+        "lo": 808,
+        "hi": 808,
+        "display": "808"
+      },
+      "trim": {
+        "lo": 531,
+        "hi": 535,
+        "display": "531–535"
+      },
+      "saved": {
+        "lo": 273,
+        "hi": 277,
+        "display": "273–277"
+      }
+    },
+    "runs": 5,
+    "note": "词元是模型处理文字的小块。累计就是把各轮的数加起来。条长由请求里装了什么决定。"
+  },
+  "GRID_classes": {
+    "kind": "classgrid",
+    "title": "按类别看各遍回答",
+    "date": "2026-11-07",
+    "honest": "shice",
+    "caliber": "只代表我们用的中转服务，2026-11-07，两个标称模型（deepseek/deepseek-v4.1-flash-1017、qwen/qwen3.8-max，背后是谁无法核实），关了思考，历史里的助手回复是固定的话，用户短句字数相同；只限这一天、这两个模型和这一句固定问法。",
+    "legend": [
+      {
+        "class": "correct",
+        "text": "答对取件码"
+      },
+      {
+        "class": "unknown",
+        "text": "说没有看到取件码"
+      },
+      {
+        "class": "named",
+        "text": "说出名字"
+      },
+      {
+        "class": "not_named",
+        "text": "没有说出名字"
+      }
+    ],
+    "rows": [
+      {
+        "label": "取件码：整摞",
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "cells": [
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          },
+          {
+            "class": "correct"
+          }
+        ],
+        "tally": {
+          "class": "correct",
+          "n": 10,
+          "total": 10,
+          "short": "答对取件码"
+        }
+      },
+      {
+        "label": "取件码：切掉早先的纸条",
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "cells": [
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          },
+          {
+            "class": "unknown"
+          }
+        ],
+        "tally": {
+          "class": "unknown",
+          "n": 10,
+          "total": 10,
+          "short": "说没有看到取件码"
+        }
+      },
+      {
+        "label": "名字：保留系统消息",
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "cells": [
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          },
+          {
+            "class": "named"
+          }
+        ],
+        "tally": {
+          "class": "named",
+          "n": 10,
+          "total": 10,
+          "short": "说出名字"
+        }
+      },
+      {
+        "label": "名字：去掉系统消息",
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "cells": [
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          },
+          {
+            "class": "not_named"
+          }
+        ],
+        "tally": {
+          "class": "not_named",
+          "n": 10,
+          "total": 10,
+          "short": "没有说出名字"
+        }
+      }
+    ],
+    "labeler": "AI 模型标注与核对",
+    "note": "取件码是造的号码，不是个人信息。名字这一组，其余的消息里没有任何名字。"
+  }
+}

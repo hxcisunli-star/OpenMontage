@@ -319,7 +319,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     evidence_lead = ("这一章的“实测”里，模型调用的记录都是经模型网关调用的；切法示意是在本机用公开规则复现的；文档摘引取自存档页面（日期见各自的来源）。" if mixed else "这一章的“实测”都是经模型网关调用的记录，")
     kinds = [ctx.records[i].get("kind") for i in dict.fromkeys(ctx.used_records)]
     used_records = [ctx.records[i] for i in dict.fromkeys(ctx.used_records)]
-    n_sk = kinds.count("sketch") + kinds.count("sequence") + sum(1 for r in used_records if r.get("kind") == "callpanel" and r.get("honest") == "shiyi")
+    n_sk = kinds.count("sketch") + kinds.count("sequence") + sum(1 for r in used_records if r.get("kind") in ("callpanel", "window", "turnbars", "classgrid") and r.get("honest") == "shiyi")
     if n_sk or "quotes" in kinds or "cards" in kinds:      # lesson 3: made-up sketches and official quotes are in the drawer too; lesson 4: its quote cards (kind cards) count as official quotes; lesson 5: sequence diagrams and callpanel records marked 示意 are made-up sketches
         n_qt = kinds.count("quotes") + kinds.count("cards")
         sk_part = f"、示意 {n_sk} 条" if (n_sk or "quotes" in kinds) else ""
@@ -328,11 +328,21 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
                          "这一章标“实测”的图，都是经模型网关调用的记录；官方引文取自存档页面（日期见各自的来源）。")
     else:
         rec_head = f"实测记录（{len(set(ctx.used_records))} 条）"
+    if any(kind in ("window", "turnbars", "classgrid") for kind in kinds):
+        # A window sketch explains positions; it need not invent measurements.
+        # Keep the established drawer text byte-identical in all older chapters.
+        n_qt = kinds.count("quotes") + kinds.count("cards")
+        rec_head = f"图和记录（共 {len(kinds)} 条：实测 {len(kinds) - n_sk - n_qt} 条、示意 {n_sk} 条、官方引文 {n_qt} 条）"
+        evidence_lead = "这一章标“实测”的图，适用范围见各图图注；标“示意”的图只解释结构和位置；官方引文取自存档页面（日期见各自的来源）。"
+    # The recording dates of the drawer sentence: in every older chapter all dates of the used records (unchanged, byte-identical pages); in a chapter with the lesson-6 figure kinds the date of a quote card
+    # is the day the page was fetched, not a recording date, so it is left out of this list (the pre-release review of lesson 6 found the two being mixed up).
+    _l6 = any(kind in ("window", "turnbars", "classgrid") for kind in kinds)
+    record_dates = sorted({ctx.records[i]["date"] for i in ctx.used_records if ctx.records[i].get("date") and not (_l6 and ctx.records[i].get("kind") in ("quotes", "cards"))})
     if any("本机实验" in str(r.get("caption", "")) for r in used_records):      # lesson 5: some "实测" records are local experiments with a fake server, not calls through the gateway
         evidence_lead = evidence_lead.replace("都是经模型网关调用的记录", "有的是经模型网关（本章里叫“我们用的中转服务”）调用的记录，有的是在本机上做的小实验（不联网，图上标了“本机实验”）", 1)
     evidence = ('<details id="evidence" class="evidence"><summary>证据抽屉：这一章的数字和说法从哪里来</summary>'
                 f'<h4>{rec_head}</h4><ul>{rec_rows}</ul>'
-                f"<p>{evidence_lead}录制日期是 {'、'.join(sorted({ctx.records[i]['date'] for i in ctx.used_records if ctx.records[i].get('date')}))}（每条记录上都标了）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
+                f"<p>{evidence_lead}录制日期是 {'、'.join(record_dates)}（{'每条实测记录上都标了' if _l6 else '每条记录上都标了'}）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
                 + (f"<p>{esc(ch['evidence_extra'])}</p>" if ch.get("evidence_extra") else "") +
                 f'<h4>来源说（{len(used_claims)} 条）</h4><ul>{src_rows}</ul></details>')
     side = ""

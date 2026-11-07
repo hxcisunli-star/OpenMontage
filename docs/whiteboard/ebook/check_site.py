@@ -1405,12 +1405,14 @@ class SiteChecker:
                     problems.append("%s %s 缺少 figcaption.rec" % (unit, rid)); continue
                 ct = text_of(cap)
                 for value, label in ((str(record.get("model", "")).split("/")[-1], "模型"), (str(record.get("date", "")), "日期"), (str(record.get("mode", "")), "mode")):
+                    if record.get("kind") == "window" and record.get("date") is None and label == "日期":
+                        continue  # A window sketch may have no measurement date.
                     if value and value not in ct:
                         problems.append("%s %s 缺少%s" % (unit, rid, label))
                 if record.get("n") is not None and not re.search(r"(?<!\d)%s\s*遍" % re.escape(str(record["n"])), ct):
                     problems.append("%s %s 缺少次数" % (unit, rid))
                 kind = record.get("kind")
-                if kind == "callpanel":
+                if kind in ("callpanel", "window", "turnbars", "classgrid"):
                     want_tag = "tag-shice" if record.get("honest") == "shice" else "tag-shiyi"
                 else:
                     want_tag = {"sketch": "tag-shiyi", "sequence": "tag-shiyi", "quotes": "tag-source", "cards": "tag-source"}.get(kind, "tag-shice")   # made-up numbers are labelled 示意 and must never carry the 实测 stamp; official quotes carry 引文
@@ -1426,6 +1428,20 @@ class SiteChecker:
                     problems.append("%s %s 引文步骤不能带 实测 章" % (unit, rid))
                 if kind == "callpanel" and record.get("honest") == "shiyi" and (first_descendant(show, "span", "tag-shice") or "示意" not in ct):
                     problems.append("%s %s 示意面板不能带 实测 章，且图注要写 示意" % (unit, rid))
+                if kind in ("window", "turnbars", "classgrid"):
+                    honest = record.get("honest")
+                    if honest not in ("shice", "shiyi") or (kind != "window" and honest != "shice"):
+                        problems.append("%s %s 新图 honest 无效" % (unit, rid))
+                    if honest == "shiyi" and (first_descendant(show, "span", "tag-shice") or "示意" not in ct):
+                        problems.append("%s %s 示意图不能带 实测 章，且图注要写 示意" % (unit, rid))
+                    if honest == "shice" and (first_descendant(show, "span", "tag-shiyi") or "示意" in body):
+                        problems.append("%s %s 实测图不能写 示意 或带 示意 章" % (unit, rid))
+                    if kind == "window" and any(n.get("state") == "missing" for n in record.get("notes", [])) and honest != "shiyi":
+                        problems.append("%s %s 有 missing 的纸条图只能是示意" % (unit, rid))
+                    if kind == "classgrid":
+                        labeler = str(record.get("labeler", ""))
+                        if not labeler or "AI" not in labeler or "真人" in labeler or "人工" in labeler:
+                            problems.append("%s %s classgrid 标注应写 AI 模型" % (unit, rid))
                 if record.get("kind") == "towers":
                     for group in record.get("groups", []) or []:
                         if str(group.get("text", "")) not in body or str(group.get("count", "")) not in body:
@@ -1554,7 +1570,11 @@ class SiteChecker:
                 problems.append("%s evidence 来源集合不符" % unit)
             date_match = re.search(r"录制日期是([^。\n]*)", text_of(parser.root))
             dates = set(re.findall(r"\d{4}-\d{2}-\d{2}", date_match.group(1) if date_match else ""))
-            expected_dates = {str(self.record_data(rid).get("date")) for rid in shows if self.record_data(rid) and self.record_data(rid).get("date")}
+            # A chapter that uses the lesson-6 figure kinds says "录制日期" only for recorded data: a quote card's date is the day its page was fetched (build_site.py leaves it out of that sentence in such a chapter);
+            # every older chapter keeps the old rule (all dates of the shown records), so their pages and this check do not change.
+            _l6 = any((self.record_data(rid) or {}).get("kind") in ("window", "turnbars", "classgrid") for rid in shows)
+            expected_dates = {str(self.record_data(rid).get("date")) for rid in shows if self.record_data(rid) and self.record_data(rid).get("date")
+                              and not (_l6 and self.record_data(rid).get("kind") in ("quotes", "cards"))}
             if dates != expected_dates:
                 problems.append("%s 录制日期集合不符" % unit)
         self.add("ch-evidence", not problems, "通过" if not problems else "；".join(problems[:15]))
