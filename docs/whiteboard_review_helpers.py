@@ -36,6 +36,11 @@ AGY = "/home/MyProject/openhands-team/.runtime/antigravity-cli/agy"
 GEMINI_MODEL = "gemini-3.8-flash-high"
 CODEX_MODEL, CODEX_EFFORT = "gpt-6.1-sol", "xhigh"
 CODEX_MACHINE_MAX = 6
+# 2026-11-09: overflow to the user's second server ("codexbox", its own official subscription account, so real extra quota).
+# When local Codex is at the cap, a job goes there instead of waiting. WB_REMOTE_CODEX=0 turns it off.
+CODEXBOX = os.environ.get("WB_CODEXBOX", "/root/.claude/scripts/codex/codexbox.py")
+REMOTE_CODEX_MAX = 3
+CODEXBOX_PY = os.environ.get("WB_CODEXBOX_PY", "/usr/bin/python3")   # needs pexpect; the project venv has none
 GEMINI_PARALLEL = 4
 PIECE_SECONDS = 90
 # file names that hold credentials; "SECRET" alone is not enough (lesson 4's memory test calls its cases r01_003_qwen_SECRET_FULL.json) - the content scan below still runs
@@ -344,6 +349,41 @@ def _codex_running():
     return sum(1 for line in r.stdout.splitlines() if re.search(r"codex.* exec ", line) and "grep" not in line)
 
 
+def _remote_enabled():
+    return os.environ.get("WB_REMOTE_CODEX", "1") != "0" and Path(CODEXBOX).exists()
+
+
+def _remote_free():
+    try:
+        r = subprocess.run([CODEXBOX_PY, CODEXBOX, "count"], capture_output=True, text=True, timeout=90)
+        return r.returncode == 0 and int((r.stdout.strip().splitlines() or ["99"])[-1]) < REMOTE_CODEX_MAX
+    except (subprocess.TimeoutExpired, ValueError, OSError):
+        return False
+
+
+def run_codex_remote(job, ws):
+    """Run one Codex job on codexbox. Returns a run dict, or None when the remote refused the workspace (caller falls back to local)."""
+    name, _task, imgs = job
+    out_rel, ev_rel = f"out/{name}_final.txt", f"out/{name}.events.jsonl"
+    cmd = [CODEXBOX_PY, CODEXBOX, "run", str(ws), "--model", CODEX_MODEL, "--effort", CODEX_EFFORT, "--mode", "ro",
+           "--out", out_rel, "--events", ev_rel, "--timeout", "3000", "--prompt", f"读 TASK_{name}.md 并严格按它做。"]
+    for p in imgs:
+        cmd += ["-i", str(p)]
+    t0 = time.time()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=3400)
+    except subprocess.TimeoutExpired:
+        return {"name": name, "status": "failed", "reason": "timeout (remote)", "where": "codexbox"}
+    if r.returncode == 2 and "REFUSED" in r.stdout:
+        return None
+    try:
+        txt = (ws / out_rel).read_text(encoding="utf-8")
+        data = json.loads(txt[txt.find("{"): txt.rfind("}") + 1])
+    except (OSError, ValueError):
+        return {"name": name, "status": "failed", "where": "codexbox", "reason": f"no JSON result (remote exit {r.returncode}): {(r.stdout + r.stderr)[-300:]}"}
+    return {"name": name, "status": "ok", "result": data, "seconds": round(time.time() - t0, 1), "where": "codexbox"}
+
+
 def run_codex(job, ws, fake):
     name, task, imgs = job
     out = ws / "out" / f"{name}_final.txt"
@@ -353,6 +393,10 @@ def run_codex(job, ws, fake):
         return {"name": name, "status": "ok", "result": data, "seconds": 0}
     waited = 0
     while _codex_running() >= CODEX_MACHINE_MAX and waited < 1200:
+        if _remote_enabled() and _remote_free():
+            r = run_codex_remote(job, ws)
+            if r is not None:
+                return r
         time.sleep(30)
         waited += 30
     cmd = ["timeout", "3000", "codex", "exec", "-m", CODEX_MODEL, "-c", f"model_reasoning_effort={CODEX_EFFORT}", "-s", "read-only", "-C", str(ws), "--skip-git-repo-check", "--ephemeral", "--json"]
@@ -371,7 +415,7 @@ def run_codex(job, ws, fake):
     except (OSError, ValueError):
         tail = (ws / "out" / f"{name}.events.jsonl").read_text(encoding="utf-8", errors="replace")[-300:]
         return {"name": name, "status": "failed", "reason": f"no JSON result (exit {r.returncode}); events tail: {tail}"}
-    return {"name": name, "status": "ok", "result": data, "seconds": round(time.time() - t0, 1)}
+    return {"name": name, "status": "ok", "result": data, "seconds": round(time.time() - t0, 1), "where": "local"}
 
 
 def check_quotes(ws, runs):

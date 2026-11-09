@@ -1425,6 +1425,30 @@ def t_review_helpers_compare():
           and {f["file"]: f["severity"] for f in big}.get("m/b.wav") == "major", str(big)[:100])
 
 
+def t_review_helpers_remote_overflow():
+    """2026-11-09: when local Codex is at the cap, a review job goes to codexbox (the user's second server, own account) instead of waiting; WB_REMOTE_CODEX=0 turns it off."""
+    import os, tempfile
+    import whiteboard_review_helpers as H
+    saved = (H._codex_running, H._remote_enabled, H._remote_free, H.run_codex_remote, H.time.sleep)
+    ws = Path(tempfile.mkdtemp())
+    (ws / "out").mkdir()
+    try:
+        H._codex_running = lambda: 99
+        H._remote_enabled = lambda: True
+        H._remote_free = lambda: True
+        H.run_codex_remote = lambda job, w: {"name": job[0], "status": "ok", "result": {"findings": []}, "where": "codexbox"}
+        r = H.run_codex(("codex1", "task", []), ws, None)
+        check("helpers: local Codex full -> job runs on codexbox", r.get("where") == "codexbox" and r["status"] == "ok", str(r)[:80])
+        os.environ["WB_REMOTE_CODEX"] = "0"
+        H._remote_enabled = saved[1]
+        check("helpers: WB_REMOTE_CODEX=0 disables codexbox", H._remote_enabled() is False)
+    finally:
+        os.environ.pop("WB_REMOTE_CODEX", None)
+        H._codex_running, H._remote_enabled, H._remote_free, H.run_codex_remote, H.time.sleep = saved
+        import shutil
+        shutil.rmtree(ws, ignore_errors=True)
+
+
 def t_release_pack_offline_site():
     """2026-11-06: the whole site goes into the pack ONCE, at the root, not into every lesson's folder (that grew with the square of the lesson count); a missing or red whole-site check refuses."""
     import importlib.util, json, os, shutil, tempfile
@@ -1480,7 +1504,7 @@ def t_release_pack_offline_site():
 
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_review_helpers_remote_overflow, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test
