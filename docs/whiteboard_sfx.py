@@ -26,6 +26,7 @@ sound-design guide says -18..-12 dB).  QUIZ SILENCE: the 3 s after a prediction 
 Files: docs/whiteboard/sfx/*.mp3 (Pixabay Content License, no attribution; see CREDITS.md and manifest.json)."""
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -37,6 +38,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SFX_DIR = ROOT / "docs" / "whiteboard" / "sfx"
 SR = 48000
 FLIGHT_PX, CLUSTER_S, PRE_ROLL_S, MERGE_S = 150.0, 0.6, 0.015, 0.08
+MERGE_S = float(os.environ.get("WB_SFX_MERGE_S", MERGE_S))   # optional: a wider merge window thins out bursts of same-name cues (lesson 7: many small packets/cells); unset = the old behaviour, byte for byte
 LEVELS = {"pop": -18.0, "whoosh-short": -18.0, "chime": -16.0}
 DEFAULT_LEVEL = -18.0
 PEAK_LIMIT = 10 ** (-1.0 / 20)   # -1 dBFS

@@ -99,8 +99,10 @@ def main():
         lref_txt = f"；{'、'.join(lref['boards'])} 用 --local 重渲（{lref['seconds']} 秒；先备份远程分块，比较前把两边时间戳统一成 N/30）：{'；'.join(parts)}；远程分块已还原（逐文件 md5 {'一致' if lref['restored_md5_ok'] else '不一致'}）"
     else:
         lref_txt = "；本机局部对照（K3、K6）没有做（validation/local-ref.json 不存在）"
-    allowed_sil = m.get("allowed_silences") or []   # a silence the user accepted on purpose (whiteboard_verify.py --allow-silence); it is reported, never hidden
-    allowed_note = "；经用户接受的停顿：" + "；".join(f"{s['start']:.2f}–{s['end']:.2f}（{s['duration']:.2f} 秒）{s['reason']}" for s in allowed_sil) if allowed_sil else ""
+    allowed_sil = m.get("allowed_silences") or []   # a silence that was kept on purpose (whiteboard_verify.py --allow-silence); it is reported, never hidden.  WHO decided is not recorded in the data: see _decider below
+    # who decided to keep it: under delegation (the assets gate was passed by review, protocol 3a) nobody said it in words, so the record must not say the user did (lesson 7 compose-gate review, same kind as E146)
+    _decider = "托管中由复审对话代为决定保留（没有用户原话），成片评审认可" if _by_review else "用户已决定保留"
+    allowed_note = ("；" + ("托管中代为决定保留的停顿" if _by_review else "经用户接受的停顿") + "：" + "；".join(f"{s['start']:.2f}–{s['end']:.2f}（{s['duration']:.2f} 秒）{s['reason']}" for s in allowed_sil)) if allowed_sil else ""
     check_ok = all(m["checks"].values())
 
     review = {"version": "1.0", "output_path": "renders/final.mp4", "status": "pass" if check_ok else "fail", "checks": {
@@ -118,7 +120,7 @@ def main():
                                  "runtime_swap_check": "ok — proposal and edit agree" if runtime == prop_rt else f"MISMATCH proposal {prop_rt} vs edit {runtime}", "silent_downgrade_detected": False, "issues": []},
         "subtitle_check": {"subtitles_expected": True, "subtitles_present": True, "coverage_ratio": 1.0, "timing_drift_detected": False, "issues": ["抽样帧字幕与旁白对应；覆盖率为抽样比例", "字幕逐字时间是估计的，未用语音识别核对"]},
         "transcript_comparison": {"transcript_matches_script": None, "word_accuracy": None, "issues": ["本机无语音识别，未做转写核对"]}},
-        "issues_found": ["字幕时间是估计的，未做转写核对", LISTEN_ISSUE] + ([f"核对工具原本判为意外静音的停顿，用户已决定保留{allowed_note}"] if allowed_sil else []) +
+        "issues_found": ["字幕时间是估计的，未做转写核对", LISTEN_ISSUE] + ([f"核对工具原本判为意外静音的停顿，{_decider}{allowed_note}"] if allowed_sil else []) +
                         ([f"freezedetect（-50 dB、8 秒）报出 {len(m['freeze'])} 段近似静止：{freeze_txt}；{notes.get('freeze_explanation', '（未写说明）')}"] if m["freeze"] else []) +
                         list(notes.get("extra_issues", [])) + ["画面细节待用户观看确认"],
         "recommended_action": "present_to_user"}
