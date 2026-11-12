@@ -1,0 +1,3 @@
+<figure class="show" data-record="F_mt1"><div class="fh">问首都，最大长度取 1：话写完了，停止原因仍是 length（某一次的返回）</div><div class="finish"><p class="pq">问：中国的首都是哪里？只回答城市名。</p><pre class="req">max_tokens: 1
+temperature: 0</pre><p class="ret">北京</p><pre class="req">completion_tokens: 1
+<span class="fr">finish_reason: length</span></pre><p class="pnote muted">“北京”刚好一个词元，写完了；因为碰到了上限，finish_reason 仍写 length。足预算时同一问题是 stop。</p></div><figcaption class="rec"><span class="tag tag-shice">实测</span> （网关标称名，转发身份无法独立验证）deepseek/deepseek-v4.1-flash-1017 · 2026-11-04 · 关闭思考 · 温度 0 · 某一次的返回（同样的请求发了 10 遍，这是其中一遍）</figcaption></figure>

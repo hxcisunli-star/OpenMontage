@@ -1,0 +1,250 @@
+"""Unified 16:9 covers (1920x1080) for the whiteboard lesson videos.
+
+Run: PYTHONPATH=. .venv/bin/python docs/whiteboard_cover_maker.py [lesson numbers of the C series]
+A cover takes its cast, school logo and series tag from docs/whiteboard/series.yaml: the C series keeps the doctor and the tag "C语言白板课"; a series with a cast_dir (the agent series: teacher +
+AI partner) draws its `cover_cast` pictures and uses its name as the tag - and refuses to make a cover while the series has no name (the user chooses it; no placeholder).
+Latin letters / digits / symbols always use a mono font (ZCOOL draws 0, o, c and
+capitals as squares, see playbook 2.6).
+"""
+import random
+import sys
+from pathlib import Path
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from whiteboard_lessons import series_config, series_of  # noqa: E402
+
+ROOT = Path("projects")
+ZCOOL = str("remotion-composer/public/fonts/ZCOOLKuaiLe-Regular.ttf")
+MONO_B = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
+MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+DOCTOR = ROOT / "c-struct-parameters-cn/assets/images/doctor_pointing.png"
+LOGO = ROOT / "c-struct-parameters-cn/assets/images/schoollogo.png"
+
+INK = (30, 34, 48)
+RED = (214, 40, 40)
+BLUE = (110, 128, 168)
+PAPER = (250, 250, 247)
+
+LESSONS = [
+    ("bubble-sort-tutorial-cn", 1, "冒泡排序", "一趟一趟，把大数“冒”到最后", "7 3 9 1 5"),
+    ("c-value-vs-address-cn", 2, "值传递与地址传递", "函数里改了，为什么原件没变？", "swap(a, b);"),
+    ("c-array-parameters-cn", 3, "数组传参", "为什么函数能改掉数组里的元素？", "a[0] = 99;"),
+    ("c-strings-cn", 4, "字符串", "字符串为什么不用另外传长度？", "'h' 'i' '\\0'"),
+    ("c-scanf-address-cn", 5, "scanf 与 &", "读整数要加 &，读字符串却不用？", 'scanf("%d", &n);'),
+    ("c-struct-parameters-cn", 6, "结构体传参", "传整张卡，函数改了也白改？", "birthday_value(card);"),
+    ("c-pointer-basics-cn", 7, "指针初步", "地址纸条原来是个变量，星号什么意思？", "int *p = &age;"),
+    ("c-pointer-array-cn", 8, "指针与数组", "数组名为什么是地址？函数为什么数不出？", "a[i] == *(a + i)"),
+    ("c-function-return-cn", 9, "函数返回值", "为什么不能把局部变量的地址交出来？", "return &local;"),
+    ("c-two-dim-array-cn", 10, "二维数组传参", "为什么列数不能省？", "int a[][3]"),
+    ("c-dynamic-memory-cn", 11, "动态内存分配", "函数结束了，申请的病房为什么还在？", "malloc(3 * sizeof(int))"),
+    ("c-linked-list-intro-cn", 12, "链表初识", "数组要挪，病历卡为什么不用挪？", "head → 9 → 1 → 2 → 3"),
+    ("c-dynamic-list-cn", 13, "动态链表", "函数里改了头纸条，外面为什么没变？", "head = push_front(head, 9);"),
+    ("c-list-delete-cn", 14, "删除一张卡", "走到要删的那张就还，为什么不行？", "p->next = gone->next;"),
+    ("c-list-insert-cn", 15, "按顺序插入", "新卡该排在哪两张卡之间？", "n->next = p->next;"),
+    ("c-recursion-cn", 16, "递归", "函数怎么自己叫自己？", "count_cards(p->next)"),
+    ("c-variable-life-cn", 17, "变量的一生", "病房看得见多远，能活多久？", "static int n = 0;"),
+    ("c-stack-cn", 18, "栈", "一摞卡：后放的，先拿", "top = put(top, 3);"),
+    ("c-typedef-array-cn", 19, "结构体数组", "一排卡，一个别名", "typedef struct card Card;"),
+    ("c-file-io-cn", 20, "文件读写", "把名单存起来，再读回来", "fp = fopen(\"list.txt\", \"w\");"),
+    ("c-func-ptr-cn", 21, "函数指针与回调", "把“比法”交给排序", "sort_cards(list, 3, by_age);"),
+    ("c-realloc-cn", 22, "动态数组与 realloc", "名单不够长了怎么办", "tmp = realloc(list, n);"),
+    ("c-bsearch-cn", 23, "二分查找", "每次扔掉一半", "mid = low + (high - low) / 2;"),
+    ("c-strcmp-cn", 24, "比名字", "字符串的比较与复制", "if (strcmp(a, b) == 0) {"),
+    ("c-scanf-check-cn", 25, "读入会失败", "检查 scanf 的返回值", "ret = scanf(\"%d\", &n);"),
+    ("c-fgets-line-cn", 26, "先读一整行", "再慢慢分析", "fgets(buf, 8, stdin);"),
+    ("c-queue-cn", 27, "队列", "先来的先走", "q->tail = c;"),
+    ("c-reverse-list-cn", 28, "链表反转", "把链倒过来", "rev = head;"),
+    ("c-multifile-cn", 29, "头文件与多文件", "拆成几个文件", "#include \"queue.h\""),
+    ("c-macro-cn", 30, "宏", "先替换，再编译", "#define CAP 4"),
+    ("c-enum-switch-cn", 31, "枚举与多路选择", "按编号走门", "case INNER:"),
+    ("c-string-bound-cn", 32, "字符串的边界", "读进来限宽，抄过去限数", "strncpy(dst, src, 7);"),
+    ("c-literal-cn", 33, "字符串字面量", "能指，不能改", "const char *p = \"li\";"),
+    ("c-ptr-to-ptr-cn", 34, "二级指针", "把纸条的地址交出去", "push_front(&head, 9);"),
+    ("c-merge-cn", 35, "合并有序链", "每次取排头最小的", "*tail = pick;"),
+    ("c-insertion-sort-cn", 36, "插入排序", "拿一张，往左找位置", "a[j + 1] = key;"),
+    ("c-bst-cn", 37, "二叉查找树", "小的往左，大的往右", "link = &(*link)->left;"),
+    ("c-union-cn", 38, "联合体", "几种东西，共用一块地方", "union result r;"),
+    ("c-bits-cn", 39, "位运算", "一个整数，一排开关", "flags |= FEVER;"),
+    ("c-argv-cn", 40, "命令行参数", "运行时，交给程序几句话", "./show_list list.txt 2"),
+    ("c-caller-cn", 41, "门诊叫号机", "先写考卷，再拼零件", "diff - expected.txt"),
+    ("c-record-cn", 42, "病历册", "零件之间，要说好约定", "round trip ok"),
+    ("c-clinic-cn", 43, "门诊系统", "拼起来，先想会撞什么", "./clinic book.txt"),
+    # 智能体篇（系列名与副标题见 docs/whiteboard/series.yaml）：板上没有代码，最后一项是写在便条上的一句钩子问题
+    ("agent-what-is-llm-cn", 1, "同一个问题问三遍", "它为什么答得不一样？", "问三遍，答案会一样吗？"),
+    ("agent-tokens-window-cn", 2, "“你好”两个字", "为什么算五个词元？", "小票上写着：五个词元"),
+    ("agent-sampling-temp-cn", 3, "温度调到零", "答案就不变了吗？", "温度零，问十遍：五种名字"),
+    ("agent-roles-history-cn", 4, "它记得你上一句", "说了什么吗？", "只问一句：你还没有告诉我"),
+    ("agent-first-call-cn", 5, "写好的纸条", "怎么寄给模型？", "一次调用，要备齐哪三样"),
+    ("agent-long-chat-cn", 6, "纸条摞太高了", "该丢哪几张？", "钉住系统消息，只留最近六条"),
+    ("agent-streaming-cn", 7, "先看到第一个字", "要等多久？", "开了流式，哪个数变小了？"),
+    ("agent-structured-output-cn", 8, "格式对了", "内容就对吗？", "附了模板，到手的表也要自己查"),
+]
+
+
+def runs(text):
+    out, cur, ascii_ = [], "", None
+    for ch in text:
+        a = ord(ch) < 128
+        if ascii_ is None or a == ascii_:
+            cur += ch
+        else:
+            out.append((cur, ascii_))
+            cur = ch
+        ascii_ = a
+    if cur:
+        out.append((cur, ascii_))
+    return out
+
+
+def draw_mixed(d, xy, text, size, fill, bold_mono=True):
+    """Draw text; returns end x. ASCII runs in mono, the rest in ZCOOL."""
+    x, y = xy
+    zf = ImageFont.truetype(ZCOOL, size)
+    mf = ImageFont.truetype(MONO_B if bold_mono else MONO, int(size * 0.92))
+    for seg, is_ascii in runs(text):
+        f = mf if is_ascii else zf
+        d.text((x, y), seg, font=f, fill=fill)
+        x += d.textlength(seg, font=f)
+    return x
+
+
+def width_mixed(d, text, size):
+    zf = ImageFont.truetype(ZCOOL, size)
+    mf = ImageFont.truetype(MONO_B, int(size * 0.92))
+    return sum(d.textlength(s, font=mf if a else zf) for s, a in runs(text))
+
+
+def wobble_line(d, x1, x2, y, color, w, rnd):
+    pts = []
+    n = 14
+    for i in range(n + 1):
+        pts.append((x1 + (x2 - x1) * i / n, y + rnd.uniform(-3, 3)))
+    d.line(pts, fill=color, width=w, joint="curve")
+
+
+def cover_assets(proj):
+    """(logo path, series tag, [(picture, height, right margin, bottom margin)], maximum text width) of this project's series."""
+    series = series_of(proj)
+    cfg = series_config(series)
+    if not cfg["cast_dir"]:   # the C series: the doctor, the school logo of lesson 6, the tag from the config
+        return LOGO, cfg["name"] or "C语言白板课", [(DOCTOR, 900, 150, 70)], 1130
+    if not cfg["name"]:
+        raise SystemExit(f"the {series} series has no name yet: set `name:` in docs/whiteboard/series.yaml (the user chooses it) before making covers")
+    cd = Path(cfg["cast_dir"])
+    cast = [(cd / c["file"], c["h"], c["right"], c["bottom"]) for c in (cfg["cover_cast"] or [])]
+    return cd / cfg["logo"], cfg["name"], cast, cfg.get("cover_text_width", 1130)
+
+
+def make(proj, no, title, sub, code):
+    LOGO_, tag, cast, text_w = cover_assets(proj)
+    rnd = random.Random(no)
+    W, H = 1920, 1080
+    img = Image.new("RGB", (W, H), (200, 210, 226))
+    d = ImageDraw.Draw(img)
+    # paper card with border
+    d.rounded_rectangle((18, 18, W - 18, H - 18), 36, fill=(160, 172, 198))
+    d.rounded_rectangle((28, 28, W - 28, H - 28), 30, fill=PAPER)
+    for gx in range(88, W - 28, 60):
+        d.line((gx, 30, gx, H - 30), fill=(238, 238, 234), width=1)
+    for gy in range(88, H - 28, 60):
+        d.line((30, gy, W - 30, gy), fill=(238, 238, 234), width=1)
+
+    # logo top-left
+    logo = Image.open(LOGO_).convert("RGBA")
+    lw = 330
+    logo = logo.resize((lw, int(logo.height * lw / logo.width)), Image.LANCZOS)
+    d.rounded_rectangle((70, 52, 70 + lw + 40, 52 + logo.height + 40), 14, fill=(22, 36, 82))
+    img.paste(logo, (90, 72), logo)
+
+    # series tag top-right (+ the series subtitle under it, only for a series that has one: the C series has none, so its covers stay byte-identical)
+    tw = width_mixed(d, tag, 44)
+    draw_mixed(d, (W - 90 - tw, 72), tag, 44, BLUE)
+    scfg = series_config(series_of(proj))
+    if scfg["cast_dir"] and scfg.get("subtitle"):
+        sw = width_mixed(d, scfg["subtitle"], 30)
+        draw_mixed(d, (W - 90 - sw, 72 + 62), scfg["subtitle"], 30, (70, 84, 118))
+
+    # lesson badge
+    bx, by = 110, 250
+    bw = max(270, int(width_mixed(d, f"第{no}课", 80)) + 72)   # two-digit lesson numbers need a wider badge
+    d.rounded_rectangle((bx, by, bx + bw, by + 112), 28, fill=RED)
+    draw_mixed(d, (bx + 36, by + 12), f"第{no}课", 80, (255, 255, 255))
+
+    # title (shrink to fit left area)
+    size = 190
+    while width_mixed(d, title, size) > text_w:
+        size -= 6
+    tx, ty = 110, 400
+    draw_mixed(d, (tx, ty), title, size, INK)
+    ul_y = ty + int(size * 1.28)
+    wobble_line(d, tx, tx + width_mixed(d, title, size), ul_y, RED, 10, rnd)
+
+    # subtitle
+    sub_size = 60
+    while width_mixed(d, sub, sub_size) > text_w:
+        sub_size -= 2
+    draw_mixed(d, (tx, ul_y + 40), sub, sub_size, (70, 84, 118))
+
+    # lower left: a C lesson shows the code chip.  A lesson of a series with a cast_dir (the agent series, no code on its board) passes a one-line hook instead, written on a yellow note
+    if code and scfg["cast_dir"]:
+        ns = 54
+        while width_mixed(d, code, ns) > text_w - 80:
+            ns -= 2
+        nw, nh = int(width_mixed(d, code, ns)) + 90, ns + 70
+        layer = Image.new("RGBA", (nw + 80, nh + 80), (0, 0, 0, 0))
+        ld = ImageDraw.Draw(layer)
+        ld.rectangle((46, 46, 46 + nw, 46 + nh), fill=(120, 110, 70, 70))             # soft shadow
+        ld.rectangle((36, 36, 36 + nw, 36 + nh), fill=(255, 243, 168, 255), outline=(214, 196, 96, 255), width=3)
+        draw_mixed(ld, (36 + 45, 36 + 30), code, ns, (59, 51, 0, 255))
+        layer = layer.rotate(3, resample=Image.BICUBIC, expand=True)
+        img.paste(layer, (tx - 36, 800), layer)
+    elif code:
+        cf = ImageFont.truetype(MONO, 56)
+        cw = int(d.textlength(code, font=cf)) + 80
+        cy = 820
+        d.rounded_rectangle((tx, cy, tx + cw, cy + 120), 22, fill=(236, 240, 248),
+                            outline=(150, 164, 196), width=4)
+        d.text((tx + 40, cy + 26), code, font=cf, fill=INK)
+
+    # the cast on the right (the doctor, or the teacher with the AI partner), drawn in the order of the list
+    for pic, dh, right, bottom in cast:
+        doc = Image.open(pic).convert("RGBA")
+        doc = doc.resize((int(doc.width * dh / doc.height), dh), Image.LANCZOS)
+        img.paste(doc, (W - right - doc.width, H - bottom - dh), doc)
+
+    out = ROOT / proj / "exports/thumbnails/cover.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    img.save(out)
+    img.resize((1280, 720), Image.LANCZOS).save(out.parent / "cover_1280x720.jpg", quality=92)
+    mp = ROOT / proj / "exports/metadata/metadata.json"
+    if mp.exists():  # lesson number and cover paths go into the publish metadata
+        import json
+        m = json.loads(mp.read_text(encoding="utf-8"))
+        m.update(lesson_number=no, cover_path="exports/thumbnails/cover.png", cover_path_1280x720="exports/thumbnails/cover_1280x720.jpg")
+        mp.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out, img
+
+
+def main():
+    """No argument: rebuild every lesson and the contact sheet. With lesson numbers (e.g. `... 7`): only those lessons."""
+    only = {int(a) for a in sys.argv[1:]}
+    imgs = []
+    for row in LESSONS:
+        if only and row[1] not in only:
+            continue
+        out, img = make(*row)
+        print("wrote", out)
+        imgs.append(img.resize((960, 540), Image.LANCZOS))
+    if only:
+        return
+    rows = (len(imgs) + 1) // 2
+    sheet = Image.new("RGB", (960 * 2, 540 * rows), (255, 255, 255))
+    for i, im in enumerate(imgs):
+        sheet.paste(im, ((i % 2) * 960, (i // 2) * 540))
+    (ROOT / "_covers").mkdir(exist_ok=True)
+    sheet.save(ROOT / "_covers/contact_sheet.png")
+
+
+if __name__ == "__main__":
+    main()

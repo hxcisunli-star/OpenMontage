@@ -1,0 +1,6 @@
+{
+  "unit": "MainPID=192680\nCPUQuotaPerSecUSec=48s\nMemoryMax=103079215104\nTasksMax=32768\nLimitNPROC=65536\nDropInPaths=/etc/systemd/system.control/openmontage-render-agent.service.d/50-CPUQuota.conf /etc/systemd/system.control/openmontage-render-agent.service.d/50-MemoryMax.conf /etc/systemd/system.control/openmontage-render-agent.service.d/50-TasksMax.conf\n",
+  "pids_events": "max 0\n",
+  "source_sha256": "a022659bf4a4feab650f72ab1193343bd25194deb38a44031ef57f5fb85b7373",
+  "installed_sha256": "a022659bf4a4feab650f72ab1193343bd25194deb38a44031ef57f5fb85b7373"
+}

@@ -30,6 +30,9 @@ import type { TerminalStep } from "./components/TerminalScene";
 import { ScreenshotScene } from "./components/ScreenshotScene";
 import type { ScreenshotStep } from "./components/ScreenshotScene";
 import { ProviderChip } from "./components/ProviderChip";
+import { WhiteboardScene, useWbFont } from "./components/WhiteboardScene";
+import { LogoBadge } from "./components/LogoBadge";
+import type { WhiteboardData } from "./components/WhiteboardScene";
 import { resolveAsset } from "./lib/resolveAsset";
 import type { ParticleType } from "./components/ParticleOverlay";
 import { resolveTheme, type ThemeConfig, DEFAULT_THEME } from "./Root";
@@ -258,6 +261,7 @@ interface Cut {
   particleCount?: number;
   particleIntensity?: number;
   vignette?: boolean;
+  frame_seq?: { src: string[] }; // a pre-rendered picture sequence (one file per frame): no video decoding, so it also renders on the remote machine
   lightingFrom?: string;
   lightingTo?: string;
   // Terminal scene props (type: "terminal_scene")
@@ -268,16 +272,25 @@ interface Cut {
   screenshotSteps?: ScreenshotStep[];
   screenshotSize?: { width: number; height: number };
   cursorStartAt?: [number, number];
+  // Whiteboard scene props (type: "whiteboard")
+  whiteboard?: WhiteboardData;
 }
 
 interface Overlay {
-  type: "section_title" | "stat_reveal" | "hero_title" | "provider_chip";
+  type: "section_title" | "stat_reveal" | "hero_title" | "provider_chip" | "logo";
   in_seconds: number;
   out_seconds: number;
   text?: string;
   subtitle?: string;
   accentColor?: string;
   position?: string;
+  // logo (key must be "src" so video_compose stages the file)
+  src?: string;
+  x?: number;
+  y?: number;
+  height?: number;
+  pad?: number;
+  background?: string;
   // provider_chip
   providers?: string[];
   cycleSeconds?: number;
@@ -476,6 +489,18 @@ const VideoScene: React.FC<{
   );
 };
 
+// Plays a picture sequence by frame number (frame 0 of the cut = first picture).  Captions, logo and progress bar are global layers, so they stay on top.
+const FrameSequenceScene: React.FC<{ frames: string[] }> = ({ frames }) => {
+  useWbFont(); // the captions are set in the hand font, which only whiteboard cuts load: without it they turn into squares over this cut
+  const frame = useCurrentFrame();
+  const i = Math.min(frames.length - 1, Math.max(0, frame));
+  return (
+    <AbsoluteFill>
+      <Img src={resolveAsset(frames[i])} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    </AbsoluteFill>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Scene renderer — maps cut type / source to the right component
 // ---------------------------------------------------------------------------
@@ -643,6 +668,9 @@ const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme 
       />
     );
   }
+  if (cut.type === "whiteboard" && cut.whiteboard) {
+    return <WhiteboardScene data={cut.whiteboard} />;
+  }
   if (cut.type === "screenshot_scene" && cut.backgroundImage && cut.screenshotSteps) {
     return (
       <ScreenshotScene
@@ -744,6 +772,10 @@ const SceneRenderer: React.FC<{ cut: Cut; theme: ThemeConfig }> = ({ cut, theme 
     );
   }
 
+  if (cut.frame_seq && cut.frame_seq.src && cut.frame_seq.src.length > 0) {
+    return <FrameSequenceScene frames={cut.frame_seq.src} />;
+  }
+
   // --- Media types (image / video fallback) ---
   const animation = cut.animation || cut.transform?.animation;
 
@@ -816,6 +848,18 @@ const OverlayRenderer: React.FC<{ overlay: Overlay; theme: ThemeConfig }> = ({
       />
     );
   }
+  if (overlay.type === "logo" && overlay.src) {
+    return (
+      <LogoBadge
+        src={overlay.src}
+        x={overlay.x}
+        y={overlay.y}
+        height={overlay.height}
+        pad={overlay.pad}
+        background={overlay.background}
+      />
+    );
+  }
   if (overlay.type === "provider_chip" && overlay.providers) {
     return (
       <ProviderChip
@@ -876,11 +920,13 @@ export const Explainer: React.FC<ExplainerProps> = (props) => {
       {captions && captions.length > 0 && (
         <CaptionOverlay
           words={captions}
-          wordsPerPage={6}
-          fontSize={42}
+          wordsPerPage={(props.captionWordsPerPage as number | undefined) ?? 6}
+          fontSize={(props.captionFontSize as number | undefined) ?? 42}
           color={theme.textColor}
           highlightColor={theme.captionHighlightColor}
           backgroundColor={theme.captionBackgroundColor}
+          fontFamily={props.captionFontFamily as string | undefined}
+          wordSeparator={props.captionWordSeparator as string | undefined}
         />
       )}
 

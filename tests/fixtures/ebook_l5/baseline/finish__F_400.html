@@ -1,0 +1,3 @@
+<figure class="show" data-record="F_400"><div class="fh">最大长度取 400：话写完了，停止原因是 stop（某一次的返回）</div><div class="finish"><p class="pq">问：请用一段话介绍大学图书馆的作用，大约八十个字。</p><pre class="req">max_tokens: 400
+temperature: 0</pre><p class="ret">大学图书馆是知识的殿堂与学术的引擎。它汇聚海量文献资源，为师……（后面还有）</p><pre class="req">completion_tokens: 49
+<span class="fr">finish_reason: stop</span></pre><p class="pnote muted">足预算时，十遍都是 stop，用的词元最多 58，远小于上限 400；这里只摆其中一遍的开头。</p></div><figcaption class="rec"><span class="tag tag-shice">实测</span> （网关标称名，转发身份无法独立验证）deepseek/deepseek-v4.1-flash-1017 · 2026-11-04 · 关闭思考 · 温度 0 · 某一次的返回（同样的请求发了 10 遍，这是其中一遍）</figcaption></figure>
