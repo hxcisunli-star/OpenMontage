@@ -1440,8 +1440,9 @@ class SiteChecker:
                         problems.append("%s %s 有 missing 的纸条图只能是示意" % (unit, rid))
                     if kind == "classgrid":
                         labeler = str(record.get("labeler", ""))
-                        if not labeler or "AI" not in labeler or "真人" in labeler or "人工" in labeler:
-                            problems.append("%s %s classgrid 标注应写 AI 模型" % (unit, rid))
+                        # 标注者写实际做法：AI 模型或程序按规则判（第 8 课起，主实验由 l8_check.py 判）；不能冒充真人
+                        if not labeler or ("AI" not in labeler and "程序" not in labeler) or "真人" in labeler or "人工" in labeler:
+                            problems.append("%s %s classgrid 标注应写 AI 模型或程序" % (unit, rid))
                 if record.get("kind") == "towers":
                     for group in record.get("groups", []) or []:
                         if str(group.get("text", "")) not in body or str(group.get("count", "")) not in body:

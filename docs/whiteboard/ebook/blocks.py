@@ -338,6 +338,9 @@ def stack(r):
 
 def _l4_grid_labeler(r):
     # Keep the distinction visible without copying a source phrase that says “真人标注”.
+    # A record may state who judged it (lesson 8: the program judges by rules); older records leave it out and render as before.
+    if r.get("judged_by"):
+        return str(r["judged_by"])
     if any(cell.get("class") in ("suffix", "none") for row in (r.get("rows") or []) for cell in (row.get("cells") or [])):
         return "程序判"
     return "两个 AI 模型分别标注，不是真人"
@@ -470,6 +473,7 @@ CP_ROLE_LABELS = {
     "address": "地址",
     "model": "模型名",
     "messages": "消息",
+    "format": "输出格式",
 }
 CP_FIELD_ROLES = {"answer", "receipt", "stop", "error"}
 CP_FIELD_LABELS = {"answer": "答案", "receipt": "回执", "stop": "停止", "error": "错误"}
@@ -755,8 +759,8 @@ def turnbars(r):
 
 def classgrid(r):
     labeler = _l6_required(r, "labeler")
-    if "真人" in labeler or "人工" in labeler or "AI" not in labeler:
-        raise ValueError("classgrid labeler must describe AI model annotation")
+    if "真人" in labeler or "人工" in labeler or ("AI" not in labeler and "程序" not in labeler):
+        raise ValueError("classgrid labeler must say who judged: AI models or a program (never a human)")
     legend = {}
     legend_html = []
     for item in _l6_required(r, "legend"):
