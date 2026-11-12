@@ -44,7 +44,7 @@
   Array.prototype.forEach.call(document.querySelectorAll('.book-card'), function (card) {
     var ids = (card.getAttribute('data-units') || '').split(','), n = 0;
     ids.forEach(function (id) { if (store('read.' + id) === '1') n++; });
-    var el = card.querySelector('.rd-n'); if (el) el.textContent = String(n);
+    var el = card.querySelector('.rd-n'); if (el) el.textContent = String(n); if (n) card.classList.add('has-read');
   });
 
   /* 浅色／深色 */

@@ -424,7 +424,7 @@ def test_new_chapter_drawer_counts_sketches_and_keeps_ids():
 
 def test_l6_css_uses_theme_variables_and_neutral_gray_without_changing_old_rules():
     css = (ROOT / 'docs/whiteboard/ebook/book.css').read_text(encoding='utf-8')
-    new = css[css.index('/* 第 6 课：'):]
+    new = css[css.index('/* 第 6 课：'):css.index('/* ================= 2026-11 统一精修层')]      # the lesson-6 section ends where the 2026-11 polish layer (its own colour tokens, defined once with a dark twin) begins
     assert '.l6-window-layout { grid-template-columns: minmax(0, 1fr); }' in new
     assert 'repeat(10, minmax(0, 1fr))' in new and 'overflow-wrap: anywhere' in new
     gray = re.search(r'\.l6-grid-unknown, \.l6-grid-not_named \{([^}]+)\}', new).group(1)

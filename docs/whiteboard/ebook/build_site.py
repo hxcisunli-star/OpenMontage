@@ -157,7 +157,11 @@ def shelf_html(meta, books, units, chapters):
             f'<a class="book-card" href="books/{esc(b["id"])}/index.html" style="--bk:{BOOK_HUES[b["n"] - 1]}" data-units="{esc(ids)}">'
             f'<div class="book-wrap">{book_object(b, meta["name"], "")}</div>'
             f'<div class="info"><p class="bk-b">{esc(b["blurb"])}</p><div class="bk-s">{esc(stages)}</div>'
-            f'<div class="bk-c"><span><b>{n}</b> 章</span><span><b>{written}</b> 章有正文</span><span><b>{vids}</b> 章有视频</span><span class="rd"><b class="rd-n">0</b> 章读过</span></div></div></a>')
+            # 2026-11 polish: a count of 0 is not shown (seven of the eight books would read "0 章有正文 0 章有视频"); a book with nothing written yet says so once
+            f'<div class="bk-c"><span><b>{n}</b> 章</span>'
+            + (f'<span class="live"><b>{written}</b> 章有正文</span>' if written else '<span class="soon">正文制作中</span>')
+            + (f'<span><b>{vids}</b> 章有视频</span>' if vids else "")
+            + '<span class="rd"><b class="rd-n">0</b> 章读过</span></div></div></a>')
     total = sum(len(b["units"]) for b in books["books"])
     written = len(chapters)
     body = f"""<div class="page narrow home">
