@@ -1,0 +1,8 @@
+MainPID=3935527
+NRestarts=0
+CPUQuotaPerSecUSec=1min 36s
+MemoryMax=274877906944
+TasksMax=65536
+LimitNPROC=131072
+Nice=10
+ActiveState=active

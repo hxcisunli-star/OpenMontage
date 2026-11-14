@@ -15,6 +15,9 @@ export interface WordCaption {
   // Force a page break after this word (e.g. sentence or scene boundaries).
   // Useful for CJK captions where pages should align with clause boundaries.
   pageBreakAfter?: boolean;
+  // Per-word font override (e.g. Latin capitals whose glyphs in a handwriting
+  // font look like CJK characters, such as a square "O").
+  fontFamily?: string;
 }
 
 type CaptionOverlayProps = {
@@ -118,6 +121,7 @@ const PageRenderer: React.FC<{
                   // previous behavior; for CJK it prevents mid-word breaks.
                   display: "inline-block",
                   whiteSpace: "nowrap",
+                  ...(w.fontFamily ? { fontFamily: w.fontFamily } : {}),
                   color: isActive ? highlightColor : isPast ? color : `${color}99`,
                   transition: "none", // CSS transitions forbidden in Remotion
                   textShadow: isActive

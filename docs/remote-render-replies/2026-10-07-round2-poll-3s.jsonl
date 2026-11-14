@@ -1,0 +1,12 @@
+{"elapsed": 0.0017715650610625744, "seq": 0, "errors": [], "seconds": 4.654821511008777, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 24487}
+{"elapsed": 4.656819569063373, "seq": 1, "errors": [], "seconds": 4.486257095937617, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 417}
+{"elapsed": 9.143239633995108, "seq": 2, "errors": [], "seconds": 4.288471052073874, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 357}
+{"elapsed": 13.431875317008235, "seq": 3, "errors": [], "seconds": 4.3064082090277225, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 716}
+{"elapsed": 17.73842852609232, "seq": 4, "errors": [], "seconds": 4.3013010929571465, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 84}
+{"elapsed": 22.03989063401241, "seq": 5, "errors": [], "seconds": 4.335321870050393, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 56}
+{"elapsed": 26.375349587062374, "seq": 6, "errors": [], "seconds": 4.289023731020279, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 333}
+{"elapsed": 30.664532974013127, "seq": 7, "errors": [], "seconds": 4.293078811024316, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 140}
+{"elapsed": 34.95776876609307, "seq": 8, "errors": [], "seconds": 4.306966574979015, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-1", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 84}
+{"elapsed": 39.264888901030645, "seq": 9, "errors": [], "seconds": 4.306788799003698, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 193}
+{"elapsed": 43.5718257810222, "seq": 10, "errors": [], "seconds": 4.29388742998708, "state": "running", "active_jobs": ["v4-full-4x8-0", "v4-full-4x8-2", "v4-full-4x8-3"], "log_bytes": 112}
+{"elapsed": 47.865866212989204, "seq": 11, "errors": [], "seconds": 3.8294114040909335, "state": "completed", "active_jobs": [], "log_bytes": 146}

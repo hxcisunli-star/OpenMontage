@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenMontage - 无API可用功能指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .video-type {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .video-type h3 {
+            color: #667eea;
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rating {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
+        .features {
+            list-style: none;
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .features li {
+            margin-bottom: 8px;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .features li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .example {
+            background: white;
+            border: 1px dashed #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            font-style: italic;
+            color: #666;
+        }
+
+        .meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+            font-size: 0.95em;
+        }
+
+        .meta-item {
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+
+        .meta-item strong {
+            color: #667eea;
+        }
+
+        .cannot-do {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+        }
+
+        .cannot-do h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .cannot-do ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .cannot-do li {
+            margin-bottom: 5px;
+        }
+
+        .suggestion {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 30px;
+        }
+
+        .suggestion h3 {
+            color: #0c5460;
+            margin-bottom: 15px;
+        }
+
+        .suggestion ol {
+            margin-left: 20px;
+            color: #0c5460;
+        }
+
+        .suggestion li {
+            margin-bottom: 10px;
+        }
+
+        .pipeline-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .pipeline-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .pipeline-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .pipeline-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-yes { color: #28a745; font-weight: bold; }
+        .status-partial { color: #ffc107; font-weight: bold; }
+        .status-no { color: #dc3545; font-weight: bold; }
+
+        .example-box {
+            background: #e7f3ff;
+            border-left: 5px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #0c3c70;
+        }
+
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .button:hover {
+            background: #764ba2;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .meta {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 OpenMontage</h1>
+            <p>无需配置API，你可以制作的视频类型</p>
+        </header>
+
+        <div class="content">
+            <!-- 可用视频类型 -->
+            <div class="section">
+                <h2>✅ 可以制作的视频类型</h2>
+
+                <!-- 类型1 -->
+                <div class="video-type">
+                    <h3>🎓 动画解释视频 <span class="rating">⭐⭐⭐</span></h3>
+                    <p>最推荐！完全免费，效果专业。</p>
+
+                    <h4 style="margin: 15px 0 10px; color: #333;">能做什么：</h4>
+                    <ul class="features">
+                        <li>文字转语音配音（Piper TTS - 免费）</li>
+                        <li>动画文字卡片和标题</li>
+                        <li>静态图像 + 平移缩放动画</li>
+                        <li>统计数据图表和信息图表</li>
+                        <li>字幕和过渡效果</li>
+                    </ul>
+
+                    <div class="example">
+                        "制作一个45秒的解释视频，讲解光合作用如何工作。包括动画图表和清晰的配音。"
+                    </div>
+
+                    <div class="meta">
+                        <div class="meta-item">
+                            <strong>成本：</strong> $0
+                        </div>
+                        <div class="meta-item">
+                            <strong>时间：</strong> 5-10 分钟
+                        </div>
+                        <div class="meta-item">
+                            <strong>质量：</strong> ⭐⭐⭐ 专业级
+                        </div>
+                        <div class="meta-item">
+                            <strong>最适合：</strong> 教育、培训、内部分享
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 类型2 -->
+                <div class="video-type">
+                    <h3>📱 屏幕录制演示视频 <span class="rating">⭐⭐⭐</span></h3>
+                    <p>完美用于产品演示和软件教程。</p>
+
+                    <h4 style="margin: 15px 0 10px; color: #333;">能做什么：</h4>
+                    <ul class="features">
+                        <li>屏幕录像合成和编辑</li>
+                        <li>自动添加配音解说</li>
+                        <li>自动生成字幕</li>
+                        <li>添加标注和箭头</li>
+                        <li>专业转场效果</li>
+                    </ul>
+
+                    <div class="example">
+                        "我有一个软件演示的屏幕录像。请制作成产品演示视频，加配音和字幕。"
+                    </div>
+
+                    <div class="meta">
+                        <div class="meta-item">
+                            <strong>成本：</strong> $0
+                        </div>
+                        <div class="meta-item">
+                            <strong>时间：</strong> 8-15 分钟
+                        </div>
+                        <div class="meta-item">
+                            <strong>质量：</strong> ⭐⭐⭐ 专业级
+                        </div>
+                        <div class="meta-item">
+                            <strong>最适合：</strong> 产品演示、软件教程、操作指南
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 类型3 -->
+                <div class="video-type">
+                    <h3>📊 数据可视化视频 <span class="rating">⭐⭐</span></h3>
+                    <p>展示数据和业务指标的专业视频。</p>
+
+                    <h4 style="margin: 15px 0 10px; color: #333;">能做什么：</h4>
+                    <ul class="features">
+                        <li>动画柱状图、折线图、饼图</li>
+                        <li>数据点标注和增长显示</li>
+                        <li>配音解说</li>
+                        <li>专业配色方案</li>
+                        <li>平滑的数据过渡动画</li>
+                    </ul>
+
+                    <div class="example">
+                        "创建一个2分钟的视频，展示过去5年的销售数据增长，包括动画图表和配音解说。"
+                    </div>
+
+                    <div class="meta">
+                        <div class="meta-item">
+                            <strong>成本：</strong> $0
+                        </div>
+                        <div class="meta-item">
+                            <strong>时间：</strong> 10-15 分钟
+                        </div>
+                        <div class="meta-item">
+                            <strong>质量：</strong> ⭐⭐⭐ 专业级
+                        </div>
+                        <div class="meta-item">
+                            <strong>最适合：</strong> 商业报告、财务演示、数据分析
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 做不了的 -->
+            <div class="section">
+                <h2>❌ 做不了的视频类型（需要API）</h2>
+
+                <div class="cannot-do">
+                    <h4>需要付费API才能实现：</h4>
+                    <ul>
+                        <li>有真实动作素材的视频（需要视频生成API）</li>
+                        <li>具有AI生成图像的视频（需要图像生成API）</li>
+                        <li>虚拟主播/Avatar视频（需要Avatar API）</li>
+                        <li>电影级预告片（需要视频生成）</li>
+                        <li>带有生成音乐的视频（需要音乐生成API）</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 管道兼容性 -->
+            <div class="section">
+                <h2>📋 管道兼容性表</h2>
+
+                <table class="pipeline-table">
+                    <thead>
+                        <tr>
+                            <th>管道类型</th>
+                            <th>可用性</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>animated-explainer</strong></td>
+                            <td><span class="status-yes">✓ 完全支持</span></td>
+                            <td>最好的选择 - 动画解释视频</td>
+                        </tr>
+                        <tr>
+                            <td><strong>screen-demo</strong></td>
+                            <td><span class="status-yes">✓ 完全支持</span></td>
+                            <td>产品演示和软件教程</td>
+                        </tr>
+                        <tr>
+                            <td><strong>animation</strong></td>
+                            <td><span class="status-partial">⚠ 部分支持</span></td>
+                            <td>仅限纯动画（无真实视频）</td>
+                        </tr>
+                        <tr>
+                            <td><strong>talking-head</strong></td>
+                            <td><span class="status-partial">⚠ 需要素材</span></td>
+                            <td>需要先录制人物视频</td>
+                        </tr>
+                        <tr>
+                            <td><strong>clip-factory</strong></td>
+                            <td><span class="status-partial">⚠ 需要素材</span></td>
+                            <td>需要提供源视频</td>
+                        </tr>
+                        <tr>
+                            <td><strong>cinematic</strong></td>
+                            <td><span class="status-no">✗ 不支持</span></td>
+                            <td>需要视频生成API</td>
+                        </tr>
+                        <tr>
+                            <td><strong>avatar-spokesperson</strong></td>
+                            <td><span class="status-no">✗ 不支持</span></td>
+                            <td>需要Avatar生成API</td>
+                        </tr>
+                        <tr>
+                            <td><strong>hybrid</strong></td>
+                            <td><span class="status-no">✗ 不支持</span></td>
+                            <td>需要图像生成API</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 立即尝试 -->
+            <div class="section">
+                <h2>🚀 立即尝试</h2>
+
+                <div class="suggestion">
+                    <h3>在 Claude Code 中输入以下命令：</h3>
+
+                    <div class="example-box">制作一个45秒的解释视频：
+主题：为什么互联网那么快？
+目标：让小学生理解
+包括：简化的图表、清晰的配音、有趣的比喻</div>
+
+                    <h3 style="margin-top: 20px; color: #0c5460;">你会得到：</h3>
+                    <ul>
+                        <li>✓ 完整的脚本</li>
+                        <li>✓ 场景计划</li>
+                        <li>✓ 自动生成的配音</li>
+                        <li>✓ 动画合成的视频</li>
+                        <li>✓ 实时进度仪表板</li>
+                    </ul>
+
+                    <h3 style="margin-top: 20px; color: #0c5460;">成本：$0 | 时间：5-10分钟</h3>
+                </div>
+            </div>
+
+            <!-- 升级建议 -->
+            <div class="section">
+                <h2>📈 下一步升级建议</h2>
+
+                <div class="video-type">
+                    <h3>🟡 配置图像生成API（推荐优先）</h3>
+                    <ul class="features">
+                        <li>解锁AI生成的插图和图像</li>
+                        <li>推荐：Google Imagen 或 OpenAI DALL-E</li>
+                        <li>成本：$1-2/视频</li>
+                        <li>提升：从 ⭐⭐⭐ 到 ⭐⭐⭐⭐</li>
+                    </ul>
+                </div>
+
+                <div class="video-type">
+                    <h3>🔴 配置视频生成API（高级）</h3>
+                    <ul class="features">
+                        <li>生成真实动作视频片段</li>
+                        <li>推荐：Kling（最佳电影感）或 Veo</li>
+                        <li>成本：$2-5/视频</li>
+                        <li>解锁：电影预告片、电影级视频</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 总结 -->
+            <div class="section">
+                <div class="suggestion">
+                    <h3>📌 核心总结</h3>
+                    <p>你现在就可以制作<span class="highlight">专业级的教育视频、演示视频和数据可视化视频</span>，完全免费！这些视频可以直接用于：</p>
+                    <ul style="margin-left: 20px; margin-top: 15px; color: #0c5460;">
+                        <li>公司内部培训</li>
+                        <li>产品演示和营销</li>
+                        <li>教育和线上课程</li>
+                        <li>数据报告和财务展示</li>
+                        <li>技术教程和文档</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>🎬 OpenMontage - 开源视频制作系统</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">无需API的强大视频制作能力</p>
+        </footer>
+    </div>
+</body>
+</html>

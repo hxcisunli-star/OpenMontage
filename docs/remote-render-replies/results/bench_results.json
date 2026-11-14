@@ -1,0 +1,483 @@
+[
+  {
+    "name": "cpu-w16-isolated",
+    "jobs": 1,
+    "workers": 16,
+    "quota_cores": 48,
+    "frames": 300,
+    "seconds": 14.493,
+    "wall_seconds": 15.079,
+    "fps": 20.7,
+    "peak_memory_mb": 7619,
+    "peak_tasks": 2541,
+    "polls": 6,
+    "cache_files": 2,
+    "video": {
+      "min": 48.31,
+      "avg": 50.139433333333336,
+      "ssim": 0.997341,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01200": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01533": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01580": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t02908": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t03360": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      }
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true
+  },
+  {
+    "name": "cpu-w24-repeat",
+    "jobs": 1,
+    "workers": 24,
+    "quota_cores": 48,
+    "frames": 300,
+    "seconds": 14.349,
+    "wall_seconds": 15.082,
+    "fps": 20.91,
+    "peak_memory_mb": 10487,
+    "peak_tasks": 3743,
+    "polls": 6,
+    "cache_files": 2,
+    "video": {
+      "min": 43.88,
+      "avg": 49.51536666666666,
+      "ssim": 0.997045,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01200": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01533": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01580": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t02908": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t03360": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      }
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": false
+  },
+  {
+    "name": "cpu-w24-balanced",
+    "jobs": 1,
+    "workers": 24,
+    "quota_cores": 48,
+    "frames": 300,
+    "seconds": 14.454,
+    "wall_seconds": 15.092,
+    "fps": 20.75,
+    "peak_memory_mb": 10308,
+    "peak_tasks": 3776,
+    "polls": 6,
+    "partition": "balanced",
+    "cache_files": 2,
+    "video": {
+      "min": 47.83,
+      "avg": 49.49216666666666,
+      "ssim": 0.997022,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01200": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01533": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01580": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t02908": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t03360": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      }
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true
+  },
+  {
+    "name": "cpu-w32",
+    "jobs": 1,
+    "workers": 32,
+    "quota_cores": 48,
+    "frames": 300,
+    "seconds": 15.927,
+    "wall_seconds": 18.087,
+    "fps": 18.84,
+    "peak_memory_mb": 12942,
+    "peak_tasks": 4911,
+    "polls": 7,
+    "video": {
+      "min": 47.44,
+      "avg": 49.02503333333334,
+      "ssim": 0.996675,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01200": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01533": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01580": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t02908": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t03360": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      }
+    },
+    "cache_eacces": false,
+    "pass": true
+  },
+  {
+    "name": "cpu-w48",
+    "jobs": 1,
+    "workers": 48,
+    "quota_cores": 48,
+    "frames": 300,
+    "seconds": 19.602,
+    "wall_seconds": 21.093,
+    "fps": 15.3,
+    "peak_memory_mb": 17408,
+    "peak_tasks": 7136,
+    "polls": 8,
+    "video": {
+      "min": 46.69,
+      "avg": 48.281833333333296,
+      "ssim": 0.996148,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01200": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01533": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t01580": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t02908": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      },
+      "t03360": {
+        "min": "inf",
+        "avg": "inf",
+        "ssim": 1.0,
+        "frames": 1
+      }
+    },
+    "cache_eacces": false,
+    "pass": true
+  },
+  {
+    "name": "full-1x16",
+    "jobs": 1,
+    "workers": 16,
+    "quota_cores": 48,
+    "frames": 11300,
+    "seconds": 203.723,
+    "wall_seconds": 204.217,
+    "fps": 55.47,
+    "peak_memory_mb": 27373,
+    "peak_tasks": 4071,
+    "polls": 69,
+    "cache_files": 2,
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "video": {
+      "min": 50.4,
+      "avg": 51.91789999999998,
+      "frames": 300,
+      "ssim": 0.99814
+    },
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.671667",
+          "nb_frames": "11300"
+        }
+      ]
+    }
+  },
+  {
+    "name": "full-2x16",
+    "jobs": 2,
+    "workers": 16,
+    "quota_cores": 48,
+    "frames": 11300,
+    "seconds": 206.349,
+    "wall_seconds": 207.266,
+    "fps": 54.76,
+    "peak_memory_mb": 52290,
+    "peak_tasks": 7936,
+    "polls": 70,
+    "partition": "kit-ceil",
+    "cache_files": 4,
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "video": {
+      "min": 50.34,
+      "avg": 52.08113333333333,
+      "frames": 300,
+      "ssim": 0.998159
+    },
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.667333",
+          "nb_frames": "11300"
+        }
+      ]
+    }
+  },
+  {
+    "name": "full-4x8",
+    "jobs": 4,
+    "workers": 8,
+    "quota_cores": 48,
+    "frames": 11300,
+    "seconds": 205.94,
+    "wall_seconds": 207.321,
+    "fps": 54.87,
+    "peak_memory_mb": 53167,
+    "peak_tasks": 8202,
+    "polls": 70,
+    "partition": "kit-ceil",
+    "cache_files": 8,
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "video": {
+      "min": 50.28,
+      "avg": 52.15386666666667,
+      "frames": 300,
+      "ssim": 0.998199
+    },
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.667667",
+          "nb_frames": "11300"
+        }
+      ]
+    }
+  },
+  {
+    "name": "baseline-2x8-quota16",
+    "jobs": 2,
+    "workers": 8,
+    "quota_cores": 16,
+    "frames": 11300,
+    "seconds": 498.581,
+    "wall_seconds": 501.527,
+    "fps": 22.66,
+    "peak_memory_mb": 27096,
+    "peak_tasks": 3595,
+    "polls": 168,
+    "partition": "kit-ceil",
+    "cache_files": 4,
+    "video": {
+      "min": 50.4,
+      "avg": 51.91789999999998,
+      "ssim": 0.99814,
+      "frames": 300
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.671667",
+          "nb_frames": "11300"
+        }
+      ]
+    }
+  },
+  {
+    "name": "final-4x8",
+    "jobs": 4,
+    "workers": 8,
+    "quota_cores": 48,
+    "frames": 11300,
+    "seconds": 210.545,
+    "wall_seconds": 213.336,
+    "fps": 53.67,
+    "peak_memory_mb": 53056,
+    "peak_tasks": 8189,
+    "polls": 72,
+    "partition": "kit-ceil",
+    "cache_files": 8,
+    "video": {
+      "min": 50.28,
+      "avg": 52.15386666666667,
+      "ssim": 0.998199,
+      "frames": 300
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.667667",
+          "nb_frames": "11300"
+        }
+      ]
+    }
+  }
+]

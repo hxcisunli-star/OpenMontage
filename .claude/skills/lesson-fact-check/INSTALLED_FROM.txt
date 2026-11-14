@@ -1,0 +1,8 @@
+Skill:     lesson-fact-check  (改编版，装在本项目 .claude/skills/lesson-fact-check)
+Source:    https://github.com/THU-MAIC/OpenMAIC  路径 skills/agent-runtime/fact-check
+Commit:    729c044b5b737439c80856575f43c3de8c7f83f4  (main, 2026-10-19)
+License:   MIT, Copyright (c) 2026 THU-MAIC（全文见同目录 LICENSE）
+Installed: 2026-10-19 由 gh api 与 git fetch --depth 1 在临时目录取得固定提交，读过原文后改编，没有用 npx / npm，没有运行任何上游代码。
+Upstream:  skills/ 下 53 个文件全是 .md 与 .json，没有脚本；上游原文保存在 references/upstream-*.md（改了文件名，不会被当成 skill 加载）。
+Adapted:   改写成中文、对应本项目做课流程；去掉 OpenMAIC 运行时工具；加入本项目的取证位置（validation、前面课的 script.json、已打开原页的来源）、真实教训、已批准输入的处理方式
+Rules:     不自动更新；想更新上游就重新读原文、对照改编、再改这里；不装 skills/openmaic（那是 OpenMAIC 产品的安装助手，连云端演示，与本项目无关）。

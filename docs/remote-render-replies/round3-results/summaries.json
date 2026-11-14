@@ -1,0 +1,3369 @@
+[
+  {
+    "name": "curve-w1",
+    "workers": 1,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 376.608,
+    "wall_seconds": 377.305,
+    "fps": 5.937,
+    "render": {},
+    "timing": {
+      "bundle_seconds": 4.8,
+      "chunk_done_seconds": [
+        370.5
+      ],
+      "startup_seconds": 7.025,
+      "render_seconds": 370.247,
+      "log_lines": 275
+    },
+    "peak_tasks": 292,
+    "telemetry_samples": 374,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.533333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "resource_summary": {
+      "cpu_mean_cores": 3.64,
+      "cgroup_mean_cores": null,
+      "full_core_seconds": 331.19,
+      "cgroup_peak_cores": 0.0,
+      "iowait_mean_percent": 0,
+      "iowait_max_percent": 0,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": null,
+      "ipc": null,
+      "cache_miss_ratio": null,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76,
+      "chrome_threads_max_per_process": 28,
+      "cgroup_memory_peak_mib": null,
+      "image_service_cpu_cores": {},
+      "sample_interval_max": 1.013,
+      "sample_interval_median": 1.01
+    }
+  },
+  {
+    "name": "curve-w12",
+    "workers": 12,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 61.603,
+    "wall_seconds": 62.396,
+    "fps": 36.297,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        36.6,
+        37.2,
+        38.8,
+        39.1,
+        39.5,
+        39.9,
+        41.0,
+        42.2,
+        46.5,
+        51.3,
+        53.1,
+        55.0
+      ],
+      "startup_seconds": 7.076,
+      "render_seconds": 55.28,
+      "browser_ms": [
+        115.285327,
+        132.33054900000002,
+        183.77799700000003,
+        174.71528100000006,
+        273.46308099999993,
+        263.35148300000003,
+        280.74422799999996,
+        268.510582,
+        280.89595599999996,
+        277.264075,
+        293.810849,
+        266.31222199999996
+      ],
+      "composition_ms": [
+        695.119657,
+        744.3871270000001,
+        701.987444,
+        720.682085,
+        717.331202,
+        721.7876520000001,
+        735.5412590000001,
+        741.0232030000001,
+        748.6944599999999,
+        726.3856649999999,
+        738.904369,
+        759.539204
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 713
+    },
+    "peak_tasks": 3004,
+    "telemetry_samples": 63,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 24.89,
+      "cgroup_mean_cores": 22.65,
+      "full_core_seconds": 280.05,
+      "cgroup_peak_cores": 33.75,
+      "iowait_mean_percent": 0.001,
+      "iowait_max_percent": 0.0314,
+      "throttled_period_fraction": 0.0049,
+      "throttled_time_ns": 1791208058,
+      "memory_bandwidth_gib_s": 23.594,
+      "ipc": 1.756,
+      "cache_miss_ratio": 0.51,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76,
+      "chrome_threads_max_per_process": 28,
+      "cgroup_memory_peak_mib": 19940,
+      "image_service_cpu_cores": {
+        "2520": 0.0056,
+        "2522": 0.0195,
+        "1689662": 0.001,
+        "3559317": 0.001,
+        "3559749": 0.001,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "curve-w16",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 51.526,
+    "wall_seconds": 52.326,
+    "fps": 43.395,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        29.9,
+        30.5,
+        31.6,
+        31.4,
+        32.2,
+        32.5,
+        32.6,
+        32.5,
+        32.6,
+        33.9,
+        36.7,
+        39.1,
+        41.4,
+        42.6,
+        44.2,
+        44.7
+      ],
+      "startup_seconds": 7.051,
+      "render_seconds": 45.226,
+      "browser_ms": [
+        116.589066,
+        142.24101000000002,
+        145.60223199999996,
+        300.07143599999995,
+        313.410535,
+        307.338503,
+        334.20794299999994,
+        329.34034899999995,
+        337.98322899999994,
+        343.29330400000003,
+        333.39742400000006,
+        336.078078,
+        311.082332,
+        311.08655500000003,
+        316.199103,
+        335.873366
+      ],
+      "composition_ms": [
+        837.495275,
+        826.100215,
+        841.38155,
+        771.9697929999999,
+        784.7102339999999,
+        798.7318590000001,
+        783.307315,
+        786.7473389999999,
+        800.2343549999999,
+        860.092316,
+        814.2761549999999,
+        863.766799,
+        868.5156850000001,
+        823.2824849999998,
+        881.895575,
+        827.4139499999999
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 875
+    },
+    "peak_tasks": 3916,
+    "telemetry_samples": 53,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.539667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 32.29,
+      "cgroup_mean_cores": 28.92,
+      "full_core_seconds": 239.05,
+      "cgroup_peak_cores": 42.62,
+      "iowait_mean_percent": 0.0014,
+      "iowait_max_percent": 0.0523,
+      "throttled_period_fraction": 0.0579,
+      "throttled_time_ns": 16629404751,
+      "memory_bandwidth_gib_s": 31.88,
+      "ipc": 1.656,
+      "cache_miss_ratio": 0.526,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 25768,
+      "image_service_cpu_cores": {
+        "2520": 0.0048,
+        "2522": 0.0227,
+        "1689662": 0.001,
+        "3559317": 0.001,
+        "3559749": 0.001,
+        "3560132": 0.001
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "curve-w2",
+    "workers": 2,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 219.849,
+    "wall_seconds": 220.762,
+    "fps": 10.171,
+    "render": {},
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        167.6,
+        213.5
+      ],
+      "startup_seconds": 7.025,
+      "render_seconds": 213.693,
+      "log_lines": 307
+    },
+    "peak_tasks": 601,
+    "telemetry_samples": 221,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.533667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "resource_summary": {
+      "cpu_mean_cores": 5.9,
+      "cgroup_mean_cores": 5.21,
+      "full_core_seconds": 327.05,
+      "cgroup_peak_cores": 8.68,
+      "iowait_mean_percent": 0,
+      "iowait_max_percent": 0,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 4.539,
+      "ipc": 2.089,
+      "cache_miss_ratio": 0.356,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 29,
+      "cgroup_memory_peak_mib": null,
+      "image_service_cpu_cores": {
+        "2520": 0.0056,
+        "2522": 0.0183,
+        "1689662": 0.0006,
+        "3559317": 0.0006,
+        "3559749": 0.0005,
+        "3560132": 0.0005
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "curve-w24",
+    "workers": 24,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 47.907,
+    "wall_seconds": 48.403,
+    "fps": 46.674,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.0,
+      "chunk_done_seconds": [
+        27.9,
+        28.0,
+        28.4,
+        29.2,
+        29.9,
+        29.9,
+        30.3,
+        30.3,
+        30.2,
+        30.5,
+        30.7,
+        31.0,
+        31.0,
+        31.1,
+        31.4,
+        32.0,
+        34.3,
+        37.5,
+        37.1,
+        37.5,
+        38.9,
+        39.7,
+        39.9,
+        40.3
+      ],
+      "startup_seconds": 8.095,
+      "render_seconds": 40.269,
+      "browser_ms": [
+        160.907891,
+        158.726809,
+        258.17775400000005,
+        257.270368,
+        265.501718,
+        98.56216700000004,
+        285.18071399999997,
+        308.216208,
+        352.726906,
+        347.60483000000005,
+        321.365957,
+        326.56074300000006,
+        304.274753,
+        394.13678699999997,
+        329.989584,
+        307.058774,
+        403.33001399999995,
+        310.04194900000005,
+        391.66365399999995,
+        348.214462,
+        345.39628500000003,
+        397.977133,
+        326.86114899999995,
+        394.54544400000003
+      ],
+      "composition_ms": [
+        1364.7894450000001,
+        1406.984,
+        1318.440553,
+        1333.3814270000003,
+        1482.8670269999998,
+        1418.751331,
+        1306.69771,
+        1440.0207609999998,
+        1333.699595,
+        1355.689523,
+        1424.189167,
+        1428.638656,
+        1322.786017,
+        1550.0171170000003,
+        1444.610976,
+        1448.9845169999999,
+        1461.2142680000002,
+        1357.4628200000002,
+        1368.7171569999998,
+        1477.0587500000001,
+        1479.633384,
+        1374.449538,
+        1384.9021429999998,
+        1598.64622
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 1210
+    },
+    "peak_tasks": 5815,
+    "telemetry_samples": 49,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 40.42,
+      "cgroup_mean_cores": 35.77,
+      "full_core_seconds": 53.01,
+      "cgroup_peak_cores": 48.79,
+      "iowait_mean_percent": 0.0034,
+      "iowait_max_percent": 0.0734,
+      "throttled_period_fraction": 0.5934,
+      "throttled_time_ns": 298234044636,
+      "memory_bandwidth_gib_s": 38.47,
+      "ipc": 1.505,
+      "cache_miss_ratio": 0.539,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 31890,
+      "image_service_cpu_cores": {
+        "2520": 0.0052,
+        "2522": 0.019,
+        "1689662": 0.0006,
+        "3559317": 0.0008,
+        "3559749": 0.0008,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "curve-w32",
+    "workers": 32,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 50.644,
+    "wall_seconds": 51.608,
+    "fps": 44.152,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        30.0,
+        32.3,
+        32.6,
+        32.9,
+        33.1,
+        33.0,
+        33.1,
+        33.3,
+        33.5,
+        33.4,
+        34.0,
+        34.8,
+        34.6,
+        34.4,
+        34.5,
+        35.0,
+        34.9,
+        35.3,
+        35.1,
+        35.3,
+        35.4,
+        36.6,
+        39.3,
+        39.8,
+        40.1,
+        40.3,
+        40.5,
+        41.4,
+        41.4,
+        41.6,
+        41.5,
+        42.2
+      ],
+      "startup_seconds": 8.125,
+      "render_seconds": 43.433,
+      "browser_ms": [
+        157.282264,
+        208.72571600000003,
+        212.338911,
+        166.01447100000007,
+        174.46179199999995,
+        178.35748200000006,
+        248.80986599999994,
+        232.56649,
+        243.99018400000006,
+        226.85766599999994,
+        245.90125099999995,
+        211.51048799999995,
+        186.60470700000002,
+        189.20723599999997,
+        175.14914700000003,
+        326.96393,
+        197.610997,
+        196.02673400000003,
+        226.19563999999997,
+        260.889717,
+        261.288654,
+        253.99813699999999,
+        270.36138900000003,
+        262.3731389999999,
+        259.59529699999996,
+        271.41093300000006,
+        284.408142,
+        275.3549320000001,
+        294.590099,
+        267.451279,
+        214.393011,
+        297.454656
+      ],
+      "composition_ms": [
+        1815.0046309999998,
+        1898.741979,
+        2001.0752150000003,
+        2124.155016,
+        2213.735705,
+        2244.605495,
+        2150.52239,
+        2192.626515,
+        2267.512333,
+        2313.076854,
+        2055.421939,
+        2372.344599,
+        2179.395788,
+        2385.494096,
+        2204.180493,
+        2286.3935269999997,
+        2116.656249,
+        2224.291738,
+        2320.671662,
+        2145.515342,
+        2353.572502,
+        2156.260359,
+        2456.9821970000003,
+        2481.63438,
+        1999.241153,
+        2498.4132740000005,
+        2384.190972,
+        2019.102914,
+        2120.674904,
+        2135.135343,
+        2136.0303679999997,
+        2037.18543
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 1523
+    },
+    "peak_tasks": 7691,
+    "telemetry_samples": 52,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.551333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 43.35,
+      "cgroup_mean_cores": 38.71,
+      "full_core_seconds": 47.01,
+      "cgroup_peak_cores": 48.94,
+      "iowait_mean_percent": 0.0032,
+      "iowait_max_percent": 0.0627,
+      "throttled_period_fraction": 0.7092,
+      "throttled_time_ns": 867916177666,
+      "memory_bandwidth_gib_s": 39.436,
+      "ipc": 1.369,
+      "cache_miss_ratio": 0.54,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 1.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 31910,
+      "image_service_cpu_cores": {
+        "2520": 0.0053,
+        "2522": 0.019,
+        "1689662": 0.0008,
+        "3559317": 0.0012,
+        "3559749": 0.0008,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "curve-w4",
+    "workers": 4,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 132.758,
+    "wall_seconds": 133.777,
+    "fps": 16.843,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.0,
+      "chunk_done_seconds": [
+        94.9,
+        98.3,
+        104.9,
+        126.3
+      ],
+      "startup_seconds": 7.054,
+      "render_seconds": 126.685,
+      "browser_ms": [
+        74.82319799999999,
+        132.328352,
+        134.566369,
+        135.913024
+      ],
+      "composition_ms": [
+        767.6380849999999,
+        726.204647,
+        715.4244030000001,
+        746.728222
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 387
+    },
+    "peak_tasks": 1082,
+    "telemetry_samples": 134,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "resource_summary": {
+      "cpu_mean_cores": 10.04,
+      "cgroup_mean_cores": 9.16,
+      "full_core_seconds": 318.05,
+      "cgroup_peak_cores": 12.61,
+      "iowait_mean_percent": 0,
+      "iowait_max_percent": 0,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 8.528,
+      "ipc": 1.982,
+      "cache_miss_ratio": 0.415,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 28,
+      "cgroup_memory_peak_mib": 7235,
+      "image_service_cpu_cores": {
+        "2520": 0.0055,
+        "2522": 0.0183,
+        "1689662": 0.001,
+        "3559317": 0.0011,
+        "3559749": 0.0008,
+        "3560132": 0.001
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "curve-w8",
+    "workers": 8,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 79.263,
+    "wall_seconds": 79.454,
+    "fps": 28.21,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.4,
+      "chunk_done_seconds": [
+        53.7,
+        54.7,
+        56.9,
+        57.5,
+        57.6,
+        66.8,
+        68.4,
+        72.3
+      ],
+      "startup_seconds": 7.05,
+      "render_seconds": 72.366,
+      "browser_ms": [
+        195.823917,
+        197.536333,
+        194.29784600000005,
+        192.39140599999996,
+        191.30253999999996,
+        211.269924,
+        303.583852,
+        283.131486
+      ],
+      "composition_ms": [
+        682.0118820000001,
+        716.77354,
+        694.902806,
+        700.3482540000001,
+        706.924702,
+        754.635342,
+        724.392988,
+        744.4586280000001
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 550
+    },
+    "peak_tasks": 2054,
+    "telemetry_samples": 80,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 18.46,
+      "cgroup_mean_cores": 16.8,
+      "full_core_seconds": 300.05,
+      "cgroup_peak_cores": 23.71,
+      "iowait_mean_percent": 0.0005,
+      "iowait_max_percent": 0.0105,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 17.132,
+      "ipc": 1.835,
+      "cache_miss_ratio": 0.481,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 30,
+      "cgroup_memory_peak_mib": 13809,
+      "image_service_cpu_cores": {
+        "2520": 0.0054,
+        "2522": 0.0177,
+        "1689662": 0.0011,
+        "3559317": 0.0009,
+        "3559749": 0.0008,
+        "3560132": 0.0009
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "full-candidate96",
+    "jobs": 4,
+    "workers": 8,
+    "quota_cores": 96,
+    "frames": 11300,
+    "seconds": 144.277,
+    "wall_seconds": 147.293,
+    "fps": 78.32,
+    "peak_memory_mb": 54010,
+    "peak_tasks": 9833,
+    "polls": 50,
+    "tabs": 2,
+    "render": {},
+    "ffmpeg_threads": null,
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.676000",
+          "nb_frames": "11300",
+          "nb_read_frames": "11300"
+        }
+      ]
+    },
+    "partition": "balanced",
+    "cache_files": 8,
+    "video": {
+      "min": 50.17,
+      "avg": 52.24273333333331,
+      "ssim": 0.998199,
+      "frames": 300
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 59.8,
+      "cgroup_mean_cores": 56.99,
+      "full_core_seconds": 1086.16,
+      "cgroup_peak_cores": 78.08,
+      "iowait_mean_percent": 0.0008,
+      "iowait_max_percent": 0.0315,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 55.851,
+      "ipc": 1.368,
+      "cache_miss_ratio": 0.555,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 54156,
+      "image_service_cpu_cores": {
+        "2520": 0.0049,
+        "2522": 0.024,
+        "1689662": 0.0009,
+        "3559317": 0.0009,
+        "3559749": 0.0007,
+        "3560132": 0.0009
+      },
+      "sample_interval_max": 1.007,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "full-control48",
+    "jobs": 4,
+    "workers": 8,
+    "quota_cores": 48,
+    "frames": 11300,
+    "seconds": 205.991,
+    "wall_seconds": 207.334,
+    "fps": 54.86,
+    "peak_memory_mb": 53095,
+    "peak_tasks": 8152,
+    "polls": 70,
+    "tabs": 2,
+    "render": {},
+    "ffmpeg_threads": null,
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.676000",
+          "nb_frames": "11300",
+          "nb_read_frames": "11300"
+        }
+      ]
+    },
+    "partition": "balanced",
+    "cache_files": 8,
+    "video": {
+      "min": 50.17,
+      "avg": 52.24273333333331,
+      "ssim": 0.998199,
+      "frames": 300
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 44.44,
+      "cgroup_mean_cores": 42.71,
+      "full_core_seconds": 183.05,
+      "cgroup_peak_cores": 48.41,
+      "iowait_mean_percent": 0.0011,
+      "iowait_max_percent": 0.0314,
+      "throttled_period_fraction": 0.8138,
+      "throttled_time_ns": 4047017739888,
+      "memory_bandwidth_gib_s": 40.637,
+      "ipc": 1.376,
+      "cache_miss_ratio": 0.555,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 31,
+      "cgroup_memory_peak_mib": 53142,
+      "image_service_cpu_cores": {
+        "2520": 0.0051,
+        "2522": 0.0217,
+        "1689662": 0.0009,
+        "3559317": 0.0009,
+        "3559749": 0.0008,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.003,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "full-release96",
+    "jobs": 4,
+    "workers": 8,
+    "quota_cores": 96,
+    "frames": 11300,
+    "seconds": 146.82,
+    "wall_seconds": 147.29,
+    "fps": 76.97,
+    "peak_memory_mb": 53907,
+    "peak_tasks": 9862,
+    "polls": 50,
+    "tabs": 2,
+    "render": {},
+    "ffmpeg_threads": null,
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "376.676000",
+          "nb_frames": "11300",
+          "nb_read_frames": "11300"
+        }
+      ]
+    },
+    "partition": "balanced",
+    "cache_files": 8,
+    "video": {
+      "min": 50.17,
+      "avg": 52.24273333333331,
+      "ssim": 0.998199,
+      "frames": 300
+    },
+    "cache_eacces": false,
+    "worker_errors": false,
+    "pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 60.83,
+      "cgroup_mean_cores": 57.44,
+      "full_core_seconds": 1061.18,
+      "cgroup_peak_cores": 78.07,
+      "iowait_mean_percent": 0.0023,
+      "iowait_max_percent": 0.0522,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 56.701,
+      "ipc": 1.361,
+      "cache_miss_ratio": 0.555,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76,
+      "chrome_threads_max_per_process": 29,
+      "cgroup_memory_peak_mib": 53940,
+      "image_service_cpu_cores": {
+        "2520": 0.0052,
+        "2522": 0.0243,
+        "1689662": 0.0009,
+        "3559317": 0.001,
+        "3559749": 0.001,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.003,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "jpeg70-w16",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 51.437,
+    "wall_seconds": 52.312,
+    "fps": 43.471,
+    "render": {
+      "jpegQuality": 70
+    },
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        29.9,
+        30.4,
+        31.4,
+        32.1,
+        32.1,
+        32.2,
+        32.5,
+        32.7,
+        32.9,
+        33.0,
+        37.1,
+        38.5,
+        41.2,
+        42.8,
+        44.4,
+        44.7
+      ],
+      "startup_seconds": 7.045,
+      "render_seconds": 45.225,
+      "browser_ms": [
+        305.85918399999997,
+        300.317056,
+        282.809561,
+        309.689944,
+        314.313172,
+        315.95057700000007,
+        387.22801599999997,
+        327.35258600000003,
+        350.45076499999993,
+        387.983045,
+        393.38856599999997,
+        379.87044999999995,
+        329.65588899999995,
+        392.93074500000006,
+        405.710411,
+        383.867666
+      ],
+      "composition_ms": [
+        811.261636,
+        814.8041489999999,
+        806.581283,
+        812.3078409999999,
+        820.301998,
+        832.9642209999998,
+        771.049639,
+        784.4891369999999,
+        779.9523270000001,
+        782.398552,
+        788.3042229999999,
+        800.9911679999999,
+        804.1623150000001,
+        751.686681,
+        735.8068829999999,
+        746.4151959999999
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 890
+    },
+    "peak_tasks": 3916,
+    "telemetry_samples": 53,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.539667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 32.24,
+      "cgroup_mean_cores": 28.8,
+      "full_core_seconds": 225.03,
+      "cgroup_peak_cores": 42.87,
+      "iowait_mean_percent": 0.0018,
+      "iowait_max_percent": 0.0727,
+      "throttled_period_fraction": 0.0484,
+      "throttled_time_ns": 18680901401,
+      "memory_bandwidth_gib_s": 31.818,
+      "ipc": 1.651,
+      "cache_miss_ratio": 0.524,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 25784,
+      "image_service_cpu_cores": {
+        "2520": 0.0052,
+        "2522": 0.0171,
+        "1689662": 0.0008,
+        "3559317": 0.001,
+        "3559749": 0.0006,
+        "3560132": 0.001
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-default",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 14.362,
+    "wall_seconds": 15.131,
+    "fps": 20.889,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.0,
+      "chunk_done_seconds": [
+        5.2,
+        5.7,
+        5.9,
+        5.7,
+        5.9,
+        5.9,
+        6.5,
+        6.6,
+        6.7,
+        6.8,
+        6.9,
+        6.9,
+        7.0,
+        6.9,
+        7.0,
+        7.0
+      ],
+      "startup_seconds": 7.046,
+      "render_seconds": 8.049,
+      "browser_ms": [
+        91.03427600000003,
+        274.79694199999994,
+        291.144353,
+        271.2438250000001,
+        298.3866499999999,
+        287.674703,
+        361.65631499999995,
+        326.90043,
+        313.90047599999997,
+        359.165833,
+        351.10316800000004,
+        344.67976,
+        344.5894390000001,
+        313.392606,
+        313.386512,
+        281.90156699999994
+      ],
+      "composition_ms": [
+        744.9264189999999,
+        787.726441,
+        790.932376,
+        737.484367,
+        793.218298,
+        808.5046550000001,
+        914.100245,
+        822.5699680000001,
+        827.3054260000001,
+        813.8353020000001,
+        814.571783,
+        1086.617988,
+        842.670177,
+        820.837644,
+        854.945361,
+        854.074498
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 723
+    },
+    "peak_tasks": 2616,
+    "telemetry_samples": 16,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 48.09,
+      "avg": 50.099466666666665,
+      "ssim": 0.997343,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 27.8,
+      "cgroup_mean_cores": 19.97,
+      "full_core_seconds": 32.01,
+      "cgroup_peak_cores": 37.01,
+      "iowait_mean_percent": 0.0013,
+      "iowait_max_percent": 0.0105,
+      "throttled_period_fraction": 0.0342,
+      "throttled_time_ns": 11712407891,
+      "memory_bandwidth_gib_s": 28.003,
+      "ipc": 1.65,
+      "cache_miss_ratio": 0.515,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 7466,
+      "image_service_cpu_cores": {
+        "2520": 0.0047,
+        "2522": 0.0173,
+        "1689662": 0.0007,
+        "3559317": 0.0007,
+        "3559749": 0.0007,
+        "3560132": 0.0013
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-jpeg70",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 14.331,
+    "wall_seconds": 15.152,
+    "fps": 20.933,
+    "render": {
+      "jpegQuality": 70
+    },
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        5.4,
+        5.5,
+        5.8,
+        6.1,
+        6.0,
+        6.4,
+        6.5,
+        6.6,
+        6.7,
+        6.7,
+        6.7,
+        6.7,
+        6.8,
+        7.1,
+        7.1,
+        7.4
+      ],
+      "startup_seconds": 7.051,
+      "render_seconds": 8.047,
+      "browser_ms": [
+        201.9001,
+        301.09323400000005,
+        306.01632799999993,
+        344.79117499999995,
+        357.40875400000004,
+        320.535644,
+        334.22351299999997,
+        379.06335999999993,
+        359.315505,
+        338.124117,
+        401.076319,
+        359.574288,
+        382.004091,
+        331.02877700000005,
+        296.16921399999995,
+        327.744313
+      ],
+      "composition_ms": [
+        842.4664930000001,
+        763.9953880000002,
+        874.729181,
+        877.4668800000001,
+        786.249855,
+        818.51056,
+        817.7750470000001,
+        821.3026939999999,
+        835.8079950000001,
+        845.963614,
+        857.319483,
+        806.1147799999999,
+        860.0973389999999,
+        850.962556,
+        866.6332629999999,
+        829.038517
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 739
+    },
+    "peak_tasks": 2543,
+    "telemetry_samples": 16,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 40.73,
+      "avg": 41.529266666666615,
+      "ssim": 0.98338,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": false,
+    "resource_summary": {
+      "cpu_mean_cores": 27.46,
+      "cgroup_mean_cores": 19.95,
+      "full_core_seconds": 33.0,
+      "cgroup_peak_cores": 36.07,
+      "iowait_mean_percent": 0.0033,
+      "iowait_max_percent": 0.042,
+      "throttled_period_fraction": 0.0342,
+      "throttled_time_ns": 11457250374,
+      "memory_bandwidth_gib_s": 28.346,
+      "ipc": 1.652,
+      "cache_miss_ratio": 0.526,
+      "ffmpeg_threads_max": 74,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 7443,
+      "image_service_cpu_cores": {
+        "2520": 0.0053,
+        "2522": 0.022,
+        "1689662": 0.0,
+        "3559317": 0.0007,
+        "3559749": 0.0007,
+        "3560132": 0.0013
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-quota96",
+    "workers": 32,
+    "tabs": 2,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 96,
+    "seconds": 13.599,
+    "wall_seconds": 14.326,
+    "fps": 22.06,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        3.9,
+        3.9,
+        3.6,
+        4.3,
+        4.4,
+        3.9,
+        3.9,
+        4.6,
+        4.4,
+        4.3,
+        4.4,
+        4.4,
+        4.4,
+        4.5,
+        4.6,
+        4.5,
+        4.9,
+        4.6,
+        4.6,
+        4.6,
+        4.8,
+        5.0,
+        4.8,
+        4.9,
+        4.9,
+        5.1,
+        4.9,
+        5.0,
+        5.1,
+        5.0,
+        5.2,
+        5.1
+      ],
+      "startup_seconds": 8.244,
+      "render_seconds": 6.04,
+      "browser_ms": [
+        171.61374300000006,
+        180.65333800000002,
+        173.37828699999994,
+        192.607569,
+        170.89578999999998,
+        237.04485399999993,
+        267.85545600000006,
+        321.683849,
+        345.827415,
+        328.27416500000004,
+        363.648452,
+        379.718583,
+        307.72146799999996,
+        365.00917300000003,
+        395.645198,
+        408.70526200000006,
+        422.49419699999993,
+        372.584903,
+        382.165368,
+        344.201624,
+        391.743329,
+        351.917346,
+        351.465508,
+        396.68951200000004,
+        403.23812799999996,
+        416.042392,
+        379.54624899999993,
+        438.604139,
+        418.72220400000003,
+        445.30339599999996,
+        417.84447100000006,
+        442.13100999999995
+      ],
+      "composition_ms": [
+        1617.075298,
+        1617.3113789999998,
+        1683.697216,
+        1867.391115,
+        1834.478221,
+        1880.879045,
+        1981.238484,
+        1942.3039790000003,
+        1957.2913119999998,
+        1795.2771229999998,
+        2016.402868,
+        1914.4921000000002,
+        1912.070693,
+        1918.742458,
+        1816.4883989999998,
+        1839.190639,
+        1946.4486069999998,
+        2072.5434539999997,
+        1966.6080240000001,
+        1750.784707,
+        1993.301915,
+        1786.2906789999997,
+        2036.5615100000002,
+        1805.397028,
+        1932.070164,
+        1830.8654159999999,
+        1826.214234,
+        1936.6100620000002,
+        1727.926379,
+        1841.735109,
+        1733.836276,
+        1734.0962209999998
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 1363
+    },
+    "peak_tasks": 6571,
+    "telemetry_samples": 15,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 47.24,
+      "avg": 48.912033333333355,
+      "ssim": 0.996587,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 46.21,
+      "cgroup_mean_cores": 32.29,
+      "full_core_seconds": 23.01,
+      "cgroup_peak_cores": 84.34,
+      "iowait_mean_percent": 0.0042,
+      "iowait_max_percent": 0.0421,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 46.034,
+      "ipc": 1.39,
+      "cache_miss_ratio": 0.548,
+      "ffmpeg_threads_max": 43,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 27,
+      "cgroup_memory_peak_mib": 13687,
+      "image_service_cpu_cores": {
+        "2520": 0.005,
+        "2522": 0.0179,
+        "1689662": 0.0007,
+        "3559317": 0.0014,
+        "3559749": 0.0007,
+        "3560132": 0.0007
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-tabs3",
+    "workers": 12,
+    "tabs": 3,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 16.052,
+    "wall_seconds": 16.173,
+    "fps": 18.69,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        6.7,
+        6.6,
+        7.2,
+        7.2,
+        7.3,
+        8.0,
+        8.2,
+        8.1,
+        8.1,
+        8.3,
+        8.5,
+        8.7
+      ],
+      "startup_seconds": 7.07,
+      "render_seconds": 9.058,
+      "browser_ms": [
+        124.83272499999998,
+        113.93240799999995,
+        136.497362,
+        210.64565600000003,
+        288.77379199999996,
+        293.51374699999997,
+        293.564263,
+        343.24464600000005,
+        382.372242,
+        333.966676,
+        383.59037,
+        362.19482100000005
+      ],
+      "composition_ms": [
+        716.792133,
+        724.2250630000001,
+        730.51953,
+        744.542349,
+        695.378674,
+        700.2143380000001,
+        707.9794090000001,
+        714.544424,
+        727.387395,
+        722.538401,
+        739.820989,
+        754.424228
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 640
+    },
+    "peak_tasks": 2096,
+    "telemetry_samples": 17,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 48.9,
+      "avg": 50.55803333333332,
+      "ssim": 0.997522,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 24.4,
+      "cgroup_mean_cores": 17.5,
+      "full_core_seconds": 37.02,
+      "cgroup_peak_cores": 32.36,
+      "iowait_mean_percent": 0.0031,
+      "iowait_max_percent": 0.0314,
+      "throttled_period_fraction": 0.0494,
+      "throttled_time_ns": 9590122543,
+      "memory_bandwidth_gib_s": 24.395,
+      "ipc": 1.672,
+      "cache_miss_ratio": 0.493,
+      "ffmpeg_threads_max": 43,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 7517,
+      "image_service_cpu_cores": {
+        "2520": 0.0062,
+        "2522": 0.0187,
+        "1689662": 0.0012,
+        "3559317": 0.0012,
+        "3559749": 0.0012,
+        "3560132": 0.0
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-tabs4",
+    "workers": 8,
+    "tabs": 4,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 18.278,
+    "wall_seconds": 19.209,
+    "fps": 16.413,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        8.7,
+        9.6,
+        9.6,
+        10.6,
+        10.6,
+        10.9,
+        10.9,
+        10.9
+      ],
+      "startup_seconds": 7.087,
+      "render_seconds": 12.068,
+      "browser_ms": [
+        172.609415,
+        181.511725,
+        184.32043900000002,
+        196.99217299999998,
+        183.39456499999994,
+        204.44500299999999,
+        212.19370800000002,
+        207.971991
+      ],
+      "composition_ms": [
+        743.2095380000001,
+        736.404843,
+        732.330838,
+        744.340572,
+        784.2013900000001,
+        806.380609,
+        771.3008389999999,
+        774.9903950000001
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 501
+    },
+    "peak_tasks": 1541,
+    "telemetry_samples": 20,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "10.003667",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 48.99,
+      "avg": 50.988866666666645,
+      "ssim": 0.997767,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 17.43,
+      "cgroup_mean_cores": 13.52,
+      "full_core_seconds": 49.01,
+      "cgroup_peak_cores": 27.05,
+      "iowait_mean_percent": 0.0005,
+      "iowait_max_percent": 0.0104,
+      "throttled_period_fraction": 0.027,
+      "throttled_time_ns": 12124288012,
+      "memory_bandwidth_gib_s": 16.84,
+      "ipc": 1.783,
+      "cache_miss_ratio": 0.471,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 6328,
+      "image_service_cpu_cores": {
+        "2520": 0.0053,
+        "2522": 0.0279,
+        "1689662": 0.0005,
+        "3559317": 0.0016,
+        "3559749": 0.0011,
+        "3560132": 0.0011
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-threads2",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 14.251,
+    "wall_seconds": 15.153,
+    "fps": 21.052,
+    "render": {},
+    "ffmpeg_threads": 2,
+    "timing": {
+      "bundle_seconds": 4.8,
+      "chunk_done_seconds": [
+        5.5,
+        5.5,
+        5.9,
+        6.0,
+        6.3,
+        6.3,
+        6.6,
+        6.5,
+        6.5,
+        6.8,
+        6.8,
+        6.9,
+        7.0,
+        7.2,
+        7.2,
+        7.2
+      ],
+      "startup_seconds": 7.051,
+      "render_seconds": 8.049,
+      "browser_ms": [
+        69.67118300000004,
+        153.930295,
+        188.540868,
+        188.00843500000002,
+        237.78625599999998,
+        252.645508,
+        257.42126999999994,
+        277.01259999999996,
+        289.96056999999996,
+        281.624847,
+        269.295744,
+        292.23418399999997,
+        276.610219,
+        294.734563,
+        331.693034,
+        338.95349200000004
+      ],
+      "composition_ms": [
+        769.834906,
+        827.348769,
+        931.026154,
+        948.59153,
+        885.0671289999999,
+        1089.1849829999999,
+        801.995093,
+        790.949612,
+        917.8919459999998,
+        818.0158250000001,
+        811.562053,
+        825.1042529999999,
+        741.957484,
+        840.9719269999999,
+        846.46489,
+        805.4990819999999
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 726
+    },
+    "peak_tasks": 2542,
+    "telemetry_samples": 16,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "thread_hook_observed": true,
+    "video": {
+      "min": 48.2,
+      "avg": 50.14669999999999,
+      "ssim": 0.997365,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 25.5,
+      "cgroup_mean_cores": 19.35,
+      "full_core_seconds": 28.0,
+      "cgroup_peak_cores": 36.52,
+      "iowait_mean_percent": 0.0026,
+      "iowait_max_percent": 0.042,
+      "throttled_period_fraction": 0.0417,
+      "throttled_time_ns": 11701991267,
+      "memory_bandwidth_gib_s": 26.035,
+      "ipc": 1.687,
+      "cache_miss_ratio": 0.529,
+      "ffmpeg_threads_max": 11,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 7502,
+      "image_service_cpu_cores": {
+        "2520": 0.0053,
+        "2522": 0.0167,
+        "1689662": 0.0013,
+        "3559317": 0.0007,
+        "3559749": 0.0007,
+        "3560132": 0.0007
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-tmpfs",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 14.316,
+    "wall_seconds": 15.188,
+    "fps": 20.956,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        5.6,
+        5.4,
+        5.5,
+        5.9,
+        6.0,
+        6.1,
+        6.6,
+        6.6,
+        6.8,
+        6.6,
+        6.7,
+        6.8,
+        6.8,
+        7.0,
+        7.0,
+        7.0
+      ],
+      "startup_seconds": 7.095,
+      "render_seconds": 8.049,
+      "browser_ms": [
+        287.480381,
+        301.66749400000003,
+        304.5695630000001,
+        399.27787500000005,
+        315.61716600000005,
+        383.016492,
+        339.11562499999997,
+        366.73494400000004,
+        375.69628600000004,
+        403.31947899999994,
+        316.62201500000003,
+        395.603328,
+        361.535777,
+        360.54924800000003,
+        411.14913299999995,
+        411.44268900000003
+      ],
+      "composition_ms": [
+        746.782085,
+        777.7336700000001,
+        864.180108,
+        751.9470289999999,
+        821.1836710000001,
+        814.304611,
+        821.6064269999999,
+        816.4297730000001,
+        827.410239,
+        830.901227,
+        838.3841490000001,
+        840.937221,
+        846.6348399999999,
+        735.556686,
+        738.747616,
+        750.5353630000001
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 724
+    },
+    "peak_tasks": 2541,
+    "telemetry_samples": 16,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 48.09,
+      "avg": 50.099466666666665,
+      "ssim": 0.997343,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 27.13,
+      "cgroup_mean_cores": 19.86,
+      "full_core_seconds": 33.02,
+      "cgroup_peak_cores": 36.18,
+      "iowait_mean_percent": 0.0,
+      "iowait_max_percent": 0.0,
+      "throttled_period_fraction": 0.0345,
+      "throttled_time_ns": 10854713617,
+      "memory_bandwidth_gib_s": 27.973,
+      "ipc": 1.652,
+      "cache_miss_ratio": 0.521,
+      "ffmpeg_threads_max": 75,
+      "ffmpeg_threads_median": 1.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 7466,
+      "image_service_cpu_cores": {
+        "2520": 0.0053,
+        "2522": 0.022,
+        "1689662": 0.0013,
+        "3559317": 0.0007,
+        "3559749": 0.0013,
+        "3560132": 0.0007
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quality-veryfast",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 300,
+    "start": 3173,
+    "quota_cores": 48,
+    "seconds": 14.377,
+    "wall_seconds": 15.141,
+    "fps": 20.867,
+    "render": {
+      "x264Preset": "veryfast"
+    },
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.1,
+      "chunk_done_seconds": [
+        5.1,
+        5.6,
+        5.8,
+        5.9,
+        5.9,
+        5.9,
+        6.7,
+        6.5,
+        6.5,
+        6.6,
+        6.6,
+        6.7,
+        6.7,
+        6.8,
+        6.9,
+        7.1
+      ],
+      "startup_seconds": 7.052,
+      "render_seconds": 8.045,
+      "browser_ms": [
+        295.042506,
+        295.55727699999994,
+        310.9208530000001,
+        380.43708899999996,
+        364.21527799999996,
+        401.898274,
+        342.3770799999999,
+        363.1869699999999,
+        339.52874899999995,
+        388.040901,
+        320.32671199999993,
+        348.04777800000005,
+        372.077182,
+        400.80121099999997,
+        393.198659,
+        409.45076199999994
+      ],
+      "composition_ms": [
+        705.7076,
+        843.3977560000001,
+        848.61852,
+        761.7100150000001,
+        776.768185,
+        792.9648729999999,
+        787.9886600000001,
+        804.002818,
+        825.2835879999999,
+        723.1786529999999,
+        825.4895839999999,
+        833.7057870000001,
+        736.6794580000001,
+        832.191439,
+        733.497376,
+        734.5097
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 739
+    },
+    "peak_tasks": 2544,
+    "telemetry_samples": 16,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30000/1001",
+          "duration": "10.007333",
+          "nb_frames": "300"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "video": {
+      "min": 47.24,
+      "avg": 48.79303333333333,
+      "ssim": 0.996624,
+      "frames": 300
+    },
+    "stills": {
+      "t00060": {
+        "pixel_identical": true
+      },
+      "t01200": {
+        "pixel_identical": true
+      },
+      "t01533": {
+        "pixel_identical": true
+      },
+      "t01580": {
+        "pixel_identical": true
+      },
+      "t02908": {
+        "pixel_identical": true
+      },
+      "t03360": {
+        "pixel_identical": true
+      }
+    },
+    "quality_pass": true,
+    "resource_summary": {
+      "cpu_mean_cores": 27.66,
+      "cgroup_mean_cores": 19.58,
+      "full_core_seconds": 35.0,
+      "cgroup_peak_cores": 39.03,
+      "iowait_mean_percent": 0.0007,
+      "iowait_max_percent": 0.0105,
+      "throttled_period_fraction": 0.0342,
+      "throttled_time_ns": 12863278981,
+      "memory_bandwidth_gib_s": 28.953,
+      "ipc": 1.646,
+      "cache_miss_ratio": 0.526,
+      "ffmpeg_threads_max": 5,
+      "ffmpeg_threads_median": 1,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 7518,
+      "image_service_cpu_cores": {
+        "2520": 0.006,
+        "2522": 0.0133,
+        "1689662": 0.0013,
+        "3559317": 0.0013,
+        "3559749": 0.0007,
+        "3560132": 0.0007
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quota96-w16",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 96,
+    "seconds": 50.948,
+    "wall_seconds": 51.352,
+    "fps": 43.888,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.4,
+      "chunk_done_seconds": [
+        29.3,
+        29.7,
+        31.2,
+        31.5,
+        31.7,
+        32.3,
+        32.3,
+        32.4,
+        32.4,
+        33.7,
+        36.0,
+        38.6,
+        40.9,
+        42.6,
+        43.6,
+        43.7
+      ],
+      "startup_seconds": 7.049,
+      "render_seconds": 44.232,
+      "browser_ms": [
+        266.91398699999996,
+        257.173597,
+        266.821713,
+        301.310866,
+        236.685116,
+        334.62097399999993,
+        356.076132,
+        318.15044900000004,
+        336.5197069999999,
+        310.922586,
+        313.64605800000004,
+        413.21992399999993,
+        359.408918,
+        323.69369200000006,
+        324.156419,
+        333.559086
+      ],
+      "composition_ms": [
+        726.315501,
+        748.5146530000001,
+        807.0731619999999,
+        748.7637229999999,
+        746.323098,
+        752.1092189999999,
+        759.4522850000001,
+        735.3461459999999,
+        848.008308,
+        745.8524469999999,
+        848.684158,
+        746.520071,
+        697.2901770000001,
+        749.926019,
+        785.9712109999999,
+        747.254012
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 871
+    },
+    "peak_tasks": 4736,
+    "telemetry_samples": 52,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.539667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 33.18,
+      "cgroup_mean_cores": 29.37,
+      "full_core_seconds": 228.02,
+      "cgroup_peak_cores": 46.87,
+      "iowait_mean_percent": 0.001,
+      "iowait_max_percent": 0.0209,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 32.362,
+      "ipc": 1.656,
+      "cache_miss_ratio": 0.528,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 25839,
+      "image_service_cpu_cores": {
+        "2520": 0.0051,
+        "2522": 0.0208,
+        "1689662": 0.0008,
+        "3559317": 0.0012,
+        "3559749": 0.0012,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quota96-w24",
+    "workers": 24,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 96,
+    "seconds": 40.984,
+    "wall_seconds": 41.312,
+    "fps": 54.558,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        22.2,
+        22.3,
+        23.6,
+        23.7,
+        24.2,
+        24.2,
+        24.2,
+        24.8,
+        25.2,
+        25.4,
+        25.4,
+        25.8,
+        25.5,
+        25.8,
+        26.3,
+        26.8,
+        28.2,
+        31.5,
+        31.0,
+        31.3,
+        32.2,
+        33.4,
+        33.5,
+        33.5
+      ],
+      "startup_seconds": 7.086,
+      "render_seconds": 34.188,
+      "browser_ms": [
+        200.71704599999993,
+        209.09079600000007,
+        401.712597,
+        378.00194999999997,
+        350.794474,
+        317.40135000000004,
+        408.68006399999996,
+        279.51046,
+        370.731372,
+        337.47084300000006,
+        420.045149,
+        334.38773199999997,
+        353.124904,
+        414.96959000000004,
+        397.90769400000005,
+        398.245101,
+        361.900202,
+        418.154202,
+        325.707991,
+        378.888193,
+        317.31907800000005,
+        397.15856299999996,
+        411.66703299999995,
+        409.49521500000003
+      ],
+      "composition_ms": [
+        1202.241747,
+        1205.182627,
+        1066.246974,
+        1120.867736,
+        1215.717062,
+        1253.504434,
+        1323.986107,
+        1326.080446,
+        1236.923989,
+        1258.9896830000002,
+        1376.599072,
+        1382.4180540000002,
+        1303.7410769999997,
+        1441.2789169999999,
+        1360.8495980000002,
+        1251.9545739999999,
+        1258.9861500000002,
+        1376.5078039999999,
+        1271.3926090000002,
+        1169.8956269999999,
+        1276.1983500000001,
+        1266.402849,
+        1272.8068639999997,
+        1281.8130489999999
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 1213
+    },
+    "peak_tasks": 6989,
+    "telemetry_samples": 42,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 46.66,
+      "cgroup_mean_cores": 40.7,
+      "full_core_seconds": 198.01,
+      "cgroup_peak_cores": 69.11,
+      "iowait_mean_percent": 0.0073,
+      "iowait_max_percent": 0.1689,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 45.116,
+      "ipc": 1.495,
+      "cache_miss_ratio": 0.543,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 32120,
+      "image_service_cpu_cores": {
+        "2520": 0.0051,
+        "2522": 0.0188,
+        "1689662": 0.0007,
+        "3559317": 0.001,
+        "3559749": 0.0007,
+        "3560132": 0.0007
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "quota96-w32",
+    "workers": 32,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 96,
+    "seconds": 37.415,
+    "wall_seconds": 38.256,
+    "fps": 59.763,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.0,
+      "chunk_done_seconds": [
+        18.6,
+        20.0,
+        19.9,
+        19.9,
+        20.1,
+        21.2,
+        21.1,
+        21.4,
+        21.2,
+        21.9,
+        21.5,
+        21.6,
+        21.5,
+        21.6,
+        21.6,
+        21.7,
+        21.8,
+        22.0,
+        22.0,
+        22.1,
+        22.6,
+        23.8,
+        26.0,
+        27.3,
+        27.3,
+        27.4,
+        27.4,
+        28.3,
+        28.2,
+        29.1,
+        29.0,
+        29.1
+      ],
+      "startup_seconds": 8.048,
+      "render_seconds": 30.167,
+      "browser_ms": [
+        128.02457299999998,
+        132.85684299999997,
+        149.20068099999997,
+        239.08843399999995,
+        213.64599299999992,
+        304.550486,
+        320.528142,
+        322.67525900000004,
+        340.69669400000004,
+        358.03112200000004,
+        393.37088900000003,
+        380.46809299999995,
+        402.81456999999995,
+        354.14210599999996,
+        372.64867300000003,
+        402.535917,
+        341.41839,
+        384.3429,
+        340.97144599999996,
+        335.525995,
+        396.22339,
+        308.251794,
+        360.803345,
+        394.0255460000001,
+        424.75259700000004,
+        334.968801,
+        380.602078,
+        364.856768,
+        420.83909600000004,
+        414.54440800000003,
+        411.55647799999997,
+        443.122759
+      ],
+      "composition_ms": [
+        1556.6719220000002,
+        1575.364893,
+        1601.1625060000001,
+        1750.147621,
+        1946.52733,
+        1883.3735749999998,
+        1824.7288170000002,
+        1958.801829,
+        1890.625974,
+        1895.372713,
+        1907.735495,
+        1917.685054,
+        1922.30476,
+        1934.5832590000002,
+        2081.59969,
+        1909.2957339999998,
+        2026.4279199999999,
+        1801.069442,
+        1816.094455,
+        2043.976991,
+        1844.756301,
+        1954.450292,
+        1967.167148,
+        1856.5757110000002,
+        1866.5007530000003,
+        1976.298964,
+        1871.0700379999998,
+        1981.232125,
+        1870.6433350000002,
+        1871.6143940000002,
+        1771.49865,
+        1888.076259
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 1520
+    },
+    "peak_tasks": 9154,
+    "telemetry_samples": 39,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.551333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 57.91,
+      "cgroup_mean_cores": 49.25,
+      "full_core_seconds": 233.03,
+      "cgroup_peak_cores": 84.6,
+      "iowait_mean_percent": 0.0021,
+      "iowait_max_percent": 0.0315,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": 54.667,
+      "ipc": 1.356,
+      "cache_miss_ratio": 0.544,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 74.0,
+      "chrome_threads_max_per_process": 27,
+      "cgroup_memory_peak_mib": 32344,
+      "image_service_cpu_cores": {
+        "2520": 0.0053,
+        "2522": 0.0234,
+        "1689662": 0.0008,
+        "3559317": 0.0008,
+        "3559749": 0.0005,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "smoke-disk",
+    "workers": 2,
+    "tabs": 2,
+    "frames": 30,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 9.573,
+    "wall_seconds": 10.071,
+    "fps": 3.134,
+    "render": {},
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        3.1,
+        3.2
+      ],
+      "startup_seconds": 7.025,
+      "render_seconds": 3.012,
+      "log_lines": 83
+    },
+    "peak_tasks": 404,
+    "telemetry_samples": 10,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "1.000000",
+          "nb_frames": "30"
+        }
+      ]
+    },
+    "resource_summary": {
+      "cpu_mean_cores": 3.43,
+      "cgroup_mean_cores": null,
+      "full_core_seconds": 0.0,
+      "cgroup_peak_cores": 0.0,
+      "iowait_mean_percent": 0,
+      "iowait_max_percent": 0,
+      "throttled_period_fraction": 0.0,
+      "throttled_time_ns": 0,
+      "memory_bandwidth_gib_s": null,
+      "ipc": null,
+      "cache_miss_ratio": null,
+      "ffmpeg_threads_max": 0,
+      "ffmpeg_threads_median": 0,
+      "chrome_threads_max_per_process": 0,
+      "cgroup_memory_peak_mib": null,
+      "image_service_cpu_cores": {},
+      "sample_interval_max": 1.011,
+      "sample_interval_median": 1.008
+    }
+  },
+  {
+    "name": "tabs3-w12",
+    "workers": 12,
+    "tabs": 3,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 62.828,
+    "wall_seconds": 63.435,
+    "fps": 35.589,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.8,
+      "chunk_done_seconds": [
+        36.9,
+        38.5,
+        38.6,
+        39.4,
+        39.5,
+        39.5,
+        41.1,
+        41.9,
+        47.8,
+        50.2,
+        54.7,
+        56.3
+      ],
+      "startup_seconds": 7.09,
+      "render_seconds": 56.283,
+      "browser_ms": [
+        69.1327,
+        237.33302700000002,
+        233.34002700000008,
+        248.59501999999998,
+        257.711561,
+        283.011301,
+        257.937074,
+        264.50771,
+        301.81789799999996,
+        342.436142,
+        340.57838200000003,
+        360.466169
+      ],
+      "composition_ms": [
+        693.371224,
+        688.079661,
+        699.8436879999999,
+        724.14461,
+        911.071574,
+        690.5793480000001,
+        697.193022,
+        709.357255,
+        722.3511279999999,
+        668.6762920000001,
+        711.3952099999999,
+        718.5276139999999
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 789
+    },
+    "peak_tasks": 3213,
+    "telemetry_samples": 64,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 25.25,
+      "cgroup_mean_cores": 23.07,
+      "full_core_seconds": 364.06,
+      "cgroup_peak_cores": 36.71,
+      "iowait_mean_percent": 0.0008,
+      "iowait_max_percent": 0.0209,
+      "throttled_period_fraction": 0.0127,
+      "throttled_time_ns": 15870986457,
+      "memory_bandwidth_gib_s": 24.296,
+      "ipc": 1.718,
+      "cache_miss_ratio": 0.507,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 21389,
+      "image_service_cpu_cores": {
+        "2520": 0.0052,
+        "2522": 0.0181,
+        "1689662": 0.001,
+        "3559317": 0.001,
+        "3559749": 0.0008,
+        "3560132": 0.0008
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "tabs4-w8",
+    "workers": 8,
+    "tabs": 4,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 81.203,
+    "wall_seconds": 81.482,
+    "fps": 27.536,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        50.4,
+        51.3,
+        54.5,
+        54.7,
+        54.7,
+        68.0,
+        68.8,
+        74.8
+      ],
+      "startup_seconds": 7.05,
+      "render_seconds": 74.393,
+      "browser_ms": [
+        150.680045,
+        189.33187999999996,
+        182.29657499999996,
+        181.285712,
+        191.18982299999993,
+        253.44439599999993,
+        222.750717,
+        240.44352999999995
+      ],
+      "composition_ms": [
+        709.251706,
+        683.9342119999999,
+        702.418148,
+        713.3608449999999,
+        709.388656,
+        667.268725,
+        695.450376,
+        702.642103
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 648
+    },
+    "peak_tasks": 2365,
+    "telemetry_samples": 82,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.535333",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 18.49,
+      "cgroup_mean_cores": 17.1,
+      "full_core_seconds": 382.06,
+      "cgroup_peak_cores": 33.76,
+      "iowait_mean_percent": 0.0006,
+      "iowait_max_percent": 0.0313,
+      "throttled_period_fraction": 0.0074,
+      "throttled_time_ns": 10421988748,
+      "memory_bandwidth_gib_s": 16.981,
+      "ipc": 1.809,
+      "cache_miss_ratio": 0.474,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 15968,
+      "image_service_cpu_cores": {
+        "2520": 0.0054,
+        "2522": 0.0202,
+        "1689662": 0.0009,
+        "3559317": 0.001,
+        "3559749": 0.0009,
+        "3560132": 0.001
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "threads2-w16",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 52.101,
+    "wall_seconds": 52.346,
+    "fps": 42.916,
+    "render": {},
+    "ffmpeg_threads": 2,
+    "timing": {
+      "bundle_seconds": 4.9,
+      "chunk_done_seconds": [
+        31.0,
+        31.0,
+        31.0,
+        31.7,
+        31.9,
+        31.9,
+        32.8,
+        33.9,
+        34.0,
+        34.4,
+        37.6,
+        39.2,
+        40.6,
+        41.9,
+        44.4,
+        45.3
+      ],
+      "startup_seconds": 7.068,
+      "render_seconds": 45.221,
+      "browser_ms": [
+        387.05549299999996,
+        385.90255399999995,
+        392.773579,
+        315.625398,
+        309.73217500000004,
+        330.68924,
+        333.666894,
+        373.705278,
+        321.639479,
+        348.594452,
+        333.98050800000004,
+        400.49474599999996,
+        357.061004,
+        405.57758100000007,
+        365.02287,
+        420.7777439999999
+      ],
+      "composition_ms": [
+        739.1087940000001,
+        753.467666,
+        760.5889370000001,
+        767.333039,
+        773.728954,
+        769.3115020000001,
+        767.211922,
+        788.619791,
+        800.187395,
+        727.08096,
+        837.807346,
+        841.537455,
+        729.6165330000001,
+        845.811162,
+        851.378188,
+        750.0117499999999
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 888
+    },
+    "peak_tasks": 2882,
+    "telemetry_samples": 53,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.539667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "thread_hook_observed": true,
+    "resource_summary": {
+      "cpu_mean_cores": 31.75,
+      "cgroup_mean_cores": 28.34,
+      "full_core_seconds": 251.04,
+      "cgroup_peak_cores": 42.84,
+      "iowait_mean_percent": 0.0035,
+      "iowait_max_percent": 0.1463,
+      "throttled_period_fraction": 0.0268,
+      "throttled_time_ns": 13595456503,
+      "memory_bandwidth_gib_s": 31.181,
+      "ipc": 1.667,
+      "cache_miss_ratio": 0.533,
+      "ffmpeg_threads_max": 11,
+      "ffmpeg_threads_median": 11.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 14153,
+      "image_service_cpu_cores": {
+        "2520": 0.0052,
+        "2522": 0.0167,
+        "1689662": 0.0013,
+        "3559317": 0.001,
+        "3559749": 0.001,
+        "3560132": 0.001
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "tmpfs-w16",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 52.289,
+    "wall_seconds": 52.369,
+    "fps": 42.762,
+    "render": {},
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.4,
+      "chunk_done_seconds": [
+        30.2,
+        30.3,
+        31.5,
+        31.7,
+        31.8,
+        32.0,
+        32.2,
+        32.3,
+        32.5,
+        32.7,
+        37.7,
+        39.4,
+        42.0,
+        42.3,
+        44.9,
+        45.0
+      ],
+      "startup_seconds": 8.061,
+      "render_seconds": 44.265,
+      "browser_ms": [
+        79.50225799999998,
+        249.18694999999997,
+        216.018324,
+        240.16306600000001,
+        252.41353200000003,
+        292.773116,
+        302.9993160000001,
+        268.41555500000004,
+        345.67793900000004,
+        408.19025800000003,
+        389.436548,
+        404.77928299999996,
+        341.337421,
+        380.747565,
+        393.65635499999996,
+        381.90245899999996
+      ],
+      "composition_ms": [
+        768.496184,
+        860.7682840000001,
+        884.199347,
+        888.1297619999999,
+        1023.2274120000002,
+        813.5843669999999,
+        740.710461,
+        757.5798619999999,
+        769.902196,
+        883.650483,
+        774.1850600000001,
+        775.680514,
+        778.6968519999999,
+        779.737969,
+        884.59796,
+        804.057633
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 876
+    },
+    "peak_tasks": 3922,
+    "telemetry_samples": 53,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.539667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 32.87,
+      "cgroup_mean_cores": 28.74,
+      "full_core_seconds": 255.06,
+      "cgroup_peak_cores": 43.88,
+      "iowait_mean_percent": 0.0006,
+      "iowait_max_percent": 0.0209,
+      "throttled_period_fraction": 0.0364,
+      "throttled_time_ns": 13186464293,
+      "memory_bandwidth_gib_s": 32.205,
+      "ipc": 1.645,
+      "cache_miss_ratio": 0.529,
+      "ffmpeg_threads_max": 76,
+      "ffmpeg_threads_median": 76.0,
+      "chrome_threads_max_per_process": 27,
+      "cgroup_memory_peak_mib": 25555,
+      "image_service_cpu_cores": {
+        "2520": 0.0052,
+        "2522": 0.0223,
+        "1689662": 0.0008,
+        "3559317": 0.0012,
+        "3559749": 0.0008,
+        "3560132": 0.0012
+      },
+      "sample_interval_max": 1.001,
+      "sample_interval_median": 1.0
+    }
+  },
+  {
+    "name": "veryfast-w16",
+    "workers": 16,
+    "tabs": 2,
+    "frames": 2236,
+    "start": 0,
+    "quota_cores": 48,
+    "seconds": 51.404,
+    "wall_seconds": 52.359,
+    "fps": 43.499,
+    "render": {
+      "x264Preset": "veryfast"
+    },
+    "ffmpeg_threads": null,
+    "timing": {
+      "bundle_seconds": 5.3,
+      "chunk_done_seconds": [
+        29.4,
+        30.8,
+        30.8,
+        31.2,
+        31.1,
+        31.5,
+        32.0,
+        32.2,
+        32.4,
+        33.7,
+        37.1,
+        37.5,
+        41.5,
+        43.2,
+        43.2,
+        44.3
+      ],
+      "startup_seconds": 7.048,
+      "render_seconds": 45.238,
+      "browser_ms": [
+        236.95160400000003,
+        252.251173,
+        227.19618000000003,
+        263.517787,
+        239.24151300000005,
+        300.593582,
+        324.05766200000005,
+        312.511785,
+        343.624843,
+        337.96826200000004,
+        347.32361000000003,
+        268.281632,
+        322.331305,
+        356.23986499999995,
+        313.213418,
+        330.54778600000003
+      ],
+      "composition_ms": [
+        787.210397,
+        800.3127479999999,
+        798.3686989999999,
+        859.3129929999999,
+        871.577175,
+        812.2730150000001,
+        762.7936939999998,
+        832.7066530000001,
+        833.810826,
+        776.1389250000001,
+        776.415192,
+        797.2747539999999,
+        801.978641,
+        792.795897,
+        798.5886559999999,
+        803.054102
+      ],
+      "startup_note": "submit-to-first-progress includes bundle, browser, composition and first frames; polling resolution 1s",
+      "log_lines": 884
+    },
+    "peak_tasks": 3957,
+    "telemetry_samples": 53,
+    "stream": {
+      "programs": [],
+      "streams": [
+        {
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "30/1",
+          "duration": "74.539667",
+          "nb_frames": "2236"
+        }
+      ]
+    },
+    "errors": [],
+    "foreign_jobs": [],
+    "valid_performance_sample": true,
+    "resource_summary": {
+      "cpu_mean_cores": 31.48,
+      "cgroup_mean_cores": 27.9,
+      "full_core_seconds": 261.04,
+      "cgroup_peak_cores": 44.03,
+      "iowait_mean_percent": 0.001,
+      "iowait_max_percent": 0.0105,
+      "throttled_period_fraction": 0.0329,
+      "throttled_time_ns": 15064535900,
+      "memory_bandwidth_gib_s": 30.738,
+      "ipc": 1.666,
+      "cache_miss_ratio": 0.521,
+      "ffmpeg_threads_max": 79,
+      "ffmpeg_threads_median": 79.0,
+      "chrome_threads_max_per_process": 26,
+      "cgroup_memory_peak_mib": 22388,
+      "image_service_cpu_cores": {
+        "2520": 0.005,
+        "2522": 0.0217,
+        "1689662": 0.001,
+        "3559317": 0.001,
+        "3559749": 0.0008,
+        "3560132": 0.0006
+      },
+      "sample_interval_max": 1.002,
+      "sample_interval_median": 1.0
+    }
+  }
+]

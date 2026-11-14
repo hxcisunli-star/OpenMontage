@@ -1,0 +1,12 @@
+{
+  "time": 1791442111.3506818,
+  "agent_sha256": "d12471fdfe9f891d65e5fd3539a1b5217c66d36cbf45fbaa22fec729c449e822",
+  "unit_sha256": "bc23fd7e718c4dd52b34bc20248aa9c5cb7309ea44205ee1020dae2712f8371e",
+  "capacity": {
+    "max_concurrent_jobs": 1,
+    "max_total_workers": 65,
+    "recommended_workers_per_job": 65
+  },
+  "gpu_services_restarted": false,
+  "cpu_restart_performed_with_empty_queue": true
+}

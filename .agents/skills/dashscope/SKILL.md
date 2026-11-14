@@ -19,7 +19,9 @@ All three tools use `Authorization: Bearer $DASHSCOPE_API_KEY`.
 POST https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
 ```
 
-- Model: `qwen-image-2.0-pro` (default), `qwen-image-max`, `wan2.7-image`, `z-image-turbo`
+- Model: `qwen-image-2.0-pro` (default), `qwen-image-3.0-pro`, `qwen-image-max`, `wan2.7-image`, `z-image-turbo`
+- Dedicated gateway: set `DASHSCOPE_IMAGE_BASE_URL=https://<your-gateway>.aliyuncs.com` (scheme + host only, https, aliyuncs.com only) to route image requests there; same path and body. The tool rejects other hosts because the bearer key is sent to it.
+- Line art / strict prompts: set `prompt_extend: false` and put "no text" in `negative_prompt`; fix `seed` and reuse one prompt prefix for consistency. Output is an opaque image (no alpha) — key out the white background in post-processing.
 - Body: `{model, input: {messages: [{role: "user", content: [{text: "prompt"}]}]}, parameters: {size: "W*H", n, prompt_extend, watermark}}`
 - **Size format uses asterisk:** `"1024*1024"` not `"1024x1024"`
 - Response: `output.choices[0].message.content[0].image` (URL, valid ~24h) — must download separately

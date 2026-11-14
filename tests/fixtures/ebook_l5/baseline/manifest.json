@@ -1,0 +1,232 @@
+{
+  "ptable__P_cap.html": {
+    "id": "P_cap",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "ptable__P_name_a.html": {
+    "id": "P_name_a",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "ptable__P_name_b.html": {
+    "id": "P_name_b",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "ptable__P_near_a.html": {
+    "id": "P_near_a",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "ptable__P_near_b.html": {
+    "id": "P_near_b",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "ptable__P_stop.html": {
+    "id": "P_stop",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "ptable__P_stop_first.html": {
+    "id": "P_stop_first",
+    "kind": "ptable",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "rows__ROWS_cap_ds.html": {
+    "id": "ROWS_cap_ds",
+    "kind": "rows",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "rows__ROWS_cap_qw.html": {
+    "id": "ROWS_cap_qw",
+    "kind": "rows",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "rows__ROWS_name_ds.html": {
+    "id": "ROWS_name_ds",
+    "kind": "rows",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "rows__ROWS_hi_name_ds.html": {
+    "id": "ROWS_hi_name_ds",
+    "kind": "rows",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "rows__ROWS_hi_name_qw.html": {
+    "id": "ROWS_hi_name_qw",
+    "kind": "rows",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "quotes__Q_official.html": {
+    "id": "Q_official",
+    "kind": "quotes",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "excerpt__E_gibberish.html": {
+    "id": "E_gibberish",
+    "kind": "excerpt",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "lines__L_long.html": {
+    "id": "L_long",
+    "kind": "lines",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "finish__F_mt5.html": {
+    "id": "F_mt5",
+    "kind": "finish",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "finish__F_400.html": {
+    "id": "F_400",
+    "kind": "finish",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "finish__F_mt1.html": {
+    "id": "F_mt1",
+    "kind": "finish",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "sketch__S_sketch.html": {
+    "id": "S_sketch",
+    "kind": "sketch",
+    "source": "projects/agent-sampling-temp-cn/validation/ebook_records.json"
+  },
+  "answers__AN_fab.html": {
+    "id": "AN_fab",
+    "kind": "answers",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "cards__CD_roles.html": {
+    "id": "CD_roles",
+    "kind": "cards",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "cards__CD_state.html": {
+    "id": "CD_state",
+    "kind": "cards",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "grids__GR_name.html": {
+    "id": "GR_name",
+    "kind": "grids",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "grids__GR_neg.html": {
+    "id": "GR_neg",
+    "kind": "grids",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "grids__GR_pos.html": {
+    "id": "GR_pos",
+    "kind": "grids",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "grids__GR_role.html": {
+    "id": "GR_role",
+    "kind": "grids",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "probe__PB_resp.html": {
+    "id": "PB_resp",
+    "kind": "probe",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "stack__ST_cost.html": {
+    "id": "ST_cost",
+    "kind": "stack",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "stack__ST_full.html": {
+    "id": "ST_full",
+    "kind": "stack",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "stack__ST_none.html": {
+    "id": "ST_none",
+    "kind": "stack",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "stack__ST_removed.html": {
+    "id": "ST_removed",
+    "kind": "stack",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "stack__ST_swap.html": {
+    "id": "ST_swap",
+    "kind": "stack",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "tokenbars__TK_cost.html": {
+    "id": "TK_cost",
+    "kind": "tokenbars",
+    "source": "projects/agent-roles-history-cn/validation/ebook_records.json"
+  },
+  "usage__U_B1_nihao_off_ds.html": {
+    "id": "U_B1_nihao_off_ds",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_B0_min_a_ds.html": {
+    "id": "U_B0_min_a_ds",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_LZ_zh_1000_ds.html": {
+    "id": "U_LZ_zh_1000_ds",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_LE_en_1000_ds.html": {
+    "id": "U_LE_en_1000_ds",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_LC_code_1000_ds.html": {
+    "id": "U_LC_code_1000_ds",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_B1_nihao_off_qw.html": {
+    "id": "U_B1_nihao_off_qw",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_B0_min_a_qw.html": {
+    "id": "U_B0_min_a_qw",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_LZ_zh_1000_qw.html": {
+    "id": "U_LZ_zh_1000_qw",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_LE_en_1000_qw.html": {
+    "id": "U_LE_en_1000_qw",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "usage__U_LC_code_1000_qw.html": {
+    "id": "U_LC_code_1000_qw",
+    "kind": "usage",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "bars__W_langs.html": {
+    "id": "W_langs",
+    "kind": "bars",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "cuts__K_knife.html": {
+    "id": "K_knife",
+    "kind": "cuts",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  },
+  "docs__D_docs.html": {
+    "id": "D_docs",
+    "kind": "docs",
+    "source": "projects/agent-tokens-window-cn/validation/records.json"
+  }
+}

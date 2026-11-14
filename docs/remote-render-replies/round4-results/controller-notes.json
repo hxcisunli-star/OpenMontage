@@ -1,0 +1,8 @@
+[
+  {
+    "case": "tabs-w32-j1-t3",
+    "issue": "Auxiliary batch stdout formatter raised KeyError(full_video) after successful benchmark completion. A SHA-identical video correctly omits redundant full_video metrics.",
+    "impact": "Result and raw evidence intact; render succeeded and its jobs cleaned; next controller advanced from the completed result file.",
+    "fix": "Read optional full_video with get(); subsequent formatter uses only required fields. Reprinted saved result without rerendering."
+  }
+]
