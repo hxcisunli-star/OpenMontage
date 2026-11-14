@@ -33,7 +33,7 @@ import whiteboard_gate as G  # noqa: E402
 
 SCRATCH = Path(os.environ.get("WB_HELPER_SCRATCH", "/home/MyProject/_scratch"))
 AGY = "/home/MyProject/openhands-team/.runtime/antigravity-cli/agy"
-GEMINI_MODEL = "gemini-3.8-flash-high"
+GEMINI_MODEL = "gemini-4-hydrogen-high"  # 2026-11-12 user: use Gemini 4 Hydrogen instead of 3.8 Flash (trial: same audio accuracy, better on-screen text, ~3x faster)
 CODEX_MODEL, CODEX_EFFORT = "gpt-6.1-sol", "xhigh"
 CODEX_MACHINE_MAX = 6
 # 2026-11-09: overflow to the user's second server ("codexbox", its own official subscription account, so real extra quota).
