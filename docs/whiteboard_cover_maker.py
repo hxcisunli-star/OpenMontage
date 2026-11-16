@@ -80,6 +80,7 @@ LESSONS = [
     ("agent-streaming-cn", 7, "先看到第一个字", "要等多久？", "开了流式，哪个数变小了？"),
     ("agent-structured-output-cn", 8, "格式对了", "内容就对吗？", "附了模板，到手的表也要自己查"),
     ("agent-thinking-mode-cn", 9, "先想一想，再回答", "值不值？", "打开思考，多出来的是什么？"),
+    ("agent-multimodal-input-cn", 10, "给它看张图", "它读得对吗？", "一张图，会变成多少词元？"),
 ]
 
 
