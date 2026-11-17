@@ -1573,7 +1573,7 @@ class SiteChecker:
             dates = set(re.findall(r"\d{4}-\d{2}-\d{2}", date_match.group(1) if date_match else ""))
             # A chapter that uses the lesson-6 figure kinds says "录制日期" only for recorded data: a quote card's date is the day its page was fetched (build_site.py leaves it out of that sentence in such a chapter);
             # every older chapter keeps the old rule (all dates of the shown records), so their pages and this check do not change.
-            _l6 = any((self.record_data(rid) or {}).get("kind") in ("window", "turnbars", "classgrid") for rid in shows)
+            _l6 = any((self.record_data(rid) or {}).get("kind") in ("window", "turnbars", "classgrid") for rid in shows) or source.get("evidence_style") == "figure_scope"
             expected_dates = {str(self.record_data(rid).get("date")) for rid in shows if self.record_data(rid) and self.record_data(rid).get("date")
                               and not (_l6 and self.record_data(rid).get("kind") in ("quotes", "cards"))}
             if dates != expected_dates:

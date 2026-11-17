@@ -114,6 +114,16 @@ def test_cards_show_interface_archive_dates_gloss_and_ours():
         assert "每张卡只对名下的接口成立" in out
 
 
+def test_cards_fetch_note_replaces_the_two_date_wording_and_old_cards_are_unchanged():
+    # lesson 11: one fetch with two dates (archive list in local time, fetch in UTC) must not read like a second fetch; cards without the key render as before
+    card = {"who": "页", "iface": "接口", "quote": "原话", "archive": "A1", "archive_date": "2026-11-15", "recheck_date": "2026-11-16 UTC"}
+    data = {"R": {"kind": "cards", "title": "t", "date": "2026-11-16", "cards": [dict(card), dict(card, fetch_note="存档清单日期 2026-11-15，取页 2026-11-16 UTC")], "note": "n"}}
+    out = render("R", data)
+    sections = re.findall(r'<article class="l4-source-card">(.*?)</article>', out, re.S)
+    assert "重取原页核对" in sections[0] and "存档清单日期 2026-11-15，取页 2026-11-16 UTC" not in sections[0]
+    assert "存档清单日期 2026-11-15，取页 2026-11-16 UTC" in sections[1] and "重取原页核对" not in sections[1]
+
+
 def test_probe_repeats_status_for_each_call_and_states_scope():
     record = records()["PB_resp"]
     out = render("PB_resp")

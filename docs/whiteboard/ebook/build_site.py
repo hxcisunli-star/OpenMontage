@@ -332,7 +332,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
                          "这一章标“实测”的图，都是经模型网关调用的记录；官方引文取自存档页面（日期见各自的来源）。")
     else:
         rec_head = f"实测记录（{len(set(ctx.used_records))} 条）"
-    if any(kind in ("window", "turnbars", "classgrid") for kind in kinds):
+    if any(kind in ("window", "turnbars", "classgrid") for kind in kinds) or ch.get("evidence_style") == "figure_scope":      # a chapter may ask for the same wording without using those figure kinds (lesson 11; older chapters have no such key)
         # A window sketch explains positions; it need not invent measurements.
         # Keep the established drawer text byte-identical in all older chapters.
         n_qt = kinds.count("quotes") + kinds.count("cards")
@@ -340,7 +340,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
         evidence_lead = "这一章标“实测”的图，适用范围见各图图注；标“示意”的图只解释结构和位置；官方引文取自存档页面（日期见各自的来源）。"
     # The recording dates of the drawer sentence: in every older chapter all dates of the used records (unchanged, byte-identical pages); in a chapter with the lesson-6 figure kinds the date of a quote card
     # is the day the page was fetched, not a recording date, so it is left out of this list (the pre-release review of lesson 6 found the two being mixed up).
-    _l6 = any(kind in ("window", "turnbars", "classgrid") for kind in kinds)
+    _l6 = any(kind in ("window", "turnbars", "classgrid") for kind in kinds) or ch.get("evidence_style") == "figure_scope"
     record_dates = sorted({ctx.records[i]["date"] for i in ctx.used_records if ctx.records[i].get("date") and not (_l6 and ctx.records[i].get("kind") in ("quotes", "cards"))})
     if any("本机实验" in str(r.get("caption", "")) for r in used_records):      # lesson 5: some "实测" records are local experiments with a fake server, not calls through the gateway
         evidence_lead = evidence_lead.replace("都是经模型网关调用的记录", "有的是经模型网关（本章里叫“我们用的中转服务”）调用的记录，有的是在本机上做的小实验（不联网，图上标了“本机实验”）", 1)

@@ -19,6 +19,7 @@ New optional fields (layer / move / rot / origin / fill / path / camera, see Whi
   ERROR  code `lang` other than "c" / "py"; layer other than "top"; a `move` key without a numeric `at`; a `path` stroke without a `d` string; a fill or fillOpacity that is not a colour string / a number
          in 0..1; a camera key with scale < 1 (the board edge would show) or without a numeric `at`
   WARN   a `path` stroke with a fill but no `box` (the tools cannot place it); a camera centre outside the canvas
+  ERROR  a write or stroke with `dur` <= 0 (same render stop; lesson 11: the quiz ring segments had dur 0.0)
   ERROR  a `move` key with a field the composer does not read (it reads at, dx, dy, scale, sy, rot; anything else, e.g. `sx`, is silently ignored: lesson 3's knob was squashed that way)
   ERROR  two or more pictures of the same character (layer "top", same name before the first "_": robot_, teacher_) visible together (opacity > 0.2) for more than 1.0 s (WARN from 0.4 s):
          a pose swap is a dissolve, longer means two poses stand on top of each other (lesson 3: an old pose whose `until` ran to the end of the board, 25 s; back-test 2026-11-05: lesson 1
@@ -88,6 +89,8 @@ def check_new_fields(cid, it, where, errors, warns):
             errors.append(f"{where(it)}: a `move` key needs a numeric `at`: {k!r}")
         elif set(k) - MOVE_FIELDS:
             errors.append(f"{where(it)}: a `move` key has fields the composer does not read: {sorted(set(k) - MOVE_FIELDS)} (it reads only {sorted(MOVE_FIELDS)}; e.g. use `scale`, not `sx`)")
+    if kind in ("write", "stroke") and isinstance(it.get("dur"), (int, float)) and it["dur"] <= 0:
+        errors.append(f"{where(it)}: `dur` must be > 0 (the composer interpolates over [at, at+dur]; zero stops the render with 'inputRange must be strictly monotonically increasing'; use 0.04 for an instant draw)")
     if kind == "stroke":
         if it.get("shape") == "path":
             if not isinstance(it.get("d"), str) or not it.get("d").strip():

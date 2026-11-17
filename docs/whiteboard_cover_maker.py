@@ -81,6 +81,7 @@ LESSONS = [
     ("agent-structured-output-cn", 8, "格式对了", "内容就对吗？", "附了模板，到手的表也要自己查"),
     ("agent-thinking-mode-cn", 9, "先想一想，再回答", "值不值？", "打开思考，多出来的是什么？"),
     ("agent-multimodal-input-cn", 10, "给它看张图", "它读得对吗？", "一张图，会变成多少词元？"),
+    ("agent-cost-latency-cn", 11, "一次调用", "花多少钱、等多久？", "命中了才写，没写不当零"),
 ]
 
 

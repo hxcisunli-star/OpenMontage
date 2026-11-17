@@ -436,7 +436,9 @@ def cards(r):
         ours = ""
         if card.get("ours"):
             ours = f'<p class="l4-ours">我们的说明（不是页面原话）：{esc(card["ours"])}</p>'
-        if card.get("recheck_date"):
+        if card.get("fetch_note"):      # one fetch, two dates (the archive list in local time, the fetch in UTC): say so instead of implying a second fetch (lesson 11; older cards have no such key)
+            archive_line = f'存档 {esc(card.get("archive", ""))}（{esc(card["fetch_note"])}）'
+        elif card.get("recheck_date"):
             archive_line = f'存档 {esc(card.get("archive", ""))}（{esc(card.get("archive_date", ""))} 存档，{esc(card["recheck_date"])} 重取原页核对）'
         else:
             archive_line = f'存档 {esc(card.get("archive", ""))} · 取页 {esc(r.get("date", ""))}'

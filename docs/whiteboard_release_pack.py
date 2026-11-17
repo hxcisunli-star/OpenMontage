@@ -102,4 +102,11 @@ def main(series="c"):
 
 
 if __name__ == "__main__":
+    # -h/--help must never start a rebuild (registry E202: --help used to rebuild the whole C-series pack); unknown options are refused
+    if any(a in ("-h", "--help") for a in sys.argv[1:]):
+        print(__doc__)
+        sys.exit(0)
+    _bad = [a for a in sys.argv[1:] if a.startswith("-") and a != "--series"]
+    if _bad:
+        sys.exit(f"unknown option(s) {_bad}; usage: docs/whiteboard_release_pack.py [--series c|agent]")
     main(sys.argv[sys.argv.index("--series") + 1] if "--series" in sys.argv else "c")
