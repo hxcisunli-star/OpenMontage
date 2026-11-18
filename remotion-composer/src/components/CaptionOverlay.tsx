@@ -155,6 +155,9 @@ export const CaptionOverlay: React.FC<CaptionOverlayProps> = ({
   return (
     <AbsoluteFill>
       {pages.map((page, i) => {
+        // 静默页：全是空字的一页什么都不画（第 13 课：预测题后的 3 秒思考静默里不显示字幕；它仍占一页，所以上一页在它开始时结束）。
+        // 有字的页不受影响，旧课的输出逐字节不变。
+        if (page.words.every((w) => w.word.trim() === "")) return null;
         const fromFrame = Math.round((page.startMs / 1000) * fps);
         const nextStart = pages[i + 1]?.startMs ?? page.endMs + 500;
         const duration = Math.max(
