@@ -6,7 +6,7 @@
 | 文件（仓库相对路径） | 负责 |
 |---|---|
 | `docs/whiteboard/ebook/fetch_vendor.py`、`docs/whiteboard/ebook/serve.mjs`、`tests/tools/test_ebook_server.py`、`tests/tools/test_fetch_vendor.py`、`projects/_ebook/vendor/**` | T1 |
-| `docs/whiteboard/ebook/labs.py`（新）、`docs/whiteboard/ebook/blocks.py`、`docs/whiteboard/ebook/build_site.py`、`docs/whiteboard/ebook/book.css`（只在末尾追加练习样式）、`docs/whiteboard/ebook/set_labs.py`（新）、`docs/whiteboard/ebook/LAB-AUTHORING.md`（新）、`projects/agent-what-is-llm-cn/code/assemble_chapter.py`、`projects/agent-what-is-llm-cn/code/lab_section.json`（新）、`tests/tools/test_lab_build.py`、`tests/tools/test_set_labs.py` | T2 |
+| `docs/whiteboard/ebook/labs.py`（新）、`docs/whiteboard/ebook/blocks.py`、`docs/whiteboard/ebook/build_site.py`、`docs/whiteboard/ebook/book.css`（当时只在末尾追加练习样式；2026-11-18 重构后样式表是一层，练习样式在“页内代码练习”一节，规则见 `STYLE.md`）、`docs/whiteboard/ebook/set_labs.py`（新）、`docs/whiteboard/ebook/LAB-AUTHORING.md`（新）、`projects/agent-what-is-llm-cn/code/assemble_chapter.py`、`projects/agent-what-is-llm-cn/code/lab_section.json`（新）、`tests/tools/test_lab_build.py`、`tests/tools/test_set_labs.py` | T2 |
 | `docs/whiteboard/ebook/lab-runner.py`、`docs/whiteboard/ebook/lab-worker.js`、`docs/whiteboard/ebook/lab-guard.js`、`tests/labs/test_lab_runner.py`、`tests/labs/test_lab_guard.mjs` | T3 |
 | `docs/whiteboard/ebook/lab-core.js`、`docs/whiteboard/ebook/lab.js`、`tests/labs/test_lab_core.mjs` | T4 |
 | `docs/whiteboard/ebook/check_site.py`、`tests/tools/test_ebook_site_check.py`、`docs/whiteboard/ebook/mutate_real_site.py`（2026-11-06 从 `projects/_ebook/site_check/` 移进版本库） | T5 |

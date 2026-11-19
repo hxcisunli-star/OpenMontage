@@ -3,7 +3,7 @@
   'use strict';
   var ROOT = document.body.getAttribute('data-root') || '';
   var video = document.getElementById('lesson-video');
-  var narrow = window.matchMedia ? window.matchMedia('(max-width: 1019px)') : { matches: true };
+  var narrow = window.matchMedia ? window.matchMedia('(max-width: 1079px)') : { matches: true };
   var KEY = 'chai-chai-zhuang-zhuang';
 
   function store(k, v) { try { if (v === undefined) return localStorage.getItem(KEY + '.' + k); localStorage.setItem(KEY + '.' + k, v); } catch (e) { return null; } }
@@ -28,6 +28,55 @@
       btns.forEach(function (b, i) { b.classList.toggle('active', i === cur); });
     });
   }
+
+  /* 小窗视频（2026-11-18 起）：宽屏上视频在页头；页头滚出屏幕后，视频本身改成固定定位，停在右栏顶上预留的空位里。
+     只切换类名、改坐标，不移动视频元素，所以播放不会中断；窄屏、没有脚本时都留在原处。 */
+  var player = document.getElementById('player'), slot = document.querySelector('.pip-slot'), side = document.querySelector('.side');
+  var wide = window.matchMedia ? window.matchMedia('(min-width: 1080px)') : { matches: false };
+  if (player && slot && side && video && 'IntersectionObserver' in window) {
+    var pipOn = false, heroVisible = true, raf = 0;
+    var place = function () {
+      raf = 0; decide(); if (!pipOn) return;
+      var r = slot.getBoundingClientRect();
+      video.style.left = r.left + 'px'; video.style.width = r.width + 'px'; video.style.top = Math.max(r.top, 12) + 'px';
+    };
+    var setPip = function (on) {
+      if (on === pipOn) return; pipOn = on;
+      player.classList.toggle('pip', on); side.classList.toggle('pip-on', on);
+      if (!on) { video.style.left = video.style.width = video.style.top = ''; } else place();
+    };
+    var decide = function () { setPip(wide.matches && !heroVisible && player.getBoundingClientRect().bottom < 0); };
+    new IntersectionObserver(function (es) { heroVisible = es[es.length - 1].isIntersecting; decide(); }).observe(player);
+    window.addEventListener('scroll', function () { if (!raf) raf = requestAnimationFrame(place); }, { passive: true });      // a long jump (a link, Home key) may cross the header between two observer callbacks
+    window.addEventListener('resize', function () { decide(); place(); });
+    if (wide.addEventListener) wide.addEventListener('change', decide);
+  }
+
+  /* 本章目录跟着正文高亮当前小节；手机上目录默认收起 */
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.toc-side a[href^="#"]'));
+  if (tocLinks.length && 'IntersectionObserver' in window) {
+    var byId = {}; tocLinks.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+    var seen = {};
+    var mark = function () {
+      var cur = null;
+      tocLinks.forEach(function (a) { var id = a.getAttribute('href').slice(1); if (seen[id]) cur = cur || a; });
+      tocLinks.forEach(function (a) { if (a === cur) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+    };
+    var io = null;
+    var watch = function () {      // the reading band is 15%–30% of the window height, in pixels (percent margins of an observer are not resolved the same way everywhere)
+      if (io) io.disconnect(); seen = {};
+      var h = window.innerHeight;
+      io = new IntersectionObserver(function (es) { es.forEach(function (e) { seen[e.target.id] = e.isIntersecting; }); mark(); }, { rootMargin: '-' + Math.round(h * 0.15) + 'px 0px -' + Math.round(h * 0.70) + 'px 0px' });
+      Object.keys(byId).forEach(function (id) { var el = document.getElementById(id); if (el) io.observe(el); });
+    };
+    watch();
+    var lastH = window.innerHeight;
+    window.addEventListener('resize', function () { if (Math.abs(window.innerHeight - lastH) > 40) { lastH = window.innerHeight; watch(); } });
+  }
+  /* 手机上本章目录默认收起；窗口变宽到两栏时重新展开（宽屏上目录标题不可点） */
+  var folds = Array.prototype.slice.call(document.querySelectorAll('details.toc-fold'));
+  if (narrow.matches) folds.forEach(function (d) { d.removeAttribute('open'); });
+  if (narrow.addEventListener) narrow.addEventListener('change', function () { if (!narrow.matches) folds.forEach(function (d) { d.open = true; }); });
 
   /* 阅读进度；读到九成记“读过” */
   var main = document.querySelector('main[data-unit]');

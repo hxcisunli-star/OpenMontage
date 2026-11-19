@@ -134,6 +134,22 @@ def cover_asset(b):
     im.resize((900, 1200), Image.LANCZOS).save(dst, "JPEG", quality=86, optimize=True, progressive=True)
 
 
+def thumb_source(ch):
+    """the picture for a written chapter on the shelf and in its book's catalog: the lesson's 16:9 cover (exports/thumbnails/cover_1280x720.jpg), else the video poster"""
+    cover = ROOT / Path(ch["video"]["file"]).parents[1] / "thumbnails/cover_1280x720.jpg"
+    return cover if cover.is_file() else ROOT / ch["video"]["poster"]
+
+
+def thumb_asset(ch, uid):
+    """site/assets/thumbs/<unit>.jpg, 640x360: small enough that the shelf can show every written chapter"""
+    im = Image.open(thumb_source(ch)).convert("RGB")
+    w, h = im.size
+    if w * 9 != h * 16:      # centre crop to 16:9
+        nw, nh = (w, round(w * 9 / 16)) if w * 9 < h * 16 else (round(h * 16 / 9), h)
+        im = im.crop(((w - nw) // 2, (h - nh) // 2, (w - nw) // 2 + nw, (h - nh) // 2 + nh))
+    im.resize((640, 360), Image.LANCZOS).save(SITE / "assets/thumbs" / f"{uid}.jpg", "JPEG", quality=84, optimize=True, progressive=True)
+
+
 def book_object(b, series, up, mini=False):
     """the picture of one book: cover (illustration, plate with the real-text title), spine, page edge. `up` is the path back to the site root."""
     plate = ""
@@ -147,6 +163,7 @@ def book_object(b, series, up, mini=False):
 
 def shelf_html(meta, books, units, chapters):
     cards = []
+    book_n = {b["id"]: b["n"] for b in books["books"]}
     for b in books["books"]:
         n = len(b["units"])
         written = sum(1 for u in b["units"] if u in chapters)
@@ -157,20 +174,35 @@ def shelf_html(meta, books, units, chapters):
             f'<a class="book-card" href="books/{esc(b["id"])}/index.html" style="--bk:{BOOK_HUES[b["n"] - 1]}" data-units="{esc(ids)}">'
             f'<div class="book-wrap">{book_object(b, meta["name"], "")}</div>'
             f'<div class="info"><p class="bk-b">{esc(b["blurb"])}</p><div class="bk-s">{esc(stages)}</div>'
-            # 2026-11 polish: a count of 0 is not shown (seven of the eight books would read "0 章有正文 0 章有视频"); a book with nothing written yet says so once
+            # a count of 0 is not shown (seven of the eight books would read "0 章有正文 0 章有视频"); a book with nothing written yet says so once
             f'<div class="bk-c"><span><b>{n}</b> 章</span>'
             + (f'<span class="live"><b>{written}</b> 章有正文</span>' if written else '<span class="soon">正文制作中</span>')
             + (f'<span><b>{vids}</b> 章有视频</span>' if vids else "")
             + '<span class="rd"><b class="rd-n">0</b> 章读过</span></div></div></a>')
     total = sum(len(b["units"]) for b in books["books"])
-    written = len(chapters)
-    body = f"""<div class="page narrow home">
+    written_ids = [uid for b in books["books"] for uid in b["units"] if uid in chapters]
+
+    def now_item(uid, lead=False):      # 2026-11-18 redesign: what a reader can open today comes first; the newest chapter is the big one
+        u, ch = units[uid], chapters[uid]
+        img = ""
+        if ch.get("video"):
+            img = (f'<span class="thumb"><img src="assets/thumbs/{esc(uid)}.jpg" alt="第 {u["no"]} 章的视频封面" width="640" height="360"{"" if lead else " loading=\"lazy\""}>'
+                   f'<span class="dur">{mmss(ch["video"]["duration"])}</span></span>')
+        return (f'<li><a class="now-item{" lead" if lead else ""}" href="books/{esc(u["book"])}/{esc(uid)}.html">{img}<span class="now-t">'
+                f'<span class="now-n">第 {book_n[u["book"]]} 册 · 第 {u["no"]} 章</span><b>{esc(ch["lesson_title"])}</b><span class="now-u">{esc(u["title"])}</span></span></a></li>')
+    now = ""
+    if written_ids:
+        now = ('<section class="now" aria-labelledby="now-h"><h2 class="shelf-h" id="now-h">现在能读</h2>'
+               f'<ol class="now-lead-list">{now_item(written_ids[-1], lead=True)}</ol>'
+               + (f'<ol class="now-list">{"".join(now_item(x) for x in reversed(written_ids[:-1]))}</ol>' if len(written_ids) > 1 else "") + "</section>")
+    body = f"""<div class="page home">
 {topbar(0, [("书架", None)])}
-<header class="top"><div class="titles"><div class="eyebrow">{esc(meta['subtitle'])}</div><h1{lat(meta['name'])}>{esc(meta['name'])}</h1><p class="muted">{esc(meta['tagline'])}</p></div>
+<header class="top"><div class="titles"><div class="eyebrow">{esc(meta['subtitle'])}</div><h1{lat(meta['name'])}>{esc(meta['name'])}</h1><p class="muted">{esc(meta['tagline'])}</p>
+<p class="progress-line">全部 {total} 章，已写完 {len(chapters)} 章，其余章节显示大纲目标和人话版提要</p></div>
 <div class="cast"><img src="assets/img/teacher.png" alt="老师"><img src="assets/img/robot.png" alt="AI 小搭档"></div></header>
-<div class="callout info"><b>这是制作中的版本</b><p>全部 {total} 个单元的目录都在，但目前只有 {written} 章写完了完整正文；其余章节显示大纲目标和人话版提要，页面上会写明“正文制作中”。</p></div>
-<h2 class="shelf-h">书架上的 8 册</h2>
-<div class="shelf">{''.join(cards)}</div>
+{now}
+<section class="books" aria-labelledby="books-h"><h2 class="shelf-h" id="books-h">书架上的 8 册</h2>
+<div class="shelf">{''.join(cards)}</div></section>
 <footer class="foot muted small">旁白为 AI 合成语音；画面里的插画、角色姿势和书封插画为 AI 生成。字体 ZCOOL KuaiLe 采用 SIL Open Font License 1.1，见 assets/fonts/FONT-LICENSE.txt。</footer>
 </div>"""
     return page(meta["name"], 0, body, "home")
@@ -189,12 +221,13 @@ def book_html(b, books, units, chapters, stages):
             last_stage = u["stage"]
         ch = chapters.get(uid)
         sub = ch["lesson_title"] if ch else u["plain"].get("plain_title", "")
-        rows.append(f'<li data-unit="{esc(uid)}"><a href="{esc(uid)}.html"><span class="no">{u["no"]}</span><span class="tt"><b>{esc(u["title"])}</b>'
+        thumb = (f'<img class="thumb" src="../../assets/thumbs/{esc(uid)}.jpg" alt="第 {u["no"]} 章的视频封面" width="640" height="360" loading="lazy">' if ch and ch.get("video") else "")
+        rows.append(f'<li data-unit="{esc(uid)}"{" class=\"written\"" if ch else ""}><a href="{esc(uid)}.html"><span class="no">{u["no"]}</span>{thumb}<span class="tt"><b>{esc(u["title"])}</b>'
                     + (f'<span class="sub">{esc(sub)}</span>' if sub else "") + f'</span><span class="chips">{status_chips(u, ch)}<span class="rd-mark" aria-hidden="true"></span></span></a></li>')
     rows.append("</ol></section>")
     n = len(b["units"])
     written = sum(1 for x in b["units"] if x in chapters)
-    body = f"""<div class="page narrow" style="--bk:{BOOK_HUES[b['n'] - 1]}">
+    body = f"""<div class="page narrow catalog" style="--bk:{BOOK_HUES[b['n'] - 1]}">
 {topbar(2, [("书架", "../../index.html"), (f"第 {b['n']} 册 {b['title']}", None)])}
 <header class="top"><div class="titles"><div class="eyebrow">第 {b['n']} 册 · 共 {n} 章，{written} 章有正文</div><h1{lat(b['title'])}>{esc(b['title'])}</h1><p class="muted">{esc(b['blurb'])}</p></div>{book_object(b, books['series']['name'], '../../', mini=True)}</header>
 <div class="legend muted small"><span class="chip-path core">核心</span> 主线必学　<span class="chip-path fast">加速</span> 想快的人走　<span class="chip-path opt">选修</span> 按需　<span class="chip-path adv">进阶</span> 中级工程能力</div>
@@ -242,7 +275,7 @@ def prereq_html(u, units):
 def placeholder_html(u, b, books, units, chapters, stages):
     p = u["plain"]
     terms = "".join(f'<li><b>{esc(t["term"])}</b>：{esc(t["plain"])}</li>' for t in p.get("terms", []))
-    body = f"""<div class="page narrow" style="--bk:{BOOK_HUES[b['n'] - 1]}">
+    body = f"""<div class="page narrow stub" style="--bk:{BOOK_HUES[b['n'] - 1]}">
 {topbar(2, [("书架", "../../index.html"), (f"第 {b['n']} 册 {b['title']}", "index.html"), (f"第 {u['no']} 章", None)])}
 <header class="top"><div class="titles"><div class="eyebrow">第 {b['n']} 册 · 第 {u['no']} 章 · {esc(u['id'])} · {esc(u['stage_title'])}</div><h1{lat(u['title'])}>{esc(u['title'])}</h1><p class="muted">{esc(p.get('plain_title', ''))}</p><div class="chips">{status_chips(u, None)}</div></div></header>
 <div class="callout warn"><b>这一章的正文还在制作中</b><p>下面是大纲里这个单元的目标和一份人话版提要，让你知道它讲什么、该在什么时候学。完整的正文会按“大纲要点逐条写透＋真实实测＋来源核对＋动手做＋自测”来写，写完才会换掉这一页。</p></div>
@@ -264,6 +297,23 @@ def exercises_html(ex):
     return ('<section id="exercises" class="exsec"><header class="sec-head"><span class="no">★</span><h2>课后练习</h2></header>'
             f'<div class="intro">{"".join(f"<p>{esc(l)}</p>" for l in ex["intro"])}</div>{"".join(arts)}'
             f'<div class="record"><h3>{esc(ex["record"][0])}</h3>{"".join(f"<p>{esc(l)}</p>" for l in ex["record"][1:])}</div></section>')
+
+
+GROUPED = {"fact": "facts", "term": "terms"}
+
+
+def grouped_blocks(blocks, ctx):
+    """render a section's blocks; two or more source cards (or term cards) in a row are wrapped in one group, so they read as one list instead of a wall of cards (2026-11-18 redesign)"""
+    out, i = [], 0
+    while i < len(blocks):
+        t = blocks[i].get("t")
+        j = i
+        while t in GROUPED and j + 1 < len(blocks) and blocks[j + 1].get("t") == t:
+            j += 1
+        html = "".join(render_block(blk, ctx) for blk in blocks[i:j + 1])
+        out.append(f'<div class="{GROUPED[t]}">{html}</div>' if j > i else html)
+        i = j + 1
+    return "".join(out)
 
 
 def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
@@ -289,7 +339,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
             strip = '<div class="frames">' + "".join(
                 f'<figure class="frame-fig"><a class="frame" data-seek="{f["seek"]}" href="#lesson-video"><img src="{esc(site_media[f["src"]])}" alt="{esc(f["alt"])}"><span class="at">▶ {mmss(f["seek"])}</span></a>'
                 f'<figcaption>视频里这一刻，{esc(f.get("who", "老师"))}说：<q class="narr">{esc(f["narr"])}</q></figcaption></figure>' for f in fr) + "</div>"
-        blocks = "".join(render_block(blk, ctx) for blk in s["blocks"])
+        blocks = grouped_blocks(s["blocks"], ctx)
         secs.append(f'<section class="sec" id="sec-{esc(s["id"])}"><header class="sec-head"><span class="no">{no}</span><h2{lat(s["title"])}>{esc(s["title"])}</h2>{watch}</header>{strip}{blocks}</section>')
         toc.append(f'<li><a href="#sec-{esc(s["id"])}">{esc(s["title"])}</a></li>')
     toc.append('<li><a href="#exercises">课后练习</a></li>')
@@ -350,14 +400,18 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
                 + (f"<p>{esc(ch['evidence_extra'])}</p>" if ch.get("evidence_extra") else "") +
                 f'<h4>来源说（{len(used_claims)} 条）</h4><ul>{src_rows}</ul></details>')
     side = ""
+    cast_html = '<div class="cast"><img src="../../assets/img/teacher.png" alt="老师，手里拿着白板笔"><img src="../../assets/img/robot.png" alt="AI 小搭档，一个会聊天的机器人，在挥手"></div>'
     if vid:
         chap_btns = "".join(f'<button class="seek" type="button" data-seek="{c["start"]}" data-t="{mmss(c["start"])}">{esc(c["title"])}</button>' for c in vid["chapters"])
-        side = (f'<aside class="side" aria-label="视频与本章目录"><video id="lesson-video" controls preload="metadata" playsinline poster="{esc(site_media[vid["poster"]])}" data-duration="{vid["duration"]:.2f}">'
-                f'<source src="{esc(site_media[vid["file"]])}" type="video/mp4"><p>你的浏览器不能播放这个视频。</p></video>'
-                f'<nav class="chapters" aria-label="视频章节"><h2>视频章节</h2>{chap_btns}</nav><p class="muted small">点正文里的小图或“▶ 看视频这一段”，视频会跳到那一刻。</p>'
-                f'<nav class="toc-side" aria-label="本章目录"><h2>本章目录</h2><ol>{"".join(toc)}</ol></nav></aside>')
+        media_html = (f'<div class="player" id="player"><video id="lesson-video" controls preload="metadata" playsinline poster="{esc(site_media[vid["poster"]])}" data-duration="{vid["duration"]:.2f}">'
+                      f'<source src="{esc(site_media[vid["file"]])}" type="video/mp4"><p>你的浏览器不能播放这个视频。</p></video></div>'
+                      '<p class="muted small player-note">点正文里的小图或“▶ 看视频这一段”，视频会跳到那一刻。</p>')
+        side = (f'<aside class="side" aria-label="视频与本章目录"><div class="pip-slot" aria-hidden="true"></div><div class="side-scroll">'      # the slot never scrolls with the column (a short window), so the small video cannot cover the list
+                f'<nav class="chapters" aria-label="视频章节"><h2>视频章节</h2><div class="seeks">{chap_btns}</div></nav>'
+                f'<nav class="toc-side" aria-label="本章目录"><details class="toc-fold" open><summary><h2>本章目录</h2></summary><ol>{"".join(toc)}</ol></details></nav></div></aside>')
     else:
-        side = f'<aside class="side" aria-label="本章目录"><nav class="toc-side"><h2>本章目录</h2><ol>{"".join(toc)}</ol></nav></aside>'
+        media_html = cast_html
+        side = f'<aside class="side" aria-label="本章目录"><div class="side-scroll"><nav class="toc-side"><details class="toc-fold" open><summary><h2>本章目录</h2></summary><ol>{"".join(toc)}</ol></details></nav></div></aside>'
     take = "".join(f"<li>{esc(x)}</li>" for x in ch["takeaway"])
     exercises = exercises_html(ch["exercises"])
     closing = ch.get("closing", "")
@@ -369,21 +423,24 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     if ch.get("downloads"):
         downloads = ('<section class="blk" id="downloads"><h2>下载</h2><ul>' + "".join(f'<li><a href="../../downloads/{esc(Path(d["file"]).name)}" download>{esc(Path(d["file"]).name)}</a>　<span class="muted">{esc(d["what"])}</span></li>' for d in ch["downloads"]) + "</ul></section>")
     meta_line = f'对应岗位大纲 {esc(u["id"])}' + (f' · 视频 {mmss(vid["duration"])}（含 2 秒片头）· 视频自带字幕' if vid else "") + (f' · 时效：{esc(ch["timeliness"])}' if ch.get("timeliness") else "")
-    body = f"""<div class="page" id="root" style="--bk:{BOOK_HUES[b['n'] - 1]}">
+    lesson_cls = "lesson-title" + (" latin" if re.search(r"[A-Za-z0-9]", ch["lesson_title"]) else "")
+    appendix = "".join(x for x in (cov, readings, glossary, evidence) if x)
+    # 2026-11-18 redesign: the lesson's question is the big title and the video sits beside it; the outline line, the status chips and the prerequisites fold into "关于这一章";
+    # the four end drawers sit together under "附录". Every reviewed sentence stays word for word; only where it sits changed.
+    body = f"""<div class="page chapter" id="root" style="--bk:{BOOK_HUES[b['n'] - 1]}">
 {topbar(2, [("书架", "../../index.html"), (f"第 {b['n']} 册 {b['title']}", "index.html"), (f"第 {u['no']} 章", None)])}
-<header class="top">
+<header class="hero">
   <div class="titles">
     <div class="eyebrow">第 {b['n']} 册 · 第 {u['no']} 章 · {esc(u['stage_title'])}</div>
+    <p class="{lesson_cls}">{esc(ch['lesson_title'])}</p>
     <h1{lat(u['title'])}>{esc(u['title'])}</h1>
-    <p class="lesson-title">{esc(ch['lesson_title'])}</p>
-    <p class="muted">{meta_line}</p>
-    <div class="chips">{status_chips(u, ch)}</div>
     <div class="basic"><div class="k">基本问题</div>{esc(ch['basic_question'])}</div>
-    <div class="pre-row"><span class="muted small">先学：</span>{prereq_html(u, units)}</div>
+    <details class="about"><summary>关于这一章</summary><div class="about-body"><p class="muted">{meta_line}</p><div class="chips">{status_chips(u, ch)}</div>
+    <div class="pre-row"><span class="muted small">先学：</span>{prereq_html(u, units)}</div></div></details>
   </div>
-  <div class="cast"><img src="../../assets/img/teacher.png" alt="老师，手里拿着白板笔"><img src="../../assets/img/robot.png" alt="AI 小搭档，一个会聊天的机器人，在挥手"></div>
+  <div class="hero-media">{media_html}</div>
 </header>
-<div class="takeaway"><h2>读完你会带走什么</h2><ul>{take}</ul></div>
+<div class="take-band"><div class="takeaway"><h2>读完你会带走什么</h2><ul>{take}</ul></div>{cast_html if vid else ""}</div>
 <div class="layout">
 {side}
 <main class="main" data-unit="{esc(u['id'])}">
@@ -391,10 +448,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
 {exercises}
 {downloads}
 {('<section class="closing"><h2>留给下一课的问题</h2><p>' + closing + '</p></section>') if closing else ''}
-{cov}
-{readings}
-{glossary}
-{evidence}
+{('<section class="appendix" id="appendix"><h2>附录</h2>' + appendix + '</section>') if appendix else ''}
 {pager(b, u['id'], units, chapters)}
 <footer class="foot muted small">旁白为 AI 合成语音；画面里的插画和角色姿势为 AI 生成；视频字幕时间为估计；音效来自 Pixabay（Pixabay Content License）。</footer>
 </main>
@@ -456,7 +510,7 @@ def main():
     lab_config(books)
     if SITE.exists():
         shutil.rmtree(SITE)
-    for d in ("assets/img", "assets/covers", "assets/fonts", "books", "media", "downloads"):
+    for d in ("assets/img", "assets/covers", "assets/thumbs", "assets/fonts", "books", "media", "downloads"):
         (SITE / d).mkdir(parents=True)
     shutil.copy2(HERE / "book.css", SITE / "assets/book.css")
     shutil.copy2(HERE / "book.js", SITE / "assets/book.js")
@@ -476,6 +530,9 @@ def main():
     meta = books["series"]
     urls = archive_urls()
     index = []
+    for uid, ch in chapters.items():
+        if ch.get("video"):
+            thumb_asset(ch, uid)
     (SITE / "index.html").write_text(shelf_html(meta, books, units, chapters), encoding="utf-8")
     book_by_id = {b["id"]: b for b in books["books"]}
     for b in books["books"]:

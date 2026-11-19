@@ -601,7 +601,8 @@ def sequence(r):
     return (
         f'<div class="seq-figure"><div class="seq-lane-head"><h4 class="seq-lane seq-lane-0"><span>0</span>{esc(lanes[0])}</h4><h4 class="seq-lane seq-lane-1"><span>1</span>{esc(lanes[1])}</h4></div>'
         f'<ol class="seq-steps">{"".join(visual_steps)}</ol>'
-        f'<div class="seq-text"><h4>文字版（每步一句话）</h4><ol>{"".join(text_steps)}</ol></div>'
+        # the drawn rows are aria-hidden; the text version says every step in one sentence. Folded since 2026-11-18 (it repeats the drawing); a screen reader opens it like any disclosure
+        f'<details class="seq-text"><summary><h4>文字版（每步一句话）</h4></summary><ol>{"".join(text_steps)}</ol></details>'
         f'<p class="seq-note">{esc(r.get("note", ""))}</p></div>'
     )
 
