@@ -12,9 +12,10 @@ Writes (default into <lesson>/exports/):
     video/subtitles.srt     original SRT shifted by the cover length
     metadata/chapters.txt + metadata.json chapters shifted (first chapter stays 0:00)
 Idempotent: always rebuilt from renders/final.mp4, assets/subtitles.srt and metadata "chapters_original".
+Its scratch folder (a cover_* folder in the temp dir) is removed when it finishes, also when it fails.
 Needs exports/thumbnails/cover.png and cover_1280x720.jpg (docs/whiteboard_cover_maker.py).
 """
-import argparse, json, re, subprocess, sys, tempfile
+import argparse, json, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 
@@ -64,7 +65,13 @@ def main():
     (out / "video").mkdir(parents=True, exist_ok=True)
     (out / "metadata").mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp(prefix="cover_"))
+    try:
+        build(P, out, sting, s0, sd, s, final, cover_png, cover_jpg, tmp)
+    finally:   # 2026-11-20: this scratch folder (~88 MB: intro, a stream copy of final.mp4, check frames) used to stay in /tmp after every run
+        shutil.rmtree(tmp, ignore_errors=True)
 
+
+def build(P, out, sting, s0, sd, s, final, cover_png, cover_jpg, tmp):
     # 1. intro clip: same codec parameters as the Remotion final (h264 High, yuvj420p, 30 fps, aac 48 kHz stereo)
     run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(s0), "-i", str(cover_png),
          "-f", "lavfi", "-t", str(s0), "-i", "anullsrc=r=48000:cl=stereo",

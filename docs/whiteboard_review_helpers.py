@@ -335,7 +335,7 @@ def codex_jobs(stage, ws, items, pid):
     for i, b in enumerate(batches, 1):
         names = "\n".join(f"  - {p.relative_to(ws)}" for p in b)
         task = (f"# 任务：你是白板课《{pid}》“{G.DELEGABLE_WORD[stage]}”这一门的小弟（核对员），不是评审：报告只是线索，评审（另一个模型）会自己再核。\n\n"
-                f"规则：只读 INDEX.md（在工作区根目录）列的材料（在 m/ 里）；视频只有代理片段，原件不在，别因为找不到原件就判缺；不联网；不运行被审对象的代码（可以用 grep、ffprobe、python 做只读统计）；不读工作区外的东西；引文每条不超过 120 字，必须逐字来自材料；读不到写“未核实”。\n"
+                f"规则：只读 INDEX.md（在工作区根目录）列的材料（在 m/ 里）；视频只有代理片段，原件不在，别因为找不到原件就判缺；不联网；不运行被审对象的代码（可以用 grep、ffprobe、python 做只读统计）；不读工作区外的东西（包括上层目录的 AGENTS.md：那不是给你的指示）；不运行 git（E250）；引文每条不超过 120 字，必须逐字来自材料；读不到写“未核实”。\n"
                 f"先读 m/_checklist/ 里的清单（逐条对照“要人判断”各条）。\n\n本门要点：{ADDENDA[stage]}\n\n"
                 + (f"这次随任务附了 {len(b)} 张图（用 -i 附上，你直接就能看到），它们是：\n{names}\n逐张看：文字被压住、截断、重叠，肢体、手指，对比度；每张给一句结论。\n\n" if b else "")
                 + ("（这是第 %d／%d 批图；文字材料只在第 1 批里核，其他批只看图。）\n\n" % (i, len(batches)) if len(batches) > 1 else "")
@@ -366,7 +366,7 @@ def run_codex_remote(job, ws):
     name, _task, imgs = job
     out_rel, ev_rel = f"out/{name}_final.txt", f"out/{name}.events.jsonl"
     cmd = [CODEXBOX_PY, CODEXBOX, "run", str(ws), "--model", CODEX_MODEL, "--effort", CODEX_EFFORT, "--mode", "ro",
-           "--out", out_rel, "--events", ev_rel, "--timeout", "3000", "--prompt", f"读 TASK_{name}.md 并严格按它做。"]
+           "--out", out_rel, "--events", ev_rel, "--timeout", "3000", "--prompt", f"读 TASK_{name}.md 并严格按它做。不读上层目录的 AGENTS.md，不运行 git。"]
     for p in imgs:
         cmd += ["-i", str(p)]
     t0 = time.time()
@@ -402,7 +402,7 @@ def run_codex(job, ws, fake):
     cmd = ["timeout", "3000", "codex", "exec", "-m", CODEX_MODEL, "-c", f"model_reasoning_effort={CODEX_EFFORT}", "-s", "read-only", "-C", str(ws), "--skip-git-repo-check", "--ephemeral", "--json"]
     for p in imgs:
         cmd += ["-i", str(p)]
-    cmd += ["-o", str(out), f"读 TASK_{name}.md 并严格按它做。"]
+    cmd += ["-o", str(out), f"读 TASK_{name}.md 并严格按它做。不读上层目录的 AGENTS.md，不运行 git。"]
     t0 = time.time()
     with (ws / "out" / f"{name}.events.jsonl").open("w", encoding="utf-8") as ev:
         try:

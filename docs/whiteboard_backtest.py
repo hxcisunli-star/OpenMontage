@@ -1043,7 +1043,10 @@ def t_prepend_sting():
         raw = tmp / "raw.mp4"
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=1344x768:rate=24:duration=1.2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(raw)], check=True)
         H.fit(raw, tmp / "sting.mp4", 30)                                                  # 1.0 s
-        r = sh(PY, "docs/whiteboard_prepend_cover.py", P, "--sting", tmp / "sting.mp4")
+        tdir = tmp / "tmpdir"                                                              # the tool's own scratch folder lands here (TMPDIR)
+        tdir.mkdir()
+        env = dict(os.environ, TMPDIR=str(tdir))
+        r = sh(PY, "docs/whiteboard_prepend_cover.py", P, "--sting", tmp / "sting.mp4", env=env)
         out = P / "exports/video/output.mp4"
         dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)], capture_output=True, text=True).stdout) if out.exists() else 0
         meta = json.loads((P / "exports/metadata/metadata.json").read_text(encoding="utf-8")) if r.returncode == 0 else {}
@@ -1051,6 +1054,12 @@ def t_prepend_sting():
         check("prepend cover --sting: opening 1.0 s + still cover 2.0 s + lesson 4.0 s, subtitles and chapters shifted by 3.0 s, the tool's own verification passes",
               r.returncode == 0 and abs(dur - 7.0) < 0.15 and "00:00:04,000 --> 00:00:05,000" in srt and meta.get("cover_seconds") == 3.0 and meta.get("sting_seconds") == 1.0
               and [c["start_seconds"] for c in meta["chapters"]] == [0, 5.0], f"{dur:.2f} s {r.stdout[-100:]} {r.stderr[-200:]}")
+        left = sorted(p.name for p in tdir.iterdir())
+        check("prepend cover: a successful run removes its scratch folder (2026-11-20: 53 cover_* folders, 3.8 GB, had piled up in /tmp)", r.returncode == 0 and not left, str(left)[:120])
+        (P / "renders/final.mp4").write_bytes(b"not a video")
+        r2 = sh(PY, "docs/whiteboard_prepend_cover.py", P, env=env)
+        left = sorted(p.name for p in tdir.iterdir())
+        check("prepend cover: a failed run (unreadable final.mp4) exits non-zero and still removes its scratch folder", r2.returncode != 0 and not left, f"exit {r2.returncode} {left}"[:160])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
