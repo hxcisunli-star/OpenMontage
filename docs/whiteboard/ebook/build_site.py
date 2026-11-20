@@ -330,7 +330,11 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     for no, s in enumerate(ch["sections"], 1):
         fr = frames_by_sec.get(s["id"], [])
         watch = ""
-        if vid and s["id"] in first_seek:
+        if vid and s.get("watch_seek") is not None:      # optional section key (lesson 15; older chapters have none): the section's own start in the video, not its first frame (a frame is taken after the board is drawn, E193)
+            _ws = float(s["watch_seek"])
+            assert 0 <= _ws <= float(vid["duration"]), (s["id"], _ws)
+            watch = f'<a class="watch" data-seek="{_ws:g}" href="#lesson-video">▶ 看视频这一段（{mmss(_ws)} 起）</a>'
+        elif vid and s["id"] in first_seek:
             watch = f'<a class="watch" data-seek="{first_seek[s["id"]]}" href="#lesson-video">▶ 看视频这一段（{mmss(first_seek[s["id"]])} 起）</a>'
         elif s.get("only_book"):
             watch = f'<span class="only-book">{esc(s["only_book"])}</span>'
@@ -392,11 +396,14 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     # is the day the page was fetched, not a recording date, so it is left out of this list (the pre-release review of lesson 6 found the two being mixed up).
     _l6 = any(kind in ("window", "turnbars", "classgrid") for kind in kinds) or ch.get("evidence_style") == "figure_scope"
     record_dates = sorted({ctx.records[i]["date"] for i in ctx.used_records if ctx.records[i].get("date") and not (_l6 and ctx.records[i].get("kind") in ("quotes", "cards"))})
-    if any("本机实验" in str(r.get("caption", "")) for r in used_records):      # lesson 5: some "实测" records are local experiments with a fake server, not calls through the gateway
+    if ch.get("evidence_lead_text"):      # optional chapter key (lesson 15; older chapters have none): a chapter with no model calls replaces the drawer's opening sentence (its "实测" is not a gateway call)
+        evidence_lead = esc(str(ch["evidence_lead_text"]))
+    _tail = str(ch["evidence_tail_text"]) if ch.get("evidence_tail_text") else "模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。"      # optional chapter key (lesson 15)
+    if any("本机实验" in str(r.get("caption", "")) for r in used_records) and not ch.get("evidence_lead_text"):      # lesson 5: some "实测" records are local experiments with a fake server, not calls through the gateway
         evidence_lead = evidence_lead.replace("都是经模型网关调用的记录", "有的是经模型网关（本章里叫“我们用的中转服务”）调用的记录，有的是在本机上做的小实验（不联网，图上标了“本机实验”）", 1)
     evidence = ('<details id="evidence" class="evidence"><summary>证据抽屉：这一章的数字和说法从哪里来</summary>'
                 f'<h4>{rec_head}</h4><ul>{rec_rows}</ul>'
-                f"<p>{evidence_lead}录制日期是 {'、'.join(record_dates)}（{'每条实测记录上都标了' if _l6 else '每条记录上都标了'}）。模型名是网关标称名，无法独立验证；这是我们自己设计的小测试，不是评测；模型会更新，表现以录制那天为准。</p>"
+                f"<p>{evidence_lead}录制日期是 {'、'.join(record_dates)}（{'每条实测记录上都标了' if _l6 else '每条记录上都标了'}）。{esc(_tail) if ch.get("evidence_tail_text") else _tail}</p>"
                 + (f"<p>{esc(ch['evidence_extra'])}</p>" if ch.get("evidence_extra") else "") +
                 f'<h4>来源说（{len(used_claims)} 条）</h4><ul>{src_rows}</ul></details>')
     side = ""

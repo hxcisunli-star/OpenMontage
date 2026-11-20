@@ -467,3 +467,50 @@ def test_examples_are_reproducible_from_lesson_data_without_literal_measurements
     t['e2']['m1']['runs'] = None
     with pytest.raises(AssertionError, match='不能为空'):
         examples_from_tables(t)
+
+
+def _chapter_with(data, **keys):
+    """the real chapter renderer with optional chapter keys (lesson 15) and a video, so the section's watch link is drawn"""
+    u = dict(id='test-unit', no=1, title='图形测试', stage_title='测试')
+    b = dict(n=1, title='测试')
+    sec = dict(id='figures', title='图', blocks=[{'t': 'show', 'id': rid} for rid, r in data.items() if isinstance(r, dict) and r.get('kind')])
+    sec.update(keys.pop('section', {}))
+    ch = dict(sections=[sec], lesson_title='测试', basic_question='测试', takeaway=[],
+              exercises={'items': [], 'intro': [], 'record': ['测试']}, **keys)
+    with patch.multiple(build_site, topbar=lambda *a: '', status_chips=lambda *a: '',
+                        prereq_html=lambda *a: '', pager=lambda *a: ''):
+        return build_site.chapter_html(u, b, {}, {}, {u['id']: ch}, {},
+                                       dict(records=data, claims={}, urls={}), {})[0]
+
+
+def test_optional_drawer_sentences_replace_only_when_given_and_are_escaped():
+    data = records()
+    default = chapter(data)
+    assert '模型名是网关标称名' in default
+    lead, tail = '这一章没有发过模型请求；标“实测”的只有本机盘点<b>。', '模型会更新<i>，盘点只代表那一刻。'
+    out = _chapter_with(data, evidence_lead_text=lead, evidence_tail_text=tail)
+    p = parsed(out)
+    text = check_site.text_of(next(x for x in check_site.descendants(p.root, 'details') if x.attrs.get('id') == 'evidence'))
+    assert lead in text and tail in text and '模型名是网关标称名' not in text and '经模型网关调用' not in text
+    assert '本机盘点<b>' not in out and '本机盘点&lt;b&gt;' in out and '模型会更新<i>' not in out and '模型会更新&lt;i&gt;' in out
+    assert '录制日期是' in text
+
+
+def test_optional_watch_seek_uses_the_section_start_and_is_bounded():
+    data = records()
+    vid = {'file': 'v.mp4', 'poster': 'p.jpg', 'duration': 100.0, 'chapters': []}
+    for bad in (-1, 101):
+        with pytest.raises(AssertionError):
+            _chapter_with_video(data, vid, bad)
+    out = _chapter_with_video(data, vid, 12.5)
+    assert 'class="watch" data-seek="12.5"' in out and '看视频这一段（0:12 起）' in out
+
+
+def _chapter_with_video(data, vid, seek):
+    u = dict(id='test-unit', no=1, title='图形测试', stage_title='测试')
+    b = dict(n=1, title='测试')
+    ch = dict(sections=[dict(id='figures', title='图', watch_seek=seek, blocks=[])], lesson_title='测试', basic_question='测试', takeaway=[],
+              exercises={'items': [], 'intro': [], 'record': ['测试']}, video=vid, frames=[])
+    site_media = {'v.mp4': 'media/v.mp4', 'p.jpg': 'media/p.jpg'}
+    with patch.multiple(build_site, topbar=lambda *a: '', status_chips=lambda *a: '', prereq_html=lambda *a: '', pager=lambda *a: ''):
+        return build_site.chapter_html(u, b, {}, {}, {u['id']: ch}, {}, dict(records=data, claims={}, urls={}), site_media)[0]
