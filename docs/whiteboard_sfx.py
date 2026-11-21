@@ -109,8 +109,8 @@ def derive_cues(props, quiz=(), which="all"):
         if last is None or t - last >= CLUSTER_S:   # one whoosh per cluster of flights
             cues.append({"t": t - PRE_ROLL_S, "name": "whoosh-short", "why": "something flies"})
             last = t
-    for q in quiz:
-        cues.append({"t": float(q["answer_not_before"]) + 0.3, "name": "chime", "why": f"answer revealed ({q.get('section_id', '?')})"})
+    for q in quiz:   # answer_at (optional, from <project>/validation/sfx_answer_at.json): a question answered later than its silence (lesson 16: asked in s3, revealed in s4)
+        cues.append({"t": float(q.get("answer_at", q["answer_not_before"])) + 0.3, "name": "chime", "why": f"answer revealed ({q.get('section_id', '?')})"})
     cues = select_cues(cues, which)
     cues.sort(key=lambda c: c["t"])
     merged = []
@@ -195,7 +195,17 @@ def load_props(proj, props_name):
 
 def load_quiz(proj, timeline):
     p = Path(timeline) if timeline else Path(proj) / "assets/audio/narration_timeline.json"
-    return json.loads(p.read_text(encoding="utf-8")).get("quiz", []) if p.exists() else []
+    quiz = json.loads(p.read_text(encoding="utf-8")).get("quiz", []) if p.exists() else []
+    # optional per-lesson override of where the answer chime goes ({section_id: seconds}); the quiz-silence rule still uses question_end / answer_not_before.
+    # Absent file = the old behaviour (chime 0.3 s after answer_not_before) for every lesson.
+    over = Path(proj) / "validation/sfx_answer_at.json"
+    if over.exists():
+        at = json.loads(over.read_text(encoding="utf-8"))
+        quiz = [dict(q, answer_at=float(at[q["section_id"]])) if q.get("section_id") in at else q for q in quiz]
+        for q in quiz:
+            if "answer_at" in q:
+                assert q["answer_at"] >= float(q["answer_not_before"]), ("answer chime before the silence ends", q)
+    return quiz
 
 
 def lengths():

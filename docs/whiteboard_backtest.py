@@ -892,6 +892,38 @@ def t_sfx():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def t_sfx_answer_at():
+    """docs/whiteboard_sfx.py optional <project>/validation/sfx_answer_at.json (lesson 16): a question answered later than its silence gets its chime at the given time;
+    without the file every lesson behaves as before; the quiz-silence rule still uses question_end / answer_not_before; a time before the silence ends is refused."""
+    import whiteboard_sfx as S
+    note = lambda at, **kw: {"kind": "stroke", "shape": "path", "at": at, "dur": 0.4, "width": 0, "fill": "#E3CA9B", "shadow": True, "d": "M 0 0 Z", "box": [0, 0, 10, 10], **kw}
+    props = {"cuts": [{"id": "K1", "in_seconds": 0.0, "out_seconds": 60.0, "whiteboard": {"items": [note(13.0), note(16.0)]}}]}
+    quiz = [{"section_id": "s3", "question_end": 12.0, "answer_not_before": 15.0}, {"section_id": "s4", "question_end": 20.0, "answer_not_before": 23.0}]
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        (tmp / "assets/audio").mkdir(parents=True)
+        (tmp / "assets/audio/narration_timeline.json").write_text(json.dumps({"quiz": quiz}), encoding="utf-8")
+        chimes = lambda: [round(c["t"], 2) for c in S.derive_cues(props, S.load_quiz(tmp, None), "all") if c["name"] == "chime"]
+        before = chimes()
+        check("sfx answer_at: without validation/sfx_answer_at.json the chimes sit 0.3 s after answer_not_before, as before", before == [15.3, 23.3], str(before))
+        (tmp / "validation").mkdir()
+        (tmp / "validation/sfx_answer_at.json").write_text(json.dumps({"s3": 40.0, "_why": "test"}), encoding="utf-8")
+        q2 = S.load_quiz(tmp, None)
+        after = chimes()
+        check("sfx answer_at: with the file the s3 chime moves to 40.3 s and nothing sounds at the old 15.3 s; s4 is unchanged", after == [23.3, 40.3], str(after))
+        kept, dropped = S.apply_quiz_rule(S.derive_cues(props, q2, "all"), q2, S.lengths())
+        check("sfx answer_at: the quiz-silence rule still uses question_end / answer_not_before (a pop at 13 s inside the 12-15 s silence is dropped, one at 16 s is kept)",
+              [round(c["t"], 2) for c in dropped] == [13.05] and 16.05 in [round(c["t"], 2) for c in kept], f"{kept} {dropped}")
+        (tmp / "validation/sfx_answer_at.json").write_text(json.dumps({"s3": 14.0}), encoding="utf-8")
+        try:
+            S.load_quiz(tmp, None); refused = False
+        except AssertionError:
+            refused = True
+        check("sfx answer_at: a chime time before the silence ends (14 s < 15 s) is refused", refused)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def t_sfx_apply():
     """docs/whiteboard_sfx.py profiles (`light` = the answer chime + what a board names, `all`, `none`, a name list) and the lesson-facing `apply` / `apply --undo` on a temporary project."""
     import numpy as np
@@ -1521,7 +1553,7 @@ def t_release_pack_offline_site():
 
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_review_helpers_remote_overflow, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_sfx_answer_at, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_review_helpers_remote_overflow, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test
