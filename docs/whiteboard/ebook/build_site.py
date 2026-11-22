@@ -428,7 +428,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
                     "".join(f'<li><a class="src-link" href="{esc(r["url"])}" target="_blank" rel="noopener noreferrer">{esc(r["title"])}</a>　<span class="muted">{esc(r["by"])} · {esc(r["level"])} · {esc(r["note"])}</span></li>' for r in ch["readings"]) + "</ul></details>")
     downloads = ""
     if ch.get("downloads"):
-        downloads = ('<section class="blk" id="downloads"><h2>下载</h2><ul>' + "".join(f'<li><a href="../../downloads/{esc(Path(d["file"]).name)}" download>{esc(Path(d["file"]).name)}</a>　<span class="muted">{esc(d["what"])}</span></li>' for d in ch["downloads"]) + "</ul></section>")
+        downloads = ('<section class="blk" id="downloads"><h2>下载</h2><ul>' + "".join(f'<li><a href="../../downloads/{esc(u["id"])}/{esc(Path(d["file"]).name)}" download>{esc(Path(d["file"]).name)}</a>　<span class="muted">{esc(d["what"])}</span></li>' for d in ch["downloads"]) + "</ul></section>")
     meta_line = f'对应岗位大纲 {esc(u["id"])}' + (f' · 视频 {mmss(vid["duration"])}（含 2 秒片头）· 视频自带字幕' if vid else "") + (f' · 时效：{esc(ch["timeliness"])}' if ch.get("timeliness") else "")
     lesson_cls = "lesson-title" + (" latin" if re.search(r"[A-Za-z0-9]", ch["lesson_title"]) else "")
     appendix = "".join(x for x in (cov, readings, glossary, evidence) if x)
@@ -555,8 +555,11 @@ def main():
                 claims = {c["id"]: c for c in used["sourced"]}
                 media = copy_media(ch, uid, a.link_media)
                 html_text, ctx = chapter_html(u, b, books, units, chapters, stages, {"records": records, "claims": claims, "urls": urls}, media)
+                # each chapter's downloads live in their own folder downloads/<unit>/ (2026-11-21, lesson 17): with one flat folder, chapters that offer a file
+                # under the same name (exercises.txt, lab_section.json) overwrote each other and chapters 14 and 15 served lesson 16's files; check_site ch-extras compares bytes
                 for dl in ch.get("downloads", []):
-                    shutil.copy2(ROOT / dl["file"], SITE / "downloads" / Path(dl["file"]).name)
+                    (SITE / "downloads" / uid).mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(ROOT / dl["file"], SITE / "downloads" / uid / Path(dl["file"]).name)
                 text = plain_text(re.search(r'<main class="main".*?</main>', html_text, re.S).group(0))
             else:
                 html_text = placeholder_html(u, b, books, units, chapters, stages)

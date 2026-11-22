@@ -1623,6 +1623,27 @@ class SiteChecker:
                     target, error = self.relative_target(link.attrs.get("href", ""), page)
                     if error or not target or target.relative_to(self.site).parts[:1] != ("downloads",):
                         problems.append("%s download 目标不在 downloads/" % unit)
+                # 2026-11-21 (lesson 17): every chapter keeps its downloads in downloads/<unit>/, and what a reader downloads must be byte-identical to the file
+                # the chapter source names. With one flat folder, chapters offering the same file name overwrote each other (chapters 14 and 15 served lesson 16's
+                # exercises.txt and lab_section.json) and the link check above still passed because the files existed.
+                by_name = {}
+                for link in links:
+                    target, error = self.relative_target(link.attrs.get("href", ""), page)
+                    if target and not error:
+                        by_name.setdefault(target.name, []).append(target)
+                for item in downloads:
+                    name = pathlib.PurePosixPath(str(item.get("file", ""))).name
+                    hits = by_name.get(name, [])
+                    if len(hits) != 1:
+                        problems.append("%s 下载 %s 的链接有 %d 个（应为 1 个）" % (unit, name, len(hits))); continue
+                    target = hits[0]
+                    if target.relative_to(self.site).parts[:2] != ("downloads", unit):
+                        problems.append("%s 下载 %s 不在 downloads/%s/ 里" % (unit, name, unit)); continue
+                    source_file = self.repo / str(item.get("file", ""))
+                    if not source_file.is_file():
+                        problems.append("%s 下载 %s 的原件不存在" % (unit, name)); continue
+                    if not target.is_file() or target.read_bytes() != source_file.read_bytes():
+                        problems.append("%s 下载 %s 与原件不是同一份（字节不同）" % (unit, name))
         self.add("ch-extras", not problems, "通过" if not problems else "；".join(problems[:15]))
 
     def check_ch_nav(self):

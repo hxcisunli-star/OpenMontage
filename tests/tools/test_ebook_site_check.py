@@ -76,14 +76,16 @@ class SiteCheckerTests(unittest.TestCase):
         (repo / "projects/agent-what-is-llm-cn/exports/metadata/exercises.txt").write_text("练习一【测试】\n请回答一个问题。\n答案：\n这是答案。\n你的学习记录\n", encoding="utf-8")
 
         # Site files and generated media
-        for d in ("assets/fonts", "assets/img", "books/b1", "books/b2", "media/S2-U01/frames", "downloads"):
+        for d in ("assets/fonts", "assets/img", "books/b1", "books/b2", "media/S2-U01/frames", "downloads/S2-U01"):
             (site / d).mkdir(parents=True, exist_ok=True)
         (site / "robots.txt").write_text("User-agent: *\nDisallow: /\n", encoding="utf-8")
         (site / "assets/book.css").write_text("body{font-family:test}", encoding="utf-8")
         (site / "assets/book.js").write_text("window.OK=true;", encoding="utf-8")
         (site / "assets/fonts/FONT-LICENSE.txt").write_text("SIL Open Font License", encoding="utf-8")
         (site / "assets/fonts/test.ttf").write_bytes(b"\0font")
-        (site / "downloads/example.txt").write_text("download", encoding="utf-8")
+        (site / "downloads/S2-U01/example.txt").write_text("download", encoding="utf-8")      # each chapter's downloads live in downloads/<unit>/ (lesson 17)
+        (repo / "projects/x").mkdir(parents=True, exist_ok=True)
+        (repo / "projects/x/example.txt").write_text("download", encoding="utf-8")      # the chapter source's file: the download must be byte-identical to it
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=640x480:r=25", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "2", "-shortest", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(site / "media/S2-U01/lesson.mp4")], check=True)
         (repo / "projects/agent-what-is-llm-cn/exports/video").mkdir(parents=True, exist_ok=True)
         shutil.copy2(site / "media/S2-U01/lesson.mp4", repo / "projects/agent-what-is-llm-cn/exports/video/output.mp4")      # the lesson's original: the page must play exactly this file
@@ -117,7 +119,7 @@ class SiteCheckerTests(unittest.TestCase):
 <figure class="frame-fig"><a class="frame" data-seek="0.5" href="#lesson-video"><img src="../../media/S2-U01/frames/f01.jpg" alt="一张测试图"></a><figcaption><q class="narr">旁白中的一句话</q></figcaption></figure>
 <section class="sec" id="sec-one"><h2>第一节</h2><p>内容块</p></section>''' + shows + '''<aside class="fact" data-claim="U1"><span class="tag tag-source">来源说</span>这是来源事实。适用范围：仅用于测试。<a class="src-link" href="https://example.test/fact" target="_blank" rel="noopener">example.test/fact</a></aside>
 <div class="term"><b class="word">比喻</b><span class="tag tag-metaphor">比喻</span><p class="gap">这里是六个汉字说明</p></div><details class="think"><summary>想一想</summary>记录</details><section id="exercises"><article class="exercise" data-ex="1"><div class="q">请回答一个问题。</div><details class="answer"><summary>答案</summary>这是答案。</details></article></section>
-<details id="evidence">R1 R2 R3 R4 R5 R6 U1 录制日期是 2026-01-01</details><details id="coverage"><a href="#sec-one">p1</a></details><details id="readings"><a class="src-link" href="https://example.test/read" target="_blank" rel="noopener">example.test/read</a></details><div id="downloads"><a href="../../downloads/example.txt">下载</a></div></main>''' + nav("S2-U01", ["S2-U01"], "b2") + '</body></html>'
+<details id="evidence">R1 R2 R3 R4 R5 R6 U1 录制日期是 2026-01-01</details><details id="coverage"><a href="#sec-one">p1</a></details><details id="readings"><a class="src-link" href="https://example.test/read" target="_blank" rel="noopener">example.test/read</a></details><div id="downloads"><a href="../../downloads/S2-U01/example.txt">下载</a></div></main>''' + nav("S2-U01", ["S2-U01"], "b2") + '</body></html>'
         # The generated lab fixture exercises the complete page contract.
         lab_spec = {
             "id": "demo-lab", "title": "小练习", "goal": "输出一行文字。",
@@ -430,7 +432,12 @@ class SiteCheckerTests(unittest.TestCase):
             ("ch-exercises", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace('class="answer"', 'class="answer" open'), encoding="utf-8")),
             ("ch-evidence", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("R6 ", ""), encoding="utf-8")),
             ("ch-coverage", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace(">p1<", ">missing<"), encoding="utf-8")),
-            ("ch-extras", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("../../downloads/example.txt", "../../downloads/missing.txt"), encoding="utf-8")),
+            ("ch-extras", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("../../downloads/S2-U01/example.txt", "../../downloads/missing.txt"), encoding="utf-8")),
+            # lesson 17: another chapter's file under the same name (the flat folder let chapters 14 and 15 serve lesson 16's exercises.txt) - the link resolves, the bytes differ
+            ("ch-extras", lambda s, r: (s / "downloads/S2-U01/example.txt").write_text("another chapter's file", encoding="utf-8")),
+            # lesson 17: the old flat layout (downloads/example.txt) even with the right bytes
+            ("ch-extras", lambda s, r: ((s / "downloads/example.txt").write_text("download", encoding="utf-8"),
+                                        (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("../../downloads/S2-U01/example.txt", "../../downloads/example.txt"), encoding="utf-8"))),
             ("ch-nav", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("上一章：没有了", "上一章：错误"), encoding="utf-8")),
         ]
         for rule, mutate in cases:

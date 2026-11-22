@@ -29,7 +29,7 @@ assets/book.css, book.js, search-index.js, fonts/（.ttf 和 FONT-LICENSE.txt）
 books/<册id>/index.html         册目录：按阶段分组，每章一个 li[data-unit="S2-U01"]，里面有 a[href="S2-U01.html"]，a 里有 span.chip-path 和 span.chip-st（“有正文”class=on，“有视频”class=vid，“正文制作中”class=off）
 books/<册id>/<单元id>.html      章页：有正文的章有 main.main[data-unit]；占位章有 div.callout.warn（文字含“正文还在制作中”）
 media/<单元id>/…                有视频的章的视频、封面、抽帧
-downloads/…                     章页提供下载的文件
+downloads/<单元>/…             章页提供下载的文件（每章一个子目录，2026-11-21 起）
 ```
 所有站内链接都是**相对路径**（章页里是 `../../assets/…`、`../b2-llm/S2-U01.html` 这样），而且指向页面时写明文件名（`…/index.html`、`…/S2-U01.html`），这样用文件夹直接双击打开也能用。
 
@@ -58,7 +58,7 @@ downloads/…                     章页提供下载的文件
 - `ch-exercises`：`article.exercise` 的个数等于 `exercises.txt` 里“练习X【”开头的题数；每题有 `.q` 和没有 `open` 的 `details.answer`；题面（`.q`）文字包含 `exercises.txt` 对应题“答案”之前的每一行（去空白），答案（`details.answer`）包含“答案”之后、下一题或“你的学习记录”之前的每一行（去空白）；**答案不泄露**：`北京`、`校门口咖啡`、`2025`、`2026`、`知味咖啡` 不得出现在任何 `.q` 里。
 - `ch-evidence`：`details#evidence` 存在；它列出的记录号集合等于页面里所有 `data-record` 的集合；它列出的来源号集合等于页面里所有 `data-claim` 的集合；正文里写的“录制日期是 …”里的日期集合等于这些记录的 `date` 的集合。
 - `ch-coverage`：`details#coverage` 存在；源文件 `points` 里的每个 `id` 都在其中列出；它里面每个 `href="#…"` 指向页面里存在的 id（`#exercises` 也算）。
-- `ch-extras`：源文件有 `readings` 的，`details#readings` 里每条都有 `a.src-link`（https、`target=_blank`、`rel` 含 `noopener`）；有 `downloads` 的，`#downloads` 里每个链接指向 `downloads/` 里真实存在的文件。
+- `ch-extras`：源文件有 `readings` 的，`details#readings` 里每条都有 `a.src-link`（https、`target=_blank`、`rel` 含 `noopener`）；有 `downloads` 的，`#downloads` 里每个链接指向 `downloads/` 里真实存在的文件；源文件 `downloads` 里的每一项恰有一个同名链接，指向 `downloads/<本章单元>/` 里的文件，且与源文件写的原件逐字节相同（2026-11-21，第 17 课：原来各章平铺在一个目录，同名文件互相覆盖，第 14、15 章给的是第 16 章的练习）。
 - `ch-nav`：每个章页有 `nav.chapter-nav`，里面“上一章／下一章”的链接指向同册里相邻的单元页面（第一章没有上一章、最后一章没有下一章，页面上写“没有了”）；面包屑 `nav.crumbs` 里有指向书架和本册目录的链接。
 
 ## 测试 `test_check_site.py`（`python3 -m unittest` 能直接跑）

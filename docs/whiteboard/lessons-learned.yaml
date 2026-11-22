@@ -1877,9 +1877,10 @@ entries:
 
   - id: E270
     stage: publish
-    level: 清单
-    rule: "电子书平台把各章下载文件按文件名平铺在 site/downloads/：本章下载文件不得与别章同名不同内容（练习 exercises.txt、页内练习 lab_section.json 最常撞）；用带课号的文件名（l17_exercises.txt），assemble_chapter 里断言同名必须同字节；建站后核对 site/downloads 里同名旧文件的哈希没变、本章文件等于原件。平台层修法（按章分目录＋check_site 规则）等用户定。"
-    why: "第 17 课发布阶段发现：第 14、15、16 章都下载 exercises.txt、lab_section.json，后建的覆盖先建的，第 14、15 章的下载链接早就给的是第 16 章的文件；第 17 章一建又把第 16 章的也盖了，整站检查没拦。"
+    level: 检查
+    by: "docs/whiteboard/ebook/check_site.py（ch-extras）、docs/whiteboard/ebook/build_site.py；测试 tests/tools/test_ebook_site_check.py"
+    rule: "电子书各章的下载文件放在 site/downloads/<单元>/ 里（build_site.py 按章分目录），整站检查 ch-extras 拦：章源 downloads 每一项恰有一个同名链接、目标在本章子目录、与原件逐字节相同。章里下载件照常用原文件名；同一章里两个下载文件不要同名。"
+    why: "第 17 课发布阶段发现：平台原来把各章下载按文件名平铺，第 14、15、16 章都下载 exercises.txt、lab_section.json，后建的覆盖先建的，第 14、15 章的下载链接早就给的是第 16 章的文件，整站检查没拦。第 17 章先用带课号的文件名躲开；用户随后选①：平台改成按章分目录、检查比字节（新测试对旧检查失败 2 处），整站 302 页里只有 14 个章页的 33 个下载链接变化。"
     from: [ext:agent第17课]
 
   - id: E271
