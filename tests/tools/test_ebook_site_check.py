@@ -435,6 +435,15 @@ class SiteCheckerTests(unittest.TestCase):
             ("ch-extras", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("../../downloads/S2-U01/example.txt", "../../downloads/missing.txt"), encoding="utf-8")),
             # lesson 17: another chapter's file under the same name (the flat folder let chapters 14 and 15 serve lesson 16's exercises.txt) - the link resolves, the bytes differ
             ("ch-extras", lambda s, r: (s / "downloads/S2-U01/example.txt").write_text("another chapter's file", encoding="utf-8")),
+            # review of the per-chapter folders: the builder copies downloads, so a symlink there is rejected even when it points at the right bytes
+            ("ch-extras", lambda s, r: ((s / "downloads/S2-U01/real.txt").write_text("download", encoding="utf-8"),
+                                        (s / "downloads/S2-U01/example.txt").unlink(),
+                                        (s / "downloads/S2-U01/example.txt").symlink_to("real.txt"))),
+            # the same, with the same name one folder down (the reviewer's case: the old check followed the link and passed it)
+            ("ch-extras", lambda s, r: ((s / "downloads/S2-U01/sub").mkdir(),
+                                        (s / "downloads/S2-U01/sub/example.txt").write_text("download", encoding="utf-8"),
+                                        (s / "downloads/S2-U01/example.txt").unlink(),
+                                        (s / "downloads/S2-U01/example.txt").symlink_to("sub/example.txt"))),
             # lesson 17: the old flat layout (downloads/example.txt) even with the right bytes
             ("ch-extras", lambda s, r: ((s / "downloads/example.txt").write_text("download", encoding="utf-8"),
                                         (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("../../downloads/S2-U01/example.txt", "../../downloads/example.txt"), encoding="utf-8"))),
@@ -492,6 +501,45 @@ class SiteCheckerTests(unittest.TestCase):
             (site / "books/b2/S2-U01.html").write_text("<!doctype html><html><body>空</body></html>", encoding="utf-8")
         _, result = self.run_case(mutate)
         self.assertGreaterEqual(len(result["failed"]), 5)
+
+    def test_link_with_an_encoded_hash_or_question_mark_reaches_the_file(self):
+        # review of the per-chapter folders: ?query and #fragment are split off before decoding, so a file named a#b?.txt is reached by a%23b%3F.txt
+        with tempfile.TemporaryDirectory() as tmp:
+            site = pathlib.Path(tmp).resolve()
+            (site / "downloads/S9-U01").mkdir(parents=True)
+            (site / "downloads/S9-U01/a#b?.txt").write_text("x", encoding="utf-8")
+            (site / "books/b9").mkdir(parents=True)
+            page = site / "books/b9/S9-U01.html"
+            checker = check_site.SiteChecker.__new__(check_site.SiteChecker)
+            checker.site = site
+            target, error = checker.relative_target("../../downloads/S9-U01/a%23b%3F.txt", page)
+            self.assertIsNone(error)
+            self.assertEqual(target, site / "downloads/S9-U01/a#b?.txt")
+            target, error = checker.relative_target("../../downloads/S9-U01/a%23b%3F.txt?x=1#y", page)
+            self.assertIsNone(error)
+
+
+class BuildSiteDownloadTests(unittest.TestCase):
+    """build_site.py: each chapter's downloads in downloads/<unit>/ (lesson 17) and the review fixes that followed."""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("build_site_under_test", ROOT / "build_site.py")
+        cls.bs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.bs)
+
+    def test_two_downloads_of_one_chapter_may_not_share_a_name(self):
+        with self.assertRaises(SystemExit):
+            self.bs.download_names("S9-U01", [{"file": "a/same.txt"}, {"file": "b/same.txt"}])
+        with self.assertRaises(SystemExit):
+            self.bs.download_names("S9-U01", [{"file": "a/same.txt"}, {"file": "a/same.txt"}])
+        self.assertEqual(self.bs.download_names("S9-U01", [{"file": "a/x.txt"}, {"file": "b/y.txt"}]), ["x.txt", "y.txt"])
+
+    def test_download_links_are_per_chapter_and_url_encoded(self):
+        self.assertEqual(self.bs.download_href("S2-U14", "exercises.txt"), "../../downloads/S2-U14/exercises.txt")
+        self.assertEqual(self.bs.download_href("S9-U01", "a#b?.txt"), "../../downloads/S9-U01/a%23b%3F.txt")
+        self.assertEqual(self.bs.download_href("S9-U01", "练习 1.txt"), "../../downloads/S9-U01/%E7%BB%83%E4%B9%A0%201.txt")
 
 
 if __name__ == "__main__":

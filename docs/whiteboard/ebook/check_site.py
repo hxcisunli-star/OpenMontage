@@ -433,14 +433,15 @@ class SiteChecker:
 
     def relative_target(self, value, current):
         """Return (target, error) for a relative site URL."""
-        value = unquote((value or "").strip())
+        value = (value or "").strip()
         if not value:
             return None, None
-        if value.startswith("/") or value.lower().startswith("file:"):
+        if unquote(value).startswith("/") or unquote(value).lower().startswith("file:"):
             return None, "绝对或 file 路径：%s" % value
         if is_protocol(value) or value.startswith("//"):
             return None, None
-        clean = value.split("#", 1)[0].split("?", 1)[0]
+        # split off ?query and #fragment BEFORE decoding: a file name with a literal # or ? is linked as %23 / %3F (2026-11-21 review)
+        clean = unquote(value.split("#", 1)[0].split("?", 1)[0])
         if not clean:
             return current, None
         target = (current.parent / pathlib.PurePosixPath(clean.replace("\\", "/"))).resolve()
@@ -1628,16 +1629,25 @@ class SiteChecker:
                 # exercises.txt and lab_section.json) and the link check above still passed because the files existed.
                 by_name = {}
                 for link in links:
-                    target, error = self.relative_target(link.attrs.get("href", ""), page)
+                    href = (link.attrs.get("href", "") or "").strip()
+                    target, error = self.relative_target(href, page)
                     if target and not error:
-                        by_name.setdefault(target.name, []).append(target)
+                        # match by the link's own path (not the resolved one); the builder copies downloads, so a symlink there is rejected outright
+                        lexical = pathlib.Path(os.path.normpath(str(page.parent / unquote(href.split("#", 1)[0].split("?", 1)[0]))))
+                        if lexical.is_symlink():
+                            problems.append("%s 下载 %s 是符号链接（建站应复制原件）" % (unit, lexical.name)); continue
+                        by_name.setdefault(lexical.name, []).append(lexical)
                 for item in downloads:
                     name = pathlib.PurePosixPath(str(item.get("file", ""))).name
                     hits = by_name.get(name, [])
                     if len(hits) != 1:
                         problems.append("%s 下载 %s 的链接有 %d 个（应为 1 个）" % (unit, name, len(hits))); continue
                     target = hits[0]
-                    if target.relative_to(self.site).parts[:2] != ("downloads", unit):
+                    try:
+                        in_unit = target.relative_to(self.site).parts[:2] == ("downloads", unit)
+                    except ValueError:
+                        in_unit = False
+                    if not in_unit:
                         problems.append("%s 下载 %s 不在 downloads/%s/ 里" % (unit, name, unit)); continue
                     source_file = self.repo / str(item.get("file", ""))
                     if not source_file.is_file():

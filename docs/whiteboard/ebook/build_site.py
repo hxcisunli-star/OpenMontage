@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 import yaml
 from PIL import Image
@@ -316,6 +317,21 @@ def grouped_blocks(blocks, ctx):
     return "".join(out)
 
 
+def download_names(uid, downloads):
+    """The file names a chapter offers for download, in order. Two downloads of one chapter may not share a file name: they would land on the same
+    file in downloads/<unit>/ and the later one would silently replace the earlier (review of the per-chapter folders, 2026-11-21)."""
+    names = [Path(d["file"]).name for d in downloads]
+    dup = sorted({n for n in names if names.count(n) > 1})
+    if dup:
+        raise SystemExit(f"{uid}: two downloads share a file name: {', '.join(dup)} (a chapter's downloads all go into downloads/{uid}/)")
+    return names
+
+
+def download_href(uid, name):
+    """Link from a chapter page to one of its downloads; each path segment URL-encoded, so a name with # or ? stays a file name (plain ASCII names are unchanged)."""
+    return f"../../downloads/{quote(uid, safe='')}/{quote(name, safe='')}"
+
+
 def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
     ch = chapters[u["id"]]
     assets_root = "../" * 2 + "assets/"
@@ -428,7 +444,7 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
                     "".join(f'<li><a class="src-link" href="{esc(r["url"])}" target="_blank" rel="noopener noreferrer">{esc(r["title"])}</a>　<span class="muted">{esc(r["by"])} · {esc(r["level"])} · {esc(r["note"])}</span></li>' for r in ch["readings"]) + "</ul></details>")
     downloads = ""
     if ch.get("downloads"):
-        downloads = ('<section class="blk" id="downloads"><h2>下载</h2><ul>' + "".join(f'<li><a href="../../downloads/{esc(u["id"])}/{esc(Path(d["file"]).name)}" download>{esc(Path(d["file"]).name)}</a>　<span class="muted">{esc(d["what"])}</span></li>' for d in ch["downloads"]) + "</ul></section>")
+        downloads = ('<section class="blk" id="downloads"><h2>下载</h2><ul>' + "".join(f'<li><a href="{esc(download_href(u["id"], name))}" download>{esc(name)}</a>　<span class="muted">{esc(d["what"])}</span></li>' for d, name in zip(ch["downloads"], download_names(u["id"], ch["downloads"]))) + "</ul></section>")
     meta_line = f'对应岗位大纲 {esc(u["id"])}' + (f' · 视频 {mmss(vid["duration"])}（含 2 秒片头）· 视频自带字幕' if vid else "") + (f' · 时效：{esc(ch["timeliness"])}' if ch.get("timeliness") else "")
     lesson_cls = "lesson-title" + (" latin" if re.search(r"[A-Za-z0-9]", ch["lesson_title"]) else "")
     appendix = "".join(x for x in (cov, readings, glossary, evidence) if x)
@@ -557,9 +573,9 @@ def main():
                 html_text, ctx = chapter_html(u, b, books, units, chapters, stages, {"records": records, "claims": claims, "urls": urls}, media)
                 # each chapter's downloads live in their own folder downloads/<unit>/ (2026-11-21, lesson 17): with one flat folder, chapters that offer a file
                 # under the same name (exercises.txt, lab_section.json) overwrote each other and chapters 14 and 15 served lesson 16's files; check_site ch-extras compares bytes
-                for dl in ch.get("downloads", []):
+                for dl, name in zip(ch.get("downloads", []), download_names(uid, ch.get("downloads", []))):
                     (SITE / "downloads" / uid).mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(ROOT / dl["file"], SITE / "downloads" / uid / Path(dl["file"]).name)
+                    shutil.copy2(ROOT / dl["file"], SITE / "downloads" / uid / name)
                 text = plain_text(re.search(r'<main class="main".*?</main>', html_text, re.S).group(0))
             else:
                 html_text = placeholder_html(u, b, books, units, chapters, stages)
