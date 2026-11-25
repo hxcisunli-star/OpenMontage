@@ -1,0 +1,9 @@
+{
+  "_doc": "Registry of 3D figure scenes. A chapter block {\"t\": \"fig3d\", \"scene\": <name>, \"records\": [...]} may only name a scene listed here (and not a demo one), and only records of the kinds listed. fig3d.py (build), check_site.py (fig3d-scenes) and the bundle (one module per scene in scenes/<name>.js) all read this file. See docs/whiteboard/ebook/INTERACTIVE.md.",
+  "answer-tower": {"name": "答案塔", "kinds": ["towers", "rows"], "anchor": "同一个问题问十遍，每遍一块积木，相同的回答垒成一座塔"},
+  "token-blocks": {"name": "词元积木", "kinds": ["usage"], "anchor": "一次请求的小票上的词元，一块一块摆出来：包装和内容分开"},
+  "note-stack": {"name": "纸条摞", "kinds": ["stack", "grids", "window"], "anchor": "发给模型的每条消息是一张纸条，摞在桌上；系统消息单放，超出窗口的从底下撕掉"},
+  "retry-timeline": {"name": "重试时间轴", "kinds": ["sequence", "callpanel"], "anchor": "我们的脚本和对方之间，请求一次次飞过去，等待画成轴上的空档"},
+  "rc-charge": {"name": "RC 充电", "kinds": [], "demo": true, "anchor": "电子电工演示：拨 R 和 C，看电容电压曲线和时间常数"},
+  "fetch-decode": {"name": "取指·译码·执行", "kinds": [], "demo": true, "anchor": "计算机组成演示：数据在寄存器、ALU、总线上怎么走"}
+}

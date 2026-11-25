@@ -119,7 +119,7 @@ class SiteCheckerTests(unittest.TestCase):
 <figure class="frame-fig"><a class="frame" data-seek="0.5" href="#lesson-video"><img src="../../media/S2-U01/frames/f01.jpg" alt="一张测试图"></a><figcaption><q class="narr">旁白中的一句话</q></figcaption></figure>
 <section class="sec" id="sec-one"><h2>第一节</h2><p>内容块</p></section>''' + shows + '''<aside class="fact" data-claim="U1"><span class="tag tag-source">来源说</span>这是来源事实。适用范围：仅用于测试。<a class="src-link" href="https://example.test/fact" target="_blank" rel="noopener">example.test/fact</a></aside>
 <div class="term"><b class="word">比喻</b><span class="tag tag-metaphor">比喻</span><p class="gap">这里是六个汉字说明</p></div><details class="think"><summary>想一想</summary>记录</details><section id="exercises"><article class="exercise" data-ex="1"><div class="q">请回答一个问题。</div><details class="answer"><summary>答案</summary>这是答案。</details></article></section>
-<details id="evidence">R1 R2 R3 R4 R5 R6 U1 录制日期是 2026-01-01</details><details id="coverage"><a href="#sec-one">p1</a></details><details id="readings"><a class="src-link" href="https://example.test/read" target="_blank" rel="noopener">example.test/read</a></details><div id="downloads"><a href="../../downloads/S2-U01/example.txt">下载</a></div></main>''' + nav("S2-U01", ["S2-U01"], "b2") + '</body></html>'
+<details id="evidence"><ul><li data-record="R1">图1</li><li data-record="R2">图2</li><li data-record="R3">图3</li><li data-record="R4">图4</li><li data-record="R5">图5</li><li data-record="R6">图6</li></ul>U1 录制日期是 2026-01-01</details><details id="coverage"><a href="#sec-one">p1</a></details><details id="readings"><a class="src-link" href="https://example.test/read" target="_blank" rel="noopener">example.test/read</a></details><div id="downloads"><a href="../../downloads/S2-U01/example.txt">下载</a></div></main>''' + nav("S2-U01", ["S2-U01"], "b2") + '</body></html>'
         # The generated lab fixture exercises the complete page contract.
         lab_spec = {
             "id": "demo-lab", "title": "小练习", "goal": "输出一行文字。",
@@ -245,6 +245,56 @@ class SiteCheckerTests(unittest.TestCase):
         for name, mutate in cases:
             with self.subTest(case=name):
                 self.assert_fails("labs", mutate)
+
+    @staticmethod
+    def with_fig3d(site, repo, scene="demo-scene", data=None, head_hidden=True, refs="R3", load=True, bundle=None, kinds=("labels",)):
+        """2026-11-24: wrap R1 and R2 of the chapter page in a 3D figure block (static fallback + data), register the scene, add the bundle"""
+        reg = {"_doc": "test", "demo-scene": {"name": "测试", "kinds": list(kinds)}, "demo-only": {"name": "演示", "kinds": ["labels"], "demo": True}}
+        (repo / "docs/whiteboard/ebook/fig3d").mkdir(parents=True, exist_ok=True)
+        (repo / "docs/whiteboard/ebook/fig3d/scenes.json").write_text(json.dumps(reg, ensure_ascii=False), encoding="utf-8")
+        page = site / "books/b2/S2-U01.html"
+        t = page.read_text(encoding="utf-8")
+        fig = lambda i: re.search(r'<figure class="show" data-record="R%d">.*?</figure>' % i, t, re.S).group(0)
+        f1, f2 = fig(1), fig(2)
+        data = data if data is not None else {"sets": [{"rid": "R1"}, {"rid": "R2"}, {"rid": "R3"}], "caps": {"R1": {}, "R2": {}, "R3": {}}}
+        block = ('<div class="fig3d" data-scene="%s" data-records="R1,R2"%s>' % (scene, ' data-refs="%s"' % refs if refs else "")
+                 + '<div class="fig3d-head"%s><span class="tag tag-3d">立体图</span></div>' % (" hidden" if head_hidden else "")
+                 + '<div class="fig3d-static">' + f1 + f2 + '</div><script type="application/json" class="fig3d-data">' + json.dumps(data) + '</script></div>')
+        t = t.replace(f2, "", 1).replace(f1, block, 1)
+        if load:
+            t = t.replace("</body>", '<script defer src="../../assets/fig3d.js"></script></body>', 1)
+        page.write_text(t, encoding="utf-8")
+        (site / "assets/fig3d.js").write_text(bundle if bundle is not None else "/* MIT, Copyright three.js authors */ var ns='http://www.w3.org/1999/xhtml';", encoding="utf-8")
+
+    def test_fig3d_rules(self):
+        done, result = self.run_case(lambda s, r: self.with_fig3d(s, r))
+        self.assertEqual(done.returncode, 0, done.stdout)
+        for rule in ("fig3d-fallback", "fig3d-scenes", "fig3d-script"):
+            self.assertIn("通过", next(c["detail"] for c in result["checks"] if c["id"] == rule))
+        def edit(site, fn):
+            page = site / "books/b2/S2-U01.html"
+            page.write_text(fn(page.read_text(encoding="utf-8")), encoding="utf-8")
+        cases = [
+            ("fig3d-fallback", "a static figure missing", lambda s, r: (self.with_fig3d(s, r), edit(s, lambda t: re.sub(r'(<div class="fig3d-static">.*?</figure>)<figure class="show" data-record="R2">.*?</figure>', r"\1", t, count=1, flags=re.S)))),
+            ("fig3d-fallback", "data names a record outside the block", lambda s, r: self.with_fig3d(s, r, data={"sets": [{"rid": "R1"}, {"rid": "R2"}, {"rid": "R9"}], "caps": {"R1": {}, "R2": {}, "R3": {}}})),
+            ("fig3d-fallback", "a record not used by the scene", lambda s, r: self.with_fig3d(s, r, data={"sets": [{"rid": "R1"}], "caps": {"R1": {}, "R2": {}, "R3": {}}})),
+            ("fig3d-fallback", "head shown without script", lambda s, r: self.with_fig3d(s, r, head_hidden=False)),
+            ("fig3d-fallback", "fallback hidden by default", lambda s, r: (self.with_fig3d(s, r), edit(s, lambda t: t.replace('<div class="fig3d-static">', '<div class="fig3d-static" hidden>', 1)))),
+            ("fig3d-fallback", "a fallback figure hidden by style", lambda s, r: (self.with_fig3d(s, r), edit(s, lambda t: t.replace('<div class="fig3d-static"><figure class="show"', '<div class="fig3d-static"><figure style="display: none" class="show"', 1)))),
+            ("fig3d-fallback", "a ref that is not on the page", lambda s, r: self.with_fig3d(s, r, refs="R7", data={"sets": [{"rid": "R1"}, {"rid": "R2"}, {"rid": "R7"}], "caps": {"R1": {}, "R2": {}, "R7": {}}})),
+            ("fig3d-fallback", "bad data json", lambda s, r: (self.with_fig3d(s, r), edit(s, lambda t: re.sub(r'(class="fig3d-data">).*?(</script>)', r"\1{bad\2", t, count=1, flags=re.S)))),
+            ("fig3d-scenes", "unregistered scene", lambda s, r: self.with_fig3d(s, r, scene="nope")),
+            ("fig3d-scenes", "demo-only scene in a chapter", lambda s, r: self.with_fig3d(s, r, scene="demo-only")),
+            ("fig3d-scenes", "record kind the scene does not take", lambda s, r: self.with_fig3d(s, r, kinds=("towers",))),
+            ("fig3d-script", "page with a figure does not load the bundle", lambda s, r: self.with_fig3d(s, r, load=False)),
+            ("fig3d-script", "page without a figure loads the bundle", lambda s, r: (self.with_fig3d(s, r), (s / "books/b1/S1-U01.html").write_text((s / "books/b1/S1-U01.html").read_text(encoding="utf-8").replace("</body>", '<script defer src="../../assets/fig3d.js"></script></body>'), encoding="utf-8"))),
+            ("fig3d-script", "bundle with a URL", lambda s, r: self.with_fig3d(s, r, bundle="/* three.js authors */ var u='https://cdn.example/x.js';")),
+            ("fig3d-script", "bundle without the three.js licence", lambda s, r: self.with_fig3d(s, r, bundle="var ns='http://www.w3.org/1999/xhtml';")),
+            ("fig3d-script", "bundle missing", lambda s, r: (self.with_fig3d(s, r), (s / "assets/fig3d.js").unlink())),
+        ]
+        for rule, name, mutate in cases:
+            with self.subTest(case=name):
+                self.assert_fails(rule, mutate)
 
     def test_vendor_text_is_excluded_from_content_scans(self):
         def mutate(site, repo):
@@ -430,7 +480,8 @@ class SiteCheckerTests(unittest.TestCase):
             ("ch-metaphors", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace('class="gap"', 'class="bad"'), encoding="utf-8")),
             ("ch-thinks", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace('class="think"', 'class="think" open'), encoding="utf-8")),
             ("ch-exercises", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace('class="answer"', 'class="answer" open'), encoding="utf-8")),
-            ("ch-evidence", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("R6 ", ""), encoding="utf-8")),
+            ("ch-evidence", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace('<li data-record="R6">图6</li>', ""), encoding="utf-8")),
+            ("ch-evidence", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace('<li data-record="R6">图6</li>', "<li>R6</li>"), encoding="utf-8")),      # 2026-11-24: the id must sit in data-record; visible text alone does not list it
             ("ch-coverage", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace(">p1<", ">missing<"), encoding="utf-8")),
             ("ch-extras", lambda s, r: (s / "books/b2/S2-U01.html").write_text((s / "books/b2/S2-U01.html").read_text(encoding="utf-8").replace("../../downloads/S2-U01/example.txt", "../../downloads/missing.txt"), encoding="utf-8")),
             # lesson 17: another chapter's file under the same name (the flat folder let chapters 14 and 15 serve lesson 16's exercises.txt) - the link resolves, the bytes differ

@@ -86,11 +86,12 @@ def registry(tmp_path, monkeypatch):
     archives = {}
     pins = {}
     for name, pin in vendor.PINS.items():
-        names = (["min/vs/" + item for item in vendor.MONACO_FILES] + ["LICENSE"]
-                 if name == "monaco-editor" else list(vendor.PYODIDE_FILES))
+        names = {"monaco-editor": ["min/vs/" + item for item in vendor.MONACO_FILES] + ["LICENSE"],
+                 "pyodide": list(vendor.PYODIDE_FILES),
+                 "three": list(vendor.THREE_FILES) + ["LICENSE"]}[name]
         files = [("package/" + item, (name + ":" + item).encode()) for item in names]
         files += [("package/unneeded.js", b"throw new Error('must never execute');"),
-                  ("package/package.json", b'{"license":"MPL-2.0"}')]
+                  ("package/package.json", b'{"license":"MIT"}' if name == "three" else b'{"license":"MPL-2.0"}')]
         source = archive(tmp_path / (name + ".tgz"), files)
         archives[name] = source
         pins[name] = {"version": pin["version"], "integrity": integrity(source)}
@@ -116,10 +117,11 @@ def registry(tmp_path, monkeypatch):
 def test_pruning_manifest_and_existing_vendor_are_verified(tmp_path, registry):
     output = tmp_path / "vendor"
     vendor.fetch_vendor(output)
-    assert len(registry["calls"]) == 4
+    assert len(registry["calls"]) == 6
     expected = {"monaco/vs/" + name for name in vendor.MONACO_FILES}
     expected.update("pyodide/" + name for name in vendor.PYODIDE_FILES)
-    expected.update({"monaco/LICENSE", "pyodide/LICENSE"})
+    expected.update("three/" + name for name in vendor.THREE_FILES)
+    expected.update({"monaco/LICENSE", "pyodide/LICENSE", "three/LICENSE"})
     actual = {p.relative_to(output).as_posix() for p in output.rglob("*") if p.is_file()}
     assert actual == expected | {"MANIFEST.sha256", "VERSIONS.json"}
     lines = (output / "MANIFEST.sha256").read_text().splitlines()
@@ -131,7 +133,7 @@ def test_pruning_manifest_and_existing_vendor_are_verified(tmp_path, registry):
     assert (output / "pyodide/LICENSE").read_text().startswith("Mozilla Public License")
     vendor.verify_vendor(output)
     vendor.fetch_vendor(output)
-    assert len(registry["calls"]) == 4
+    assert len(registry["calls"]) == 6
     (output / "monaco/vs/loader.js").write_text("damaged")
     with pytest.raises(ValueError, match="manifest mismatch"):
         vendor.fetch_vendor(output)
@@ -191,3 +193,21 @@ def test_online_fetch_is_reproducible(tmp_path):
     delivered = ROOT / "projects/_ebook/vendor/MANIFEST.sha256"
     if delivered.exists():
         assert (first / "MANIFEST.sha256").read_bytes() == delivered.read_bytes()
+
+
+def test_three_package_must_be_mit_and_complete(tmp_path):
+    """2026-11-24: three.js joins the pinned vendor tree for the e-book's 3D figures; only its two ES-module build files and LICENSE are kept."""
+    package = tmp_path / "package"
+    for item in vendor.THREE_FILES + ("LICENSE",):
+        (package / item).parent.mkdir(parents=True, exist_ok=True)
+        (package / item).write_text(item)
+    (package / "package.json").write_text('{"license":"GPL-3.0"}')
+    with pytest.raises(ValueError, match="three.js license"):
+        vendor.copy_package(package, tmp_path / "v1", "three")
+    (package / "package.json").write_text('{"license":"MIT"}')
+    vendor.copy_package(package, tmp_path / "v2", "three")
+    assert {p.relative_to(tmp_path / "v2").as_posix() for p in (tmp_path / "v2").rglob("*") if p.is_file()} == {
+        "three/build/three.module.js", "three/build/three.core.js", "three/LICENSE"}
+    (package / "build/three.core.js").unlink()
+    with pytest.raises(ValueError, match="missing"):
+        vendor.copy_package(package, tmp_path / "v3", "three")

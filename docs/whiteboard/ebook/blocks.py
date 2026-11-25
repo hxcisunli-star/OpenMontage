@@ -836,6 +836,13 @@ def show(b, ctx):
     r = ctx.records[b["id"]]
     ctx.used_records.append(b["id"])
     head = f'<div class="fh">{esc(r["title"])}</div>'
+    body, cap, tag = show_parts(r, ctx)
+    after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""
+    return f'<figure class="show" data-record="{esc(b["id"])}">{head}{body}<figcaption class="rec">{tag} {esc(cap)}</figcaption>{after}</figure>'
+
+
+def show_parts(r, ctx):
+    """(body html, caption text, tag html) of one record's figure; show() wraps them, the 3D figures (fig3d.py) reuse the caption and tag"""
     tag = TAG_SHICE
     if r["kind"] == "towers":
         body, cap = towers(r), caliber(r)
@@ -871,8 +878,7 @@ def show(b, ctx):
         body, cap, tag = LESSON6_KINDS[r["kind"]](r, ctx)
     else:
         raise AssertionError(r["kind"])
-    after = f'<p class="after">{esc(b["after"])}</p>' if b.get("after") else ""
-    return f'<figure class="show" data-record="{esc(b["id"])}">{head}{body}<figcaption class="rec">{tag} {esc(cap)}</figcaption>{after}</figure>'
+    return body, cap, tag
 
 
 # ------------------------------------------------------------ sources, metaphors, questions
@@ -921,6 +927,9 @@ def render_block(b, ctx):
         return f'<pre class="code" data-lang="{esc(b.get("lang", ""))}"><code>{esc(b["x"])}</code></pre>'
     if t == "show":
         return show(b, ctx)
+    if t == "fig3d":        # a 3D figure over the static figures of its records (2026-11-24; docs/whiteboard/ebook/INTERACTIVE.md)
+        from fig3d_build import render_fig3d
+        return render_fig3d(b, ctx)
     if t == "fact":
         return fact(b, ctx)
     if t == "term":

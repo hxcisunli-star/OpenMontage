@@ -3,6 +3,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]          # the repository root (this file lives in docs/whiteboard/ebook/)
 SITE = ROOT / "projects/_ebook/site"
 CHK = Path(__file__).resolve().parent / "check_site.py"
+# usage: mutate_real_site.py <work dir> [--site <built site>] [--chapters-dir <chapter sources>] [rule ...]
+# (--site and --chapters-dir, 2026-11-24: mutate a trial build, e.g. one made with build_site.py --site-dir/--chapters-dir; the defaults are the real site and sources)
+ARGS = sys.argv[2:]
+CHAPTERS_DIR = None
+for flag in ("--site", "--chapters-dir"):
+    if flag in ARGS:
+        i = ARGS.index(flag); val = Path(ARGS[i + 1]).resolve(); del ARGS[i:i + 2]
+        if flag == "--site": SITE = val
+        else: CHAPTERS_DIR = val
 WORK = Path(sys.argv[1]); shutil.rmtree(WORK, ignore_errors=True); WORK.mkdir(parents=True)
 CH = "books/b2-llm/S2-U01.html"
 
@@ -23,6 +32,14 @@ def first_placeholder(site):
 
 class SkipCase(Exception):
     """The real checkout does not contain the feature this mutation targets."""
+
+
+def first_fig3d_page(site):
+    """the first chapter page with a 3D figure (2026-11-24); a site without one skips the fig3d cases"""
+    for p in sorted((site / "books").rglob("*.html")):
+        if 'class="fig3d"' in p.read_text(encoding="utf-8"):
+            return p.relative_to(site).as_posix()
+    raise SkipCase("no page has a 3D figure")
 
 def edit(site, rel, fn):
     p = site / rel
@@ -116,9 +133,12 @@ CASES = [
  ("ch-thinks",     lambda s: edit(s, CH, sub1('<details class="think"', '<details open class="think"'))),
  ("shelf-covers",  lambda s: edit(s, "index.html", re1(r'<img class="cover-art"[^>]*>', ''))),
  ("shelf-covers",  lambda s: swap_image(s, "assets/covers/b3-tools-eval.jpg", 300, 400)),
+ ("fig3d-fallback", lambda s: edit(s, first_fig3d_page(s), re1(r'(<div class="fig3d-static">)<figure class="show".*?</figure>', r'\1', re.S))),
+ ("fig3d-scenes",   lambda s: edit(s, first_fig3d_page(s), re1(r'data-scene="([a-z-]+)"', r'data-scene="\1-x"'))),
+ ("fig3d-script",   lambda s: edit(s, first_fig3d_page(s), re1(r'<script defer src="\.\./\.\./assets/fig3d\.js"></script>', ''))),
 ]
 res = []
-ONLY = set(sys.argv[2:])
+ONLY = set(ARGS)
 for i, (rule, mut) in enumerate(CASES):
     if ONLY and rule not in ONLY: continue
     site = WORK / f"c{i}"
@@ -130,7 +150,7 @@ for i, (rule, mut) in enumerate(CASES):
     except AssertionError as e:
         res.append((rule, "MUTATION-NOT-APPLIED", str(e)[:80])); shutil.rmtree(site); continue
     rep = WORK / f"r{i}.json"
-    subprocess.run([sys.executable, str(CHK), "--site", str(site), "--repo", str(ROOT), "--report", str(rep)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run([sys.executable, str(CHK), "--site", str(site), "--repo", str(ROOT), "--report", str(rep)] + (["--chapters-dir", str(CHAPTERS_DIR)] if CHAPTERS_DIR else []), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     failed = json.loads(rep.read_text())["failed"]
     res.append((rule, "CAUGHT" if rule in failed else "MISSED", ",".join(failed)))
     shutil.rmtree(site)

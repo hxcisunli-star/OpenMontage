@@ -538,6 +538,7 @@ figcaption.rec > .tag { flex: none; }
 .lab-tag { padding: 2px 8px; border-radius: 4px; background: var(--hl-soft); color: var(--hl-fg); font-size: 13px; }
 .lab-done { color: var(--good); font-weight: 700; }
 .lab-goal, .lab-note { margin-bottom: 12px; }
+.lab-goal { white-space: pre-line; }      /* 2026-11-24（交接 l21 §6）：题面里的换行原来被合并，长题面挤成一团 */
 .lab-goal, .lab-note, .lab-hints, .lab-checks { overflow-wrap: anywhere; }      /* 第 9 章练习题面里很长的代码词在手机上曾把整页撑宽到 441 像素（重构前就有） */
 .lab-note, .lab-status { color: var(--muted); font-size: 14px; }
 .lab-btn { font: inherit; font-size: 14px; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-s); background: var(--surface); color: var(--fg); cursor: pointer; }
@@ -561,6 +562,99 @@ figcaption.rec > .tag { flex: none; }
 .lab-work { margin-top: 12px; }
 .lab[data-lab-state="loading"] .lab-bar .lab-btn { opacity: .5; pointer-events: none; }
 
+/* ================= 立体图（2026-11-24，docs/whiteboard/ebook/INTERACTIVE.md） =================
+   一个 .fig3d 块里先是记录的静态图（没有脚本、没有 WebGL、减少动态效果时就看它们），fig3d.js 在宽屏上把它们换成立体图（可换回），
+   窄屏上留着静态图、加一个“打开立体图”按钮（全屏打开）。立体图的颜色全取自上面的变量；“当前一步”用荧光黄，按钮和选中项用深蓝。 */
+.fig3d { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fig3d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fig3d-head[hidden], .fig3d-static[hidden], .f3-wrap[hidden], .f3-guess[hidden], .f3-changed[hidden], .f3-tip[hidden], .f3-hint[hidden] { display: none; }
+.fig3d-title { font-size: 16px; font-weight: 700; line-height: 1.5; }
+.fig3d-tools { margin-left: auto; display: flex; gap: 8px; }
+.fig3d-static { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.tag-3d { background: transparent; color: var(--fg-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.fig3d-btn, .f3-btn, .f3-step-nav, .f3-step-replay, .f3-zbtn { font: inherit; font-size: 13px; line-height: 1.5; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--accent); cursor: pointer; }
+.fig3d-btn:hover, .f3-btn:hover, .f3-step-nav:hover, .f3-step-replay:hover, .f3-zbtn:hover { background: var(--accent-soft); }
+.fig3d-open { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.fig3d-open:hover { background: var(--accent); filter: brightness(1.08); }
+.f3-step-nav:disabled { color: var(--faint); background: var(--surface); cursor: default; }
+.f3-wrap button:focus-visible, .fig3d-head button:focus-visible, .f3-overlay button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.f3-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.f3-view { position: relative; height: clamp(340px, 46vw, var(--f3-max, 470px)); background: var(--note-bg); overflow: hidden; }
+.f3-canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.f3-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.f3-label { position: absolute; left: 0; top: 0; font-size: 12px; line-height: 1.45; padding: 1px 8px; border-radius: 999px; background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong); white-space: nowrap; }
+.f3-l-count { font-family: var(--font-mono); font-weight: 700; }
+.f3-l-base { max-width: 10em; overflow: hidden; text-overflow: ellipsis; }
+.f3-l-muted { color: var(--muted); border-style: dashed; }
+.f3-l-strong { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.f3-tip { position: absolute; left: 0; top: 0; z-index: 3; max-width: 300px; padding: 6px 10px; font-size: 13px; line-height: 1.5; background: var(--fg); color: var(--bg); border-radius: var(--r-s); pointer-events: none; }
+.f3-readout { position: absolute; left: 12px; top: 12px; right: 56px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+.f3-metric { display: flex; flex-direction: column; padding: 4px 10px 5px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-s); box-shadow: var(--shadow-s); min-width: 76px; }
+.f3-mk { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.f3-mv { font-family: var(--font-mono); font-size: 16px; line-height: 1.35; color: var(--fg); }
+.f3-mt { font-size: 11px; line-height: 1.4; color: var(--muted); }
+.f3-metric.shiyi .f3-mt { color: var(--hl-fg); background: var(--hl-soft); border-radius: 3px; padding: 0 4px; align-self: flex-start; }
+.f3-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.f3-zbtn { width: 34px; height: 34px; padding: 0; font-size: 16px; color: var(--fg); box-shadow: var(--shadow-s); }
+.f3-steps { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--surface); }
+.f3-step-dots { display: flex; flex: 1; gap: 2px; overflow-x: auto; min-width: 0; }
+.f3-dot { flex: 1 1 0; min-width: 60px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 2px; border: 0; background: none; cursor: pointer; color: var(--muted); font: inherit; font-size: 12px; line-height: 1.35; text-align: center; }
+.f3-dot-n { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line-strong); display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; background: var(--surface); color: var(--fg-2); }
+.f3-dot.past .f3-dot-n { background: var(--note-bg); }
+.f3-dot.on { color: var(--fg); font-weight: 700; }
+.f3-dot.on .f3-dot-n { border-color: var(--fg); background: var(--hl); color: var(--hl-fg); }
+.f3-panel { padding: 14px 18px 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.f3-controls { display: flex; flex-wrap: wrap; gap: 12px 28px; }
+.f3-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.f3-glabel { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .06em; }
+.f3-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.f3-chip { font: inherit; font-size: 14px; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg); cursor: pointer; display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.35; text-align: left; }
+.f3-chip:hover { background: var(--note-bg); }
+.f3-chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.f3-chip-s { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+.f3-hint { font-size: 13px; line-height: 1.6; color: var(--muted); margin: 0; }
+.f3-changed { font-size: 14px; line-height: 1.6; display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; background: var(--note-bg); border-radius: var(--r-s); }
+.f3-changed-k { flex: none; font-size: 12px; color: var(--muted); }
+.f3-guess { padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: var(--r-s); display: flex; flex-direction: column; gap: 8px; }
+.f3-guess-q { margin: 0; font-size: 14px; font-weight: 700; }
+.f3-guess-o { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.f3-guess-a, .f3-guess-r { margin: 0; font-size: 14px; }
+.f3-link { font: inherit; font-size: 13px; padding: 4px 6px; background: none; border: 0; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.f3-foot { display: flex; justify-content: flex-end; gap: 8px; }
+.f3-cap { margin: 0; padding: 10px 18px 12px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.65; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.f3-cap-line .tag { margin-right: 4px; }
+.f3-cap-after { color: var(--fg-2); }
+.f3-answers { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.f3-answers li { display: flex; gap: 8px; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+.f3-answers b { font-family: var(--font-mono); font-size: 13px; flex: none; }
+.f3-swatch { display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line-strong); vertical-align: -1px; }
+.f3-legend-row { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--fg-2); }
+.f3-legend-item { display: inline-flex; gap: 6px; align-items: center; }
+.f3-dot-mark { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--fg); }
+.f3-overlay .f3-label { font-size: 11px; padding: 0 6px; }
+.f3-overlay .f3-l-base { max-width: 6.5em; }
+.f3-overlay { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; flex-direction: column; overflow-y: auto; }
+.f3-ov-bar { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--bg); }
+.f3-ov-title { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f3-overlay .f3-wrap { border: 0; border-radius: 0; }
+.f3-overlay .f3-view { height: 58vh; min-height: 300px; }
+html.f3-locked, html.f3-locked body { overflow: hidden; }
+.f3-curvebox { display: flex; flex-direction: column; gap: 6px; }
+.f3-curve { width: 100%; max-width: 560px; height: auto; display: block; }
+.f3-curve .ax { stroke: var(--line-strong); stroke-width: 1; }
+.f3-curve .now { fill: none; stroke: var(--accent); stroke-width: 2.2; }
+.f3-curve .ghost { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.f3-curve .thr { stroke: var(--red); stroke-width: 1; stroke-dasharray: 6 4; }
+.f3-curve .tau { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 2 3; }
+.f3-curve .cur { stroke: var(--accent); stroke-width: 1; }
+.f3-slider { flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; }
+.f3-slider input[type="range"] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.f3-sval { font-family: var(--font-mono); font-size: 13px; min-width: 4.5em; }
+.f3-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.f3-curve text { font-size: 10px; fill: var(--muted); font-family: var(--font-body); }
+.f3-curve .thr-t { fill: var(--red); }
+.f3-controls > .f3-btn { align-self: flex-end; }
+
 /* ================= 章末：练习、附录、翻页 ================= */
 .exsec { gap: 20px; }
 .intro { display: flex; flex-direction: column; gap: 10px; font-size: 16px; }
@@ -572,6 +666,12 @@ figcaption.rec > .tag { flex: none; }
 .answer p { margin-top: 6px; }
 .exercise p, .exercise li, .intro p, .answer p, .closing p, .evidence li { overflow-wrap: anywhere; }      /* 练习里很长的一行代码或网址，在手机上曾把整页撑出横向滚动 */
 .exercise .q p:empty, .intro p:empty, .answer p:empty { display: none; }
+/* 2026-11-24（交接 l21 §6）：练习文字里的表格、代码块、列表、小标题按 Markdown 排（原来逐行显示，表格是竖线、代码是反引号） */
+.exercise pre.ex-code, .intro pre.ex-code, .record pre.ex-code { margin: 4px 0 6px; font-size: 13.5px; }
+.exercise .ex-table, .intro .ex-table, .record .ex-table { margin: 4px 0 6px; }
+.exercise .ex-table td, .exercise .ex-table th, .intro .ex-table td, .record .ex-table td { overflow-wrap: anywhere; }
+.exercise .ex-list, .intro .ex-list, .record .ex-list { margin: 2px 0 4px; padding-left: 1.4em; display: flex; flex-direction: column; gap: 2px; }
+.exercise .ex-h, .intro .ex-h, .record .ex-h { font-size: 15px; margin-top: 8px; }
 .record { border: 1px dashed var(--line-strong); border-radius: var(--r-m); padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; } .record h3 { font-size: 16px; }
 .closing { display: flex; flex-direction: column; gap: 10px; }
 .closing h2 { font-size: 20px; }
@@ -754,6 +854,10 @@ ol.toc li.written a:hover .sub { color: var(--accent); }
   .l6-bar-value, .l6-plateau-label { grid-column: 2; }
   .l6-grid-cells { gap: 2px; }
   .seq-lane-head { gap: 6px; }
+  .fig3d-tools { margin-left: 0; }
+  .f3-panel { padding: 12px; } .f3-steps { padding: 8px 10px; gap: 4px; }
+  .f3-dot { min-width: 40px; } .f3-dot-t { display: none; }
+  .f3-readout { left: 8px; top: 8px; gap: 6px; } .f3-metric { min-width: 0; padding: 3px 8px; } .f3-mv { font-size: 14px; }
 }
 @media (max-width: 560px) {
   .shelf { grid-template-columns: minmax(0, 1fr); gap: 32px; }

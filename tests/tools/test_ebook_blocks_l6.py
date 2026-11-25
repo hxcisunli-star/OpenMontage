@@ -417,7 +417,9 @@ def test_new_chapter_drawer_counts_sketches_and_keeps_ids():
     text = check_site.text_of(evidence)
     assert '共 4 条：实测 3 条、示意 1 条、官方引文 0 条' in text
     assert '数是我们自编的' not in text
-    assert all(rid in text for rid in data)
+    # since 2026-11-24 (handoff-l21 §6) a drawer row names its figure by title and keeps the record id in data-record, out of the visible text
+    assert {li.attrs.get('data-record') for li in check_site.descendants(evidence, 'li') if li.attrs.get('data-record')} == set(data)
+    assert all(r['title'] in text for r in data.values())
     measured = {k: v for k, v in data.items() if v['honest'] == 'shice'}
     assert '共 3 条：实测 3 条、示意 0 条、官方引文 0 条' in chapter(measured)
 

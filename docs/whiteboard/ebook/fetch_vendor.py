@@ -17,10 +17,14 @@ from pathlib import Path, PurePosixPath
 
 MONACO_VERSION = "0.50.0"
 PYODIDE_VERSION = "0.27.8"
+# three.js for the e-book's 3D figures (2026-11-24, user-approved): 0.187.0 was published 2026-10-30, more than two weeks before it was pinned.
+# Only its two ES-module build files are kept; build_site.py bundles them with our fig3d code (docs/whiteboard/ebook/fig3d/) into assets/fig3d.js.
+THREE_VERSION = "0.187.0"
 # Newer Monaco releases do not contain the contract's complete AMD layout.
 PINS = {
     "monaco-editor": {"version": MONACO_VERSION, "integrity": "sha512-8CclLCmrRRh+sul7C08BmPBP3P8wVWfBHomsTcndxg5NRCEPfu/mc2AGU8k37ajjDVXcXFc12ORAMUkmk+lkFA=="},
     "pyodide": {"version": PYODIDE_VERSION, "integrity": "sha512-XDy8yQAloO0fSaJ6F5aQad0IqcBKvU4MgGjN3LrjOPW6J4xHT5PBiBzCnApxjuerWl33BiyuPQG1uIHHAQnkkg=="},
+    "three": {"version": THREE_VERSION, "integrity": "sha512-Qiu7R+Cmh8CstZsY1uJOSWnVlfo7ZtNLV7mF8Jltk3LB3AtDu9cRZlcnRKkAk8Y4z6KKw35z7Y7Urd7jWY8etA=="},
 }
 MONACO_FILES = (
     "loader.js",
@@ -36,6 +40,7 @@ PYODIDE_FILES = (
     "pyodide.js", "pyodide.asm.js", "pyodide.asm.wasm",
     "python_stdlib.zip", "pyodide-lock.json",
 )
+THREE_FILES = ("build/three.module.js", "build/three.core.js")
 MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 256 * 1024 * 1024
 MAX_VENDOR_BYTES = 25 * 1024 * 1024
@@ -506,6 +511,12 @@ def copy_package(package: Path, vendor: Path, name: str) -> None:
         if metadata.get("license") != "MPL-2.0":
             raise ValueError("unexpected Pyodide license")
         pairs = [(package / item, vendor / "pyodide" / item) for item in PYODIDE_FILES]
+    elif name == "three":
+        metadata = json.loads((package / "package.json").read_text(encoding="utf-8"))
+        if metadata.get("license") != "MIT":
+            raise ValueError("unexpected three.js license")
+        pairs = [(package / item, vendor / "three" / item) for item in THREE_FILES]
+        pairs.append((package / "LICENSE", vendor / "three/LICENSE"))
     else:
         raise ValueError("unknown package")
     for source, target in pairs:
@@ -550,9 +561,10 @@ def verify_vendor(vendor: Path) -> None:
     versions = json.loads((vendor / "VERSIONS.json").read_text(encoding="utf-8"))
     if versions != PINS:
         raise ValueError("vendor versions or integrity do not match pins")
-    required = {"monaco/LICENSE", "pyodide/LICENSE"}
+    required = {"monaco/LICENSE", "pyodide/LICENSE", "three/LICENSE"}
     required.update("monaco/vs/" + name for name in MONACO_FILES)
     required.update("pyodide/" + name for name in PYODIDE_FILES)
+    required.update("three/" + name for name in THREE_FILES)
     actual = {path.relative_to(vendor).as_posix() for path in files}
     if actual != required:
         raise ValueError("vendor files do not match pruning list")

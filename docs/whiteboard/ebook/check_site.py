@@ -341,7 +341,7 @@ def parse_exercises(path):
 
 class SiteChecker:
     CHECK_IDS = [
-        "site-files", "books-complete", "shelf-covers", "vendor-pinned", "labs", "chapter-pages", "placeholders-honest",
+        "site-files", "books-complete", "shelf-covers", "vendor-pinned", "labs", "fig3d-fallback", "fig3d-scenes", "fig3d-script", "chapter-pages", "placeholders-honest",
         "prereq-links", "search-index", "no-external-load", "no-claude-runtime",
         "no-secret-or-path", "no-experiment-labels", "relative-links-resolve",
         "page-basics", "size-limits", "ch-header", "ch-video", "ch-video-stream", "ch-frames",
@@ -349,9 +349,10 @@ class SiteChecker:
         "ch-exercises", "ch-evidence", "ch-coverage", "ch-extras", "ch-nav",
     ]
 
-    def __init__(self, site, repo, no_video_probe=False):
+    def __init__(self, site, repo, no_video_probe=False, chapters_dir=None):
         self.site = pathlib.Path(site).resolve()
         self.repo = pathlib.Path(repo).resolve()
+        self.chapters_dir = pathlib.Path(chapters_dir).resolve() if chapters_dir else None          # a trial site built from copied chapter sources (build_site.py --chapters-dir)
         self.no_video_probe = no_video_probe
         self.checks = []
         self.pages = {}
@@ -379,7 +380,7 @@ class SiteChecker:
             for n, uid in enumerate(units, 1):
                 self.unit_book[uid] = (bid, n)
         self.sources = {}
-        chapter_dir = self.repo / "projects/_ebook/chapters"
+        chapter_dir = self.chapters_dir or self.repo / "projects/_ebook/chapters"
         if chapter_dir.is_dir():
             for p in chapter_dir.glob("*.json"):
                 data = load_json(p)
@@ -710,14 +711,16 @@ class SiteChecker:
         extras = sorted(actual_files - listed)
         if extras:
             problems.append("目录文件未列入清单：%s" % ",".join(extras[:8]))
-        for license_rel in ("monaco/LICENSE", "pyodide/LICENSE"):
+        versions = load_json(vendor / "VERSIONS.json")
+        # three.js joined the vendor tree on 2026-11-24 (3D figures); a tree that has it must carry its licence and its pin too
+        has_three = (isinstance(versions, dict) and "three" in versions) or any(rel.startswith("three/") for rel in listed | actual_files)
+        for license_rel in ("monaco/LICENSE", "pyodide/LICENSE") + (("three/LICENSE",) if has_three else ()):
             if not (vendor / license_rel).is_file():
                 problems.append("缺少 %s" % license_rel)
-        versions = load_json(vendor / "VERSIONS.json")
         if not isinstance(versions, dict):
             problems.append("VERSIONS.json 无效")
         else:
-            for package in ("monaco-editor", "pyodide"):
+            for package in ("monaco-editor", "pyodide") + (("three",) if has_three else ()):
                 value = versions.get(package)
                 if (not isinstance(value, dict) or not isinstance(value.get("version"), str) or not value.get("version") or
                         not isinstance(value.get("integrity"), str) or not value.get("integrity") or
@@ -725,6 +728,130 @@ class SiteChecker:
                     problems.append("VERSIONS.json 缺少 %s 的 version/integrity" % package)
         self.add("vendor-pinned", not problems,
                  "通过" if not problems else "；".join(problems[:15]))
+
+    # ---------------------------------------------------------------- 3D figures (2026-11-24, docs/whiteboard/ebook/INTERACTIVE.md)
+    FIG3D_URL_ALLOW = {"http://www.w3.org/1999/xhtml", "http://www.w3.org/2000/svg"}
+
+    def _fig3d_blocks(self):
+        for path, parser in self.pages.items():
+            for el in descendants(parser.root, "div", "fig3d"):
+                yield path, parser, el
+
+    @staticmethod
+    def _rids(data):
+        out = set()
+        if isinstance(data, dict):
+            for key, value in data.items():
+                out |= {value} if key == "rid" and isinstance(value, str) else SiteChecker._rids(value)
+        elif isinstance(data, list):
+            for value in data:
+                out |= SiteChecker._rids(value)
+        return out
+
+    def check_fig3d_fallback(self):
+        """Every 3D figure carries the static figures of all its records (the page without script, WebGL or motion), and everything it draws maps back to a record."""
+        problems, count = [], 0
+        for path, parser, el in self._fig3d_blocks():
+            count += 1
+            where = fmt_path(path, self.site)
+            ids = [x for x in el.attrs.get("data-records", "").split(",") if x]
+            refs = [x for x in el.attrs.get("data-refs", "").split(",") if x]
+            if not ids:
+                problems.append("%s 立体图没有 data-records" % where)
+                continue
+            static = [x for x in descendants(el, "div", "fig3d-static")]
+            shown = [f.attrs.get("data-record") for f in descendants(static[0], "figure", "show")] if len(static) == 1 else None
+            if shown != ids:
+                problems.append("%s 立体图的静态兜底与记录不符：%s ≠ %s" % (where, shown, ids))
+            hid = lambda x: "hidden" in x.attrs or re.search(r"display\s*:\s*none|visibility\s*:\s*hidden", x.attrs.get("style", "") or "")
+            if static and (hid(static[0]) or any(hid(f) for f in descendants(static[0], "figure", "show"))):
+                problems.append("%s 立体图的静态兜底默认是隐藏的（没有脚本时读不到）" % where)          # Codex review F18
+            heads = descendants(el, "div", "fig3d-head")
+            if len(heads) != 1 or "hidden" not in heads[0].attrs:
+                problems.append("%s 立体图标题栏要默认隐藏（没有脚本时不显示“立体图”）" % where)
+            outside = {f.attrs.get("data-record") for f in descendants(parser.root, "figure", "show")} - set(shown or [])
+            for ref in refs:
+                if ref not in outside:
+                    problems.append("%s 立体图引用的 %s 不在本页别处的静态图里" % (where, ref))
+            scripts = [x for x in descendants(el, "script") if has_class(x, "fig3d-data")]
+            try:
+                data = json.loads(text_of(scripts[0])) if len(scripts) == 1 else None
+            except ValueError:
+                data = None
+            if not isinstance(data, dict):
+                problems.append("%s 立体图数据不是合法 JSON" % where)
+                continue
+            rids = self._rids(data)
+            if rids - set(ids) - set(refs):
+                problems.append("%s 立体图画了记录以外的东西：%s" % (where, sorted(rids - set(ids) - set(refs))[:4]))
+            if set(ids) - rids:
+                problems.append("%s 立体图没用到记录：%s" % (where, sorted(set(ids) - rids)[:4]))
+            if set(data.get("caps", {})) != set(ids) | set(refs):
+                problems.append("%s 立体图的图注不全" % where)
+        self.add("fig3d-fallback", not problems, ("无立体图，跳过" if not count else "通过（%d 个立体图）" % count) if not problems else "；".join(problems[:12]))
+
+    def check_fig3d_scenes(self):
+        """A scene must be registered in docs/whiteboard/ebook/fig3d/scenes.json (and not demo-only); its records must be of the kinds the scene takes."""
+        reg_file = self.repo / "docs/whiteboard/ebook/fig3d/scenes.json"
+        blocks = list(self._fig3d_blocks())
+        if not blocks:
+            self.add("fig3d-scenes", True, "无立体图，跳过")
+            return
+        reg = load_json(reg_file)
+        if not isinstance(reg, dict):
+            self.add("fig3d-scenes", False, "读不到场景登记表 docs/whiteboard/ebook/fig3d/scenes.json")
+            return
+        problems = []
+        checked = set()
+        for unit, bid, page, source, source_path in self.source_pages():
+            parser = self.parser_for(page)
+            for el in descendants(parser.root, "div", "fig3d"):
+                checked.add(id(el))
+                scene = el.attrs.get("data-scene", "")
+                entry = reg.get(scene)
+                if not isinstance(entry, dict) or scene.startswith("_") or entry.get("demo"):
+                    problems.append("%s 场景 %s 没有登记（或只用于演示页）" % (unit, scene))
+                    continue
+                for rid in [x for x in (el.attrs.get("data-records", "") + "," + el.attrs.get("data-refs", "")).split(",") if x]:
+                    kind = (self.record_data(rid) or {}).get("kind")
+                    if kind not in entry.get("kinds", []):
+                        problems.append("%s 场景 %s 不收 %s（kind=%s）" % (unit, scene, rid, kind))
+        for path, parser, el in blocks:
+            if id(el) not in checked:
+                problems.append("%s 不是有正文的章，却有立体图" % fmt_path(path, self.site))
+        self.add("fig3d-scenes", not problems, "通过" if not problems else "；".join(problems[:12]))
+
+    def check_fig3d_script(self):
+        """Pages with a 3D figure load assets/fig3d.js (deferred); pages without do not; the bundle exists and holds no URL but XML namespace names."""
+        problems, using = [], 0
+        bundle = (self.site / "assets/fig3d.js").resolve()
+        for path, parser in self.pages.items():
+            has = bool(descendants(parser.root, "div", "fig3d"))
+            loads = []
+            for sc in descendants(parser.root, "script"):
+                src = sc.attrs.get("src", "")
+                if src and src.split("?")[0].endswith("fig3d.js"):
+                    target, err = self.relative_target(src, path)
+                    loads.append((target, "defer" in sc.attrs))
+            if has:
+                using += 1
+                if len(loads) != 1 or loads[0][0] is None or pathlib.Path(loads[0][0]).resolve() != bundle or not loads[0][1]:
+                    problems.append("%s 有立体图但没有（或不止一次、不是 defer）加载 assets/fig3d.js" % fmt_path(path, self.site))
+            elif loads:
+                problems.append("%s 没有立体图却加载了 fig3d.js" % fmt_path(path, self.site))
+        if using:
+            if not bundle.is_file():
+                problems.append("缺少 assets/fig3d.js")
+            else:
+                text = read_text(bundle)
+                urls = set(re.findall(r"https?://[^\s'\"`)\\]+", text))
+                if urls - self.FIG3D_URL_ALLOW:
+                    problems.append("fig3d.js 含网址：%s" % sorted(urls - self.FIG3D_URL_ALLOW)[:3])
+                if "three.js authors" not in text[:4000]:
+                    problems.append("fig3d.js 开头缺少 three.js 的许可证文字")
+        elif bundle.is_file():
+            problems.append("没有页面用立体图，却有 assets/fig3d.js")
+        self.add("fig3d-script", not problems, ("无立体图，跳过" if not using else "通过（%d 页）" % using) if not problems else "；".join(problems[:12]))
 
     @staticmethod
     def _has_hidden(element):
@@ -1564,9 +1691,12 @@ class SiteChecker:
             if len(drawer) != 1:
                 problems.append("%s 缺少 details#evidence" % unit); continue
             body = text_of(drawer[0])
-            listed_records = {rid for rid in known_records if rid in body}
+            # since 2026-11-24 each drawer row names its figure by title and carries the record id in data-record (readers no longer see the ids)
+            listed_records = {li.attrs.get("data-record") for li in descendants(drawer[0], "li") if li.attrs.get("data-record")}
             if listed_records != shows:
                 problems.append("%s evidence 记录集合不符" % unit)
+            if listed_records - known_records:
+                problems.append("%s evidence 列了记录文件里没有的记录" % unit)
             listed_claims = {cid for cid in {x.get("id") for x in self.claims.get("sourced", []) if isinstance(x, dict)} if cid and cid in body}
             if listed_claims != facts:
                 problems.append("%s evidence 来源集合不符" % unit)
@@ -1692,13 +1822,13 @@ class SiteChecker:
 
 
 def parse_args(argv):
-    values = {"site": None, "repo": None, "report": None, "no_video_probe": False}
+    values = {"site": None, "repo": None, "report": None, "no_video_probe": False, "chapters_dir": None}
     i = 0
     while i < len(argv):
         arg = argv[i]
         if arg == "--no-video-probe":
             values["no_video_probe"] = True
-        elif arg in {"--site", "--repo", "--report"}:
+        elif arg in {"--site", "--repo", "--report", "--chapters-dir"}:
             if i + 1 >= len(argv):
                 raise ValueError("缺少 %s 的值" % arg)
             values[arg[2:].replace("-", "_")] = argv[i + 1]
@@ -1711,13 +1841,14 @@ def parse_args(argv):
     site = pathlib.Path(values["site"]).resolve()
     repo = pathlib.Path(values["repo"]).resolve()
     report = pathlib.Path(values["report"]).resolve() if values["report"] else repo / "projects/_ebook/site-check.json"
+    parse_args.chapters_dir = values["chapters_dir"]
     return site, repo, report, values["no_video_probe"]
 
 
 def main(argv=None):
     try:
         site, repo, report, no_video_probe = parse_args(sys.argv[1:] if argv is None else argv)
-        result = SiteChecker(site, repo, no_video_probe).run()
+        result = SiteChecker(site, repo, no_video_probe, getattr(parse_args, "chapters_dir", None)).run()
         report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         for item in result["checks"]:

@@ -21,10 +21,12 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from blocks import Ctx, esc, inline, lat, render_block, sentence_plain  # noqa: E402
 from labs import copy_lab_assets, lab_config, lab_script_tags, validate_lab, write_lab_config  # noqa: E402
+import fig3d_build  # noqa: E402
 
 ROOT = HERE.parents[2]
 EB = ROOT / "projects" / "_ebook"
 SITE = EB / "site"
+CHAPTERS = None                     # None = EB/"chapters"; SITE and CHAPTERS can be redirected with --site-dir / --chapters-dir (a trial build must never touch the real site or the published chapters)
 ARCHIVE = ROOT / "projects/roadmap-agent-engineer/evidence/archive/MANIFEST.tsv"
 FONT = ROOT / "remotion-composer/public/fonts/ZCOOLKuaiLe-Regular.ttf"
 PATH_TAG = {"核心": "core", "加速": "fast", "选修": "opt", "进阶": "adv"}
@@ -60,7 +62,7 @@ def load():
     assert set(seen) == set(units), f"books.yaml leaves out units: {sorted(set(units) - set(seen))[:5]}"
     assert len(seen) == outline["unit_count"] == 293
     chapters = {}
-    for f in sorted((EB / "chapters").glob("*.json")):
+    for f in sorted((CHAPTERS or EB / "chapters").glob("*.json")):
         c = json.loads(f.read_text(encoding="utf-8"))
         assert c["id"] in units, f"{f.name}: unit {c['id']} is not in the outline"
         chapters[c["id"]] = c
@@ -290,14 +292,104 @@ def placeholder_html(u, b, books, units, chapters, stages):
     return page(f"{u['id']} {u['title']}", 2, body)
 
 
+# ---- a small Markdown for the exercise text (2026-11-24, handoff-l21 §6: tables showed as bars, code as backticks).
+# Only what the exercise files use: fenced code (``` or longer, also opened at the end of a line, "签名（构造）：```python"), pipe tables, "- " lists, "#" headings, `code`, **bold**.
+# A line with none of these is rendered exactly as before (<p>line</p>, empty lines included); "1. " lines stay paragraphs (their numbers are text).
+EX_FENCE = re.compile(r"^(.*?)(`{3,})([A-Za-z0-9_+-]*)\s*$")      # three or more backticks; the closing fence is a line of at least as many (lesson 8 uses four, to show ``` inside)
+EX_TABLE_SEP = re.compile(r"\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?")
+
+
+def ex_inline(text):
+    """`code` and **bold**; bold is only looked for outside code spans (Codex review F16)"""
+    if "`" not in text and "**" not in text:
+        return esc(text)
+    parts = re.split(r"(`[^`]+`)", text)
+    out = []
+    for k, part in enumerate(parts):
+        if k % 2:
+            out.append(f"<code>{esc(part[1:-1])}</code>")
+        else:
+            out.append(re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", esc(part)))
+    return "".join(out)
+
+
+def ex_cells(row):
+    """split one table row on | (not inside `code`, not an escaped \\|)"""
+    s = row.strip()
+    s = s[1:] if s.startswith("|") else s
+    s = s[:-1] if s.endswith("|") and not s.endswith("\\|") else s
+    cells, cur, tick, i = [], "", False, 0
+    while i < len(s):
+        ch = s[i]
+        if ch == "\\" and s[i + 1:i + 2] == "|":
+            cur, i = cur + "|", i + 2
+            continue
+        if ch == "`":
+            tick = not tick
+        if ch == "|" and not tick:
+            cells.append(cur.strip())
+            cur = ""
+        else:
+            cur += ch
+        i += 1
+    return cells + [cur.strip()]
+
+
+def ex_table(rows):
+    sep = next((k for k, r in enumerate(rows) if EX_TABLE_SEP.fullmatch(r.strip())), None)
+    head = rows[:sep] if sep == 1 else []
+    body = rows[sep + 1:] if sep == 1 else [r for k, r in enumerate(rows) if k != sep]
+    th = "".join("<tr>" + "".join(f"<th>{ex_inline(c)}</th>" for c in ex_cells(r)) + "</tr>" for r in head)
+    td = "".join("<tr>" + "".join(f"<td>{ex_inline(c)}</td>" for c in ex_cells(r)) + "</tr>" for r in body)
+    return f'<div class="scroll ex-table"><table class="t">{th}{td}</table></div>'
+
+
+def ex_lines_html(lines):
+    out, i, n = [], 0, len(lines)
+    while i < n:
+        line = lines[i]
+        s = line.strip()
+        m = EX_FENCE.match(s) if "```" in s else None
+        close = next((j for j in range(i + 1, n) if re.fullmatch(r"`{%d,}" % len(m.group(2)), lines[j].strip())), None) if m else None
+        if m and close is not None:          # a fence that never closes is left as plain lines, as before
+            lead, lang = m.group(1).strip(), m.group(3)
+            if lead:
+                out.append(f"<p>{ex_inline(lead)}</p>")
+            out.append(f'<pre class="code ex-code" data-lang="{esc(lang)}"><code>{esc(chr(10).join(lines[i + 1:close]))}</code></pre>')
+            i = close + 1
+            continue
+        if s.startswith("|") and s.endswith("|") and len(s) > 1:
+            j = i
+            while j < n and lines[j].strip().startswith("|") and lines[j].strip().endswith("|"):
+                j += 1
+            if j - i >= 2 and any(EX_TABLE_SEP.fullmatch(x.strip()) for x in lines[i:j]):          # a real table has a |---| row; "|x|" alone stays text (Codex review F17)
+                out.append(ex_table(lines[i:j]))
+                i = j
+                continue
+        if s.startswith("- "):
+            j = i
+            while j < n and lines[j].strip().startswith("- "):
+                j += 1
+            out.append('<ul class="ex-list">' + "".join(f"<li>{ex_inline(x.strip()[2:])}</li>" for x in lines[i:j]) + "</ul>")
+            i = j
+            continue
+        h = re.fullmatch(r"(#{1,6})\s+(.+)", s)
+        if h:
+            out.append(f'<h4 class="ex-h">{ex_inline(h.group(2))}</h4>')
+        else:
+            out.append(f"<p>{ex_inline(line)}</p>")
+        i += 1
+    return "".join(out)
+
+
 def exercises_html(ex):
     arts = []
     for n, e in enumerate(ex["items"], 1):
-        arts.append(f'<article class="exercise" data-ex="{n}"><div class="q"><h3>{esc(e["title"])}</h3>{"".join(f"<p>{esc(l)}</p>" for l in e["q"])}</div>'
-                    f'<details class="answer"><summary>{esc(e["a_head"])}</summary>{"".join(f"<p>{esc(l)}</p>" for l in e["a"])}</details></article>')
+        arts.append(f'<article class="exercise" data-ex="{n}"><div class="q"><h3>{esc(e["title"])}</h3>{ex_lines_html(e["q"])}</div>'
+                    f'<details class="answer"><summary>{esc(e["a_head"])}</summary>{ex_lines_html(e["a"])}</details></article>')
     return ('<section id="exercises" class="exsec"><header class="sec-head"><span class="no">★</span><h2>课后练习</h2></header>'
-            f'<div class="intro">{"".join(f"<p>{esc(l)}</p>" for l in ex["intro"])}</div>{"".join(arts)}'
-            f'<div class="record"><h3>{esc(ex["record"][0])}</h3>{"".join(f"<p>{esc(l)}</p>" for l in ex["record"][1:])}</div></section>')
+            f'<div class="intro">{ex_lines_html(ex["intro"])}</div>{"".join(arts)}'
+            f'<div class="record"><h3>{esc(ex["record"][0])}</h3>{ex_lines_html(ex["record"][1:])}</div></section>')
 
 
 GROUPED = {"fact": "facts", "term": "terms"}
@@ -379,7 +471,8 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
             return esc(r["model"].split("/")[-1])
         ms = r["models"].values() if isinstance(r["models"], dict) else r["models"]          # a list of {"model": …} (lesson 2) or a {label: model name} map (lesson 4)
         return esc("、".join((m["model"] if isinstance(m, dict) else m).split("/")[-1] for m in ms))
-    rec_rows = "".join(f'<li><b>{esc(i)}</b>：{esc(ctx.records[i]["title"])}' + (f'　<span class="mono">{model_names(ctx.records[i])} · {esc(ctx.records[i]["date"])} · {esc(ctx.records[i]["mode"])} · {ctx.records[i]["n"]} 遍</span>' if ctx.records[i].get("n") else "") + "</li>"
+    # each row names its figure by the figure's title; the record id moved into data-record (2026-11-24, handoff-l21 §6: the ids are our internal labels, readers saw "H1_open_ds")
+    rec_rows = "".join(f'<li data-record="{esc(i)}"><b>{esc(ctx.records[i]["title"])}</b>' +(f'　<span class="mono">{model_names(ctx.records[i])} · {esc(ctx.records[i]["date"])} · {esc(ctx.records[i]["mode"])} · {ctx.records[i]["n"]} 遍</span>' if ctx.records[i].get("n") else "") + "</li>"
                        for i in dict.fromkeys(ctx.used_records))
     _used = set(ctx.used_records)
     for _u in set(ctx.records) - _used - {"_meta"}:
@@ -479,6 +572,10 @@ def chapter_html(u, b, books, units, chapters, stages, ctx_data, site_media):
 </div>"""
     has_labs = any(blk.get("t") == "lab" for s in ch["sections"] for blk in s["blocks"])
     scripts = lab_script_tags(assets_root) + "\n" if has_labs else ""
+    if fig3d_build.has_fig3d(ch):      # 3D figures (2026-11-24): only pages that have one load the bundle; a record a figure refers to must be shown on the page
+        missing = [r for r in getattr(ctx, "fig3d_refs", []) if r not in ctx.used_records]
+        assert not missing, f"{u['id']}: a 3D figure refers to records not shown on the page: {missing}"
+        scripts += fig3d_build.script_tag(assets_root) + "\n"
     return page(f"{u['id']} {u['title']}", 2, body, scripts=scripts), ctx
 
 
@@ -527,7 +624,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--link-media", action="store_true", help="hard-link the big media files instead of copying them (same file system)")
     ap.add_argument("--export", help="after the build, replace this folder by a copy of the site (the offline copy that goes into the lesson's release pack)")
+    ap.add_argument("--site-dir", help="build into this folder instead of projects/_ebook/site (it is deleted first, so name a scratch folder)")
+    ap.add_argument("--chapters-dir", help="read the chapter sources from this folder instead of projects/_ebook/chapters")
     a = ap.parse_args()
+    global SITE, CHAPTERS
+    if a.site_dir:
+        SITE = Path(a.site_dir).resolve()
+        assert SITE != (EB / "site").resolve(), "--site-dir names the real site: leave the option out to rebuild it"
+    if a.chapters_dir:
+        CHAPTERS = Path(a.chapters_dir).resolve()
     outline, books, stages, units, chapters = load()
     lab_ids = collect_lab_ids(chapters)
     lab_config(books)
@@ -540,6 +645,9 @@ def main():
     if lab_ids:
         copy_lab_assets(SITE, ROOT)
         write_lab_config(SITE, books)
+    used_scenes = sorted({blk["scene"] for c in chapters.values() for sec in c["sections"] for blk in sec["blocks"] if blk.get("t") == "fig3d"})
+    if used_scenes:      # the bundle holds only the scenes the book uses
+        fig3d_build.build_bundle(SITE / "assets/fig3d.js", used_scenes)
     shutil.copy2(FONT, SITE / "assets/fonts/ZCOOLKuaiLe-Regular.ttf")
     (SITE / "assets/fonts/FONT-LICENSE.txt").write_text(
         "ZCOOLKuaiLe-Regular.ttf\nCopyright 2018 The ZCOOL KuaiLe Project Authors (https://github.com/googlefonts/zcool-kuaile)\n\n"
@@ -594,7 +702,7 @@ def main():
             shutil.rmtree(dst)
         shutil.copytree(SITE, dst, copy_function=lambda s, d, **kw: (os.link(s, d) if Path(s).stat().st_size > 5e6 else shutil.copy2(s, d)))
         print(f"exported a copy to {dst.relative_to(ROOT)}")
-    print(f"built {SITE.relative_to(ROOT)}: {len(books['books'])} books, {len(units)} chapter pages ({len(chapters)} with text), {pages} html files, {size:.1f} MB (links not counted)")
+    print(f"built {SITE.relative_to(ROOT) if SITE.is_relative_to(ROOT) else SITE}: {len(books['books'])} books, {len(units)} chapter pages ({len(chapters)} with text), {pages} html files, {size:.1f} MB (links not counted)")
 
 
 if __name__ == "__main__":

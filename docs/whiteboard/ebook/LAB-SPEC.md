@@ -78,7 +78,7 @@ assets/vendor/monaco/vs/basic-languages/python/python.js   （其他语言可裁
 assets/vendor/pyodide/LICENSE        MPL-2.0
 assets/vendor/pyodide/pyodide.js  pyodide.asm.js  pyodide.asm.wasm  python_stdlib.zip  pyodide-lock.json
 ```
-  Monaco 取 npm 包 `monaco-editor` 的 `min/vs`（AMD 构建），Pyodide 取 npm 包 `pyodide`（0.27 系列，Python 3.12）。两者都用 npm 注册表元数据里的 `dist.integrity`（sha512）校验。裁剪后总大小控制在约 25 MB 以内。
+  Monaco 取 npm 包 `monaco-editor` 的 `min/vs`（AMD 构建），Pyodide 取 npm 包 `pyodide`（0.27 系列，Python 3.12）。2026-11-24 起还有 `three`（0.187.0，MIT，只留 `three/build/three.module.js`、`three/build/three.core.js`、`three/LICENSE`），给立体图打包用，见 `INTERACTIVE.md`；`VERSIONS.json` 因此有三个包。两者都用 npm 注册表元数据里的 `dist.integrity`（sha512）校验。裁剪后总大小控制在约 25 MB 以内。
 - `python docs/whiteboard/ebook/fetch_vendor.py [--out projects/_ebook/vendor] [--force]`：下载→校验→在新的空临时目录里安全解包（拒绝绝对路径和 `..`）→按清单复制→写 `MANIFEST.sha256`、`VERSIONS.json`、许可证→最后重新校验。**不要用 `npm install`（会跑安装脚本）**，用注册表元数据加直接下载 tarball。
 
 ## 5. 运行线程与 Python 运行器（T3）
