@@ -6,7 +6,9 @@ narration timeline and the script, and checks what lint, the layout check and th
      staying at least 0.25 s after it ends (a line of 1 s is over before a robot that starts to walk in at the first word has arrived)
   2  every partner line appears word for word as a bubble: consecutive `write` items whose texts join to the line (a bubble may break only at punctuation), starting between 2.5 s before
      and 0.8 s after the clip starts and staying on the board until the clip ends
-  3  every robot interval contains a partner clip (the partner is on stage only around its own lines)
+  3  every robot interval contains a partner clip (the partner is on stage only around its own lines) -- unless the lesson declares an action-only appearance in
+     <project>/validation/partner_action_presence.json {"allowed": [{"section": "s4", "from_cue": "s4-c23", "until_cue": "s4-c25", "why": "..."}]}: each entry must be one of the
+     robot presence entries of validation/preflight_cue_times.json (i.e. of the approved scene plan); a robot interval fully inside such an entry (+-0.3 s) is then allowed without a clip
   4  the partner's pictures are listed before the teacher's (drawn behind her), see Board._stage_robot in the starter head
 
 Usage:  .venv/bin/python docs/whiteboard_partner_check.py projects/<lesson>      (exit 1 on any FAIL; rebuild_edit.sh of the agent starter runs it when the script has partner_lines)
@@ -27,6 +29,16 @@ def main():
     script = json.loads((P / "artifacts/script.json").read_text(encoding="utf-8"))
     lines_by_sec = script.get("metadata", {}).get("partner_lines", {})
     fail = []
+    allowed = []   # (section id, start, end): robot appearances without a line that the approved scene plan declares (E92: "speaks or has an action"); default: none
+    _ap = P / "validation/partner_action_presence.json"
+    if _ap.is_file():
+        _pre = {(x["section_id"], x["from_cue"], x["until_cue"]): x for x in json.loads((P / "validation/preflight_cue_times.json").read_text(encoding="utf-8")).get("presence", [])}
+        for a in json.loads(_ap.read_text(encoding="utf-8")).get("allowed", []):
+            key = (a["section"], a["from_cue"], a["until_cue"])
+            if key not in _pre or not a.get("why"):
+                fail.append(f"partner_action_presence.json: {key} is not a presence entry of the approved scene plan (or has no reason)")
+            else:
+                allowed.append((a["section"], float(_pre[key]["start"]), float(_pre[key]["end"])))
     cuts = {c["id"]: c for c in props["cuts"]}
     secs = tl["sections"]
     for i, sec in enumerate(secs):
@@ -56,7 +68,7 @@ def main():
             if not any(a <= cl["start"] - 0.5 and u >= cl["end"] + 0.25 for a, u, _ in merged):
                 fail.append(f"{cid}: partner clip {cl['start']:.2f}-{cl['end']:.2f} {cl['text']!r} is not covered by a robot on stage (arrive >= 0.5 s before, stay >= 0.25 s after)")
         for a, u, n in merged:
-            if not any(a <= cl["start"] and cl["end"] <= u for cl in clips):
+            if not any(a <= cl["start"] and cl["end"] <= u for cl in clips) and not any(s == sec["id"] and a >= s0 - 0.3 and u <= e0 + 0.3 for s, s0, e0 in allowed):
                 fail.append(f"{cid}: robot on stage {a:.2f}-{u:.2f} contains no partner clip")
         writes = sorted(((span(it)[0], span(it)[1], it["text"]) for it in items if it["kind"] == "write"), key=lambda w: w[0])
         for cl in clips:

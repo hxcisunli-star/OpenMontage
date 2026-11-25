@@ -892,6 +892,42 @@ def t_sfx():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def t_partner_action_presence():
+    """docs/whiteboard_partner_check.py optional <project>/validation/partner_action_presence.json (lesson 20): a robot appearance without a partner line passes only when it is
+    declared AND the declaration is one of the scene plan's presence entries (validation/preflight_cue_times.json) AND the robot interval lies inside it (+-0.3 s); without
+    the file the check is unchanged (an interval without a clip fails)."""
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        (tmp / "assets/audio").mkdir(parents=True)
+        (tmp / "artifacts").mkdir()
+        (tmp / "validation").mkdir()
+        item = lambda a, u: {"kind": "image", "src": "images/robot_key_hold.png", "at": a, "until": u}
+        write = lambda a, u: (tmp / "render_props.json").write_text(json.dumps({"cuts": [{"id": "K1", "in_seconds": 0.0, "out_seconds": 60.0, "whiteboard": {"items": [item(a, u)]}}]}), encoding="utf-8")
+        (tmp / "assets/audio/narration_timeline.json").write_text(json.dumps({"sections": [{"id": "s1", "clips": []}]}), encoding="utf-8")
+        (tmp / "artifacts/script.json").write_text(json.dumps({"metadata": {"partner_lines": {}}}), encoding="utf-8")
+        (tmp / "validation/preflight_cue_times.json").write_text(json.dumps({"presence": [{"section_id": "s1", "from_cue": "s1-c05", "until_cue": "s1-c07", "start": 9.8, "end": 14.2}]}), encoding="utf-8")
+        decl = lambda **kw: (tmp / "validation/partner_action_presence.json").write_text(json.dumps({"allowed": [{"section": "s1", "from_cue": "s1-c05", "until_cue": "s1-c07", "why": "test", **kw}]}), encoding="utf-8")
+        run = lambda: sh(PY, "docs/whiteboard_partner_check.py", tmp)
+        write(10.0, 14.0)
+        r = run()
+        check("partner_check: a robot interval without a clip and without a declaration still fails", r.returncode == 1 and "contains no partner clip" in r.stdout, r.stdout.strip()[-80:])
+        decl()
+        r = run()
+        check("partner_check: the same interval passes when declared as one of the scene plan's presence entries", r.returncode == 0 and "0 failure" in r.stdout, r.stdout.strip()[-80:])
+        decl(from_cue="s1-c04")
+        r = run()
+        check("partner_check: a declaration that is not a scene-plan presence entry fails", r.returncode == 1 and "not a presence entry" in r.stdout, r.stdout.strip()[-100:])
+        decl(why="")
+        r = run()
+        check("partner_check: a declaration without a reason fails", r.returncode == 1 and "not a presence entry" in r.stdout, r.stdout.strip()[-100:])
+        decl()
+        write(8.0, 12.0)
+        r = run()
+        check("partner_check: a robot interval that starts more than 0.3 s before the declared presence fails", r.returncode == 1 and "contains no partner clip" in r.stdout, r.stdout.strip()[-80:])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def t_sfx_answer_at():
     """docs/whiteboard_sfx.py optional <project>/validation/sfx_answer_at.json (lesson 16): a question answered later than its silence gets its chime at the given time;
     without the file every lesson behaves as before; the quiz-silence rule still uses question_end / answer_not_before; a time before the silence ends is refused."""
@@ -1553,7 +1589,7 @@ def t_release_pack_offline_site():
 
 def main():
     slow = "--slow" in sys.argv
-    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_sfx_answer_at, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_review_helpers_remote_overflow, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
+    for t in (t_last_item, t_thumb, t_script_lint, t_lint_mixed, t_layout_rules, t_v2_fields, t_board_v2, t_pose_tool, t_cover_series, t_scene_plan_devices, t_registry_external_source, t_scene_plan_abstract_words, t_lint_camera_and_long_text, t_kit_devices, t_sfx, t_sfx_apply, t_sfx_answer_at, t_partner_action_presence, t_h3_clip, t_video_clip_cut, t_prepend_sting, t_callbacks, t_gate, t_gate_experiment, t_gate_delegate, t_gate_delegate_all_gates, t_review_helpers_compare, t_review_helpers_remote_overflow, t_release_pack_offline_site, t_wait, t_new_lesson, t_series, t_registry):
         try:
             t()
         except Exception as e:  # a crashing test is a failing test
